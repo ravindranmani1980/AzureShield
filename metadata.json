@@ -1,0 +1,6 @@
+{
+  "name": "AzureShield — Storage & RBAC Security Loophole Auditor",
+  "description": "Enterprise CSPM analyzer identifying Azure storage bucket misconfigurations, unauthorized RBAC access permissions, privilege escalations, real-time alerts, and executive PDF audit reports with remediation runbooks.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
