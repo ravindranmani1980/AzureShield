@@ -219,13 +219,13 @@ export function generateAzureSecurityPdfReport(
   });
 
   const authorName = options.auditorName || 'Mani Ravindran';
-  const website = options.website || 'ravidnran.in';
+  const website = options.website || 'ravindran.in';
 
   doc.setProperties({
     title: 'AzureShield Security Audit Report',
     author: `${authorName} (${website})`,
     subject: 'Azure Storage & RBAC Loophole Assessment with Remediation Runbooks',
-    keywords: 'Azure, Storage, RBAC, IAM, CSPM, CIS Benchmark, ravidnran.in',
+    keywords: 'Azure, Storage, RBAC, IAM, CSPM, CIS Benchmark, ravindran.in',
     creator: `${authorName} - https://${website}`,
   });
 

@@ -101,12 +101,12 @@ export const PdfPreviewModal: React.FC<PdfPreviewModalProps> = ({
                 <p className="text-xs text-slate-500">
                   Audit Date: {new Date().toLocaleDateString()} • Lead Auditor: <strong>Mani Ravindran</strong> (
                   <a
-                    href="https://ravidnran.in"
+                    href="https://ravindran.in"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-blue-600 hover:underline"
                   >
-                    ravidnran.in
+                    ravindran.in
                   </a>
                   )
                 </p>

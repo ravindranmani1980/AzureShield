@@ -546,6 +546,30 @@ export default function App() {
         onClose={() => setIsSimulatorOpen(false)}
         onInject={handleInjectMisconfiguration}
       />
+
+      {/* Author & Reference Footer */}
+      <footer className="mt-16 border-t border-slate-800/80 bg-slate-950/80 py-6 text-xs text-slate-400">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-3">
+          <div className="flex items-center space-x-2">
+            <span className="font-semibold text-slate-300">AzureShield CSPM</span>
+            <span>•</span>
+            <span>Storage & RBAC Security Loophole Auditor</span>
+          </div>
+          <div className="flex items-center space-x-2">
+            <span>Author: <strong className="text-slate-200">Mani Ravindran</strong></span>
+            <span>•</span>
+            <span>Reference:</span>
+            <a
+              href="https://ravindran.in"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-blue-400 hover:text-blue-300 underline font-medium"
+            >
+              ravindran.in
+            </a>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }

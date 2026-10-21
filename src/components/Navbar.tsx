@@ -85,12 +85,12 @@ export const Navbar: React.FC<NavbarProps> = ({
               <p className="text-xs text-slate-400 hidden sm:block">
                 Storage & RBAC Auditor • By{' '}
                 <a
-                  href="https://ravidnran.in"
+                  href="https://ravindran.in"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-blue-400 hover:text-blue-300 font-medium hover:underline inline-flex items-center space-x-0.5"
                 >
-                  <span>Mani Ravindran (ravidnran.in)</span>
+                  <span>Mani Ravindran (ravindran.in)</span>
                 </a>
               </p>
             </div>
