@@ -75,23 +75,24 @@ export const Navbar: React.FC<NavbarProps> = ({
   return (
     <header className="sticky top-0 z-40 bg-slate-900/95 backdrop-blur-md border-b border-slate-800 text-slate-100">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16 gap-4">
+        {/* Top Row: Brand & Right Action Controls */}
+        <div className="flex flex-wrap items-center justify-between min-h-[4rem] py-2.5 gap-3">
           {/* Brand */}
-          <div className="flex items-center space-x-3 flex-shrink-0">
+          <div className="flex items-center space-x-3 min-w-0">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-cyan-400 flex items-center justify-center shadow-lg shadow-blue-500/20 flex-shrink-0">
               <ShieldAlert className="w-6 h-6 text-white" />
             </div>
-            <div className="flex-shrink-0">
-              <div className="flex items-center space-x-2 whitespace-nowrap">
-                <span className="font-extrabold text-lg sm:text-xl tracking-tight text-white whitespace-nowrap">
+            <div className="min-w-0">
+              <div className="flex items-center space-x-2">
+                <span className="font-extrabold text-lg sm:text-xl tracking-tight text-white truncate">
                   Maniq Shield
                 </span>
-                <span className="text-xs px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20 font-mono whitespace-nowrap">
+                <span className="text-xs px-2 py-0.5 rounded-md bg-blue-500/10 text-blue-400 border border-blue-500/20 font-mono whitespace-nowrap">
                   CSPM v2.4
                 </span>
               </div>
-              <p className="text-xs text-slate-400 hidden sm:block whitespace-nowrap">
-                Storage & RBAC Auditor • By{' '}
+              <p className="text-xs text-slate-400 hidden sm:block truncate">
+                Storage & RBAC Auditor · By{' '}
                 <a
                   href="https://ravindran.in"
                   target="_blank"
@@ -104,77 +105,12 @@ export const Navbar: React.FC<NavbarProps> = ({
             </div>
           </div>
 
-          {/* Navigation Tabs (Visible on XL screens inline, and in sub-bar below for <XL) */}
-          <nav className="hidden xl:flex items-center space-x-1 bg-slate-950/60 p-1 rounded-xl border border-slate-800 flex-shrink-0">
-            <button
-              onClick={() => setActiveTab('overview')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap ${
-                activeTab === 'overview'
-                  ? 'bg-blue-600 text-white shadow-sm'
-                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
-              }`}
-            >
-              Overview & Analytics
-            </button>
-            <button
-              onClick={() => setActiveTab('storage')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap ${
-                activeTab === 'storage'
-                  ? 'bg-blue-600 text-white shadow-sm'
-                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
-              }`}
-            >
-              Storage Accounts & Blobs
-            </button>
-            <button
-              onClick={() => setActiveTab('rbac')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap ${
-                activeTab === 'rbac'
-                  ? 'bg-blue-600 text-white shadow-sm'
-                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
-              }`}
-            >
-              RBAC & Permissions
-            </button>
-            <button
-              onClick={() => setActiveTab('findings')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap ${
-                activeTab === 'findings'
-                  ? 'bg-blue-600 text-white shadow-sm'
-                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
-              }`}
-            >
-              Remediation Register
-            </button>
-            <button
-              onClick={() => setActiveTab('remediation_log')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap flex items-center space-x-1.5 ${
-                activeTab === 'remediation_log'
-                  ? 'bg-emerald-600 text-white shadow-sm'
-                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
-              }`}
-            >
-              <span>Remediation Log</span>
-              <span
-                className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold font-mono ${
-                  activeTab === 'remediation_log'
-                    ? 'bg-white/20 text-white'
-                    : remediationLogCount > 0
-                    ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
-                    : 'bg-slate-800 text-slate-400'
-                }`}
-              >
-                {remediationLogCount}
-              </span>
-            </button>
-          </nav>
-
           {/* Right Action Controls */}
-          <div className="flex items-center space-x-2 sm:space-x-3">
+          <div className="flex items-center flex-wrap justify-end gap-2">
             {/* Live Azure Connect Button */}
             <button
               onClick={onOpenLiveSync}
-              className={`flex items-center space-x-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
+              className={`flex items-center space-x-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold border transition-all whitespace-nowrap ${
                 isLiveConnected
                   ? 'bg-cyan-500/20 border-cyan-500/40 text-cyan-300 shadow-sm shadow-cyan-500/20'
                   : 'bg-slate-800/80 hover:bg-slate-800 border-slate-700 text-slate-300 hover:text-white'
@@ -185,7 +121,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                   : 'Connect real-time Azure infrastructure via REST API or CLI'
               }
             >
-              <span className="relative flex h-2 w-2">
+              <span className="relative flex h-2 w-2 flex-shrink-0">
                 {isLiveConnected && (
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75" />
                 )}
@@ -202,7 +138,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             </button>
 
             {/* Environment Preset Selector */}
-            <div className="relative hidden lg:block">
+            <div className="relative hidden md:block">
               <select
                 value={
                   activeDataset.presetName.includes('Breach')
@@ -226,27 +162,27 @@ export const Navbar: React.FC<NavbarProps> = ({
                   ? 'Continuous Cloud Watch is ACTIVE (Simulating live telemetry)'
                   : 'Continuous Cloud Watch is PAUSED'
               }
-              className={`hidden sm:flex items-center space-x-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium border transition-all ${
+              className={`hidden sm:flex items-center space-x-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium border transition-all whitespace-nowrap ${
                 isContinuousMonitoring
                   ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
                   : 'bg-slate-800/60 border-slate-700 text-slate-400 hover:text-slate-200'
               }`}
             >
               <Radio
-                className={`w-3.5 h-3.5 ${
+                className={`w-3.5 h-3.5 flex-shrink-0 ${
                   isContinuousMonitoring ? 'animate-pulse text-emerald-400' : ''
                 }`}
               />
-              <span className="hidden xl:inline">Continuous Watch</span>
+              <span className="hidden lg:inline">Continuous Watch</span>
             </button>
 
             {/* Simulate Injection Button */}
             <button
               onClick={onOpenSimulator}
-              className="flex items-center space-x-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 transition-all shadow-sm"
+              className="flex items-center space-x-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 transition-all shadow-sm whitespace-nowrap"
               title="Inject a misconfiguration to test real-time alerts"
             >
-              <Flame className="w-3.5 h-3.5 text-amber-400" />
+              <Flame className="w-3.5 h-3.5 text-amber-400 flex-shrink-0" />
               <span className="hidden sm:inline">Inject Misconfig</span>
             </button>
 
@@ -348,7 +284,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             {/* Export PDF Button */}
             <button
               onClick={onDownloadPdf}
-              className="flex items-center space-x-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-semibold bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white shadow-md shadow-blue-600/20 transition-all active:scale-95 flex-shrink-0"
+              className="flex items-center space-x-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-semibold bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white shadow-md shadow-blue-600/20 transition-all active:scale-95 flex-shrink-0 whitespace-nowrap"
             >
               <FileDown className="w-3.5 h-3.5" />
               <span className="hidden sm:inline">Export PDF Report</span>
@@ -357,62 +293,73 @@ export const Navbar: React.FC<NavbarProps> = ({
           </div>
         </div>
 
-        {/* Sub-Bar Navigation Tabs for <XL screens */}
-        <div className="flex xl:hidden items-center justify-start space-x-2 py-2 border-t border-slate-800/80 overflow-x-auto text-xs">
+        {/* Dedicated Left-Aligned Navigation Bar */}
+        <nav
+          aria-label="Primary Navigation"
+          className="flex items-center justify-start gap-1.5 py-2 border-t border-slate-800/80 overflow-x-auto"
+        >
           <button
             onClick={() => setActiveTab('overview')}
-            className={`px-3 py-1 rounded-lg font-medium transition-colors whitespace-nowrap ${
+            className={`px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap ${
               activeTab === 'overview'
-                ? 'bg-blue-600 text-white font-bold'
-                : 'text-slate-400 hover:text-white'
+                ? 'bg-blue-600 text-white shadow-sm'
+                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
             }`}
           >
             Overview & Analytics
           </button>
           <button
             onClick={() => setActiveTab('storage')}
-            className={`px-3 py-1 rounded-lg font-medium transition-colors whitespace-nowrap ${
+            className={`px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap ${
               activeTab === 'storage'
-                ? 'bg-blue-600 text-white font-bold'
-                : 'text-slate-400 hover:text-white'
+                ? 'bg-blue-600 text-white shadow-sm'
+                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
             }`}
           >
             Storage Accounts & Blobs
           </button>
           <button
             onClick={() => setActiveTab('rbac')}
-            className={`px-3 py-1 rounded-lg font-medium transition-colors whitespace-nowrap ${
+            className={`px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap ${
               activeTab === 'rbac'
-                ? 'bg-blue-600 text-white font-bold'
-                : 'text-slate-400 hover:text-white'
+                ? 'bg-blue-600 text-white shadow-sm'
+                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
             }`}
           >
             RBAC & Permissions
           </button>
           <button
             onClick={() => setActiveTab('findings')}
-            className={`px-3 py-1 rounded-lg font-medium transition-colors whitespace-nowrap ${
+            className={`px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap ${
               activeTab === 'findings'
-                ? 'bg-blue-600 text-white font-bold'
-                : 'text-slate-400 hover:text-white'
+                ? 'bg-blue-600 text-white shadow-sm'
+                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
             }`}
           >
             Remediation Register
           </button>
           <button
             onClick={() => setActiveTab('remediation_log')}
-            className={`px-3 py-1 rounded-lg font-medium transition-colors whitespace-nowrap flex items-center space-x-1 ${
+            className={`px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap flex items-center space-x-1.5 ${
               activeTab === 'remediation_log'
-                ? 'bg-emerald-600 text-white font-bold'
-                : 'text-slate-400 hover:text-white'
+                ? 'bg-emerald-600 text-white shadow-sm'
+                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
             }`}
           >
             <span>Remediation Log</span>
-            <span className="px-1.5 py-0.2 rounded-full text-[10px] font-mono bg-emerald-500/20 text-emerald-300">
+            <span
+              className={`px-1.5 py-0.2 rounded-md text-[10px] font-bold font-mono ${
+                activeTab === 'remediation_log'
+                  ? 'bg-white/20 text-white'
+                  : remediationLogCount > 0
+                  ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                  : 'bg-slate-800 text-slate-400'
+              }`}
+            >
               {remediationLogCount}
             </span>
           </button>
-        </div>
+        </nav>
       </div>
     </header>
   );

@@ -21,7 +21,6 @@ import {
   Network,
 } from 'lucide-react';
 import { StorageAccount, Finding, RbacAssignment } from '../types/security';
-import { SAMPLE_HIGH_RISK_DATASET } from '../utils/defaultData';
 import { StorageAccessGraphD3 } from './StorageAccessGraphD3';
 
 interface StorageAuditorProps {
@@ -34,7 +33,7 @@ interface StorageAuditorProps {
 
 export const StorageAuditor: React.FC<StorageAuditorProps> = ({
   storageAccounts,
-  roleAssignments = SAMPLE_HIGH_RISK_DATASET.roleAssignments,
+  roleAssignments = [],
   findings,
   onSelectFinding,
 }) => {
@@ -134,6 +133,18 @@ export const StorageAuditor: React.FC<StorageAuditorProps> = ({
           onSelectAccount={(accName) => setSelectedAccountName(accName)}
           onSelectFinding={onSelectFinding}
         />
+      )}
+
+      {storageAccounts.length === 0 && (
+        <div className="p-8 rounded-2xl bg-slate-900 border border-slate-800 text-center space-y-2">
+          <Database className="w-10 h-10 text-cyan-400 mx-auto" />
+          <h3 className="text-base font-bold text-white">
+            0 Storage Accounts & 0 Containers Returned from Live Azure Subscription
+          </h3>
+          <p className="text-xs text-slate-400 max-w-xl mx-auto leading-relaxed">
+            Connected to live Azure Resource Manager (<code className="text-cyan-300 font-mono">management.azure.com</code>). No Storage Accounts or Blob Containers were returned for the active subscription / RBAC scope.
+          </p>
+        </div>
       )}
 
       {selectedAccount && (
@@ -330,7 +341,12 @@ export const StorageAuditor: React.FC<StorageAuditorProps> = ({
               </div>
 
               <div className="space-y-2.5">
-                {selectedAccount.containers.map((container) => {
+                {selectedAccount.containers.length === 0 ? (
+                  <div className="p-4 rounded-xl bg-slate-950/60 border border-slate-800/80 text-xs text-slate-400 text-center">
+                    0 Blob Containers in {selectedAccount.name}
+                  </div>
+                ) : (
+                  selectedAccount.containers.map((container) => {
                   const isExposed = container.publicAccess !== 'None';
                   return (
                     <div
@@ -379,7 +395,8 @@ export const StorageAuditor: React.FC<StorageAuditorProps> = ({
                       </div>
                     </div>
                   );
-                })}
+                  })
+                )}
               </div>
             </div>
           </div>

@@ -40,6 +40,7 @@ interface LiveAzureSyncModalProps {
     roleAssignments: RbacAssignment[];
     subscriptionId: string;
     sourceName: string;
+    warnings?: string[];
   }) => void;
   isLiveConnected: boolean;
   liveSourceName?: string;
@@ -250,11 +251,17 @@ export const LiveAzureSyncModal: React.FC<LiveAzureSyncModalProps> = ({
           result.subscriptionsScanned > 1
             ? `Azure ARM Tenant Scan (${result.subscriptionsScanned} Subs)`
             : `Azure ARM REST API (${subLabel.slice(0, 8)}...)`,
+        warnings: result.warnings,
       });
+
+      const warnText =
+        result.warnings && result.warnings.length > 0
+          ? ` Note from Azure ARM: ${result.warnings[0]}`
+          : '';
 
       setSyncStatus({
         type: 'success',
-        message: `One-Shot Live Azure Sync Complete: Audited ${result.storageAccounts.length} Storage Account(s) and ${result.roleAssignments.length} RBAC Assignment(s) across ${result.subscriptionsScanned} subscription(s) in parallel.`,
+        message: `Live Azure ARM Sync Complete: Discovered ${result.storageAccounts.length} Storage Account(s), ${result.rawCount.containers} Blob Container(s), and ${result.roleAssignments.length} RBAC Assignment(s) across ${result.subscriptionsScanned} subscription(s).${warnText}`,
       });
     } catch (err: any) {
       setSyncStatus({

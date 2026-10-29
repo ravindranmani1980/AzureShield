@@ -30,6 +30,8 @@ import { PdfPreviewModal } from './components/PdfPreviewModal';
 import { MisconfigurationSimulatorModal } from './components/MisconfigurationSimulatorModal';
 import { LiveAzureSyncModal } from './components/LiveAzureSyncModal';
 import {
+  AzureJwtPrincipalInfo,
+  decodeAzureJwtInfo,
   DEFAULT_AZURE_ACCESS_TOKEN,
   DEFAULT_AZURE_SUBSCRIPTION_ID,
   DEFAULT_AZURE_TENANT_ID,
@@ -38,11 +40,12 @@ import {
 
 export default function App() {
   const [activePresetKey, setActivePresetKey] = useState<'high_risk' | 'hardened'>('high_risk');
+  // Start with empty arrays when live default credentials are configured so sample containers never mask live counts
   const [storageAccounts, setStorageAccounts] = useState<StorageAccount[]>(
-    SAMPLE_HIGH_RISK_DATASET.storageAccounts
+    DEFAULT_AZURE_ACCESS_TOKEN ? [] : SAMPLE_HIGH_RISK_DATASET.storageAccounts
   );
   const [roleAssignments, setRoleAssignments] = useState<RbacAssignment[]>(
-    SAMPLE_HIGH_RISK_DATASET.roleAssignments
+    DEFAULT_AZURE_ACCESS_TOKEN ? [] : SAMPLE_HIGH_RISK_DATASET.roleAssignments
   );
   const [activeTab, setActiveTab] = useState<
     'overview' | 'storage' | 'rbac' | 'findings' | 'remediation_log'
@@ -55,11 +58,19 @@ export default function App() {
   const [isContinuousMonitoring, setIsContinuousMonitoring] = useState<boolean>(true);
 
   // Live Azure connection states
-  const [isLiveConnected, setIsLiveConnected] = useState<boolean>(false);
+  const [isLiveConnected, setIsLiveConnected] = useState<boolean>(
+    Boolean(DEFAULT_AZURE_ACCESS_TOKEN)
+  );
   const [isLiveSyncModalOpen, setIsLiveSyncModalOpen] = useState<boolean>(false);
-  const [liveSourceName, setLiveSourceName] = useState<string>('');
+  const [liveSourceName, setLiveSourceName] = useState<string>(
+    `Azure ARM REST API (${DEFAULT_AZURE_SUBSCRIPTION_ID.slice(0, 8)}...)`
+  );
   const [liveSubscriptionId, setLiveSubscriptionId] = useState<string>(
     DEFAULT_AZURE_SUBSCRIPTION_ID
+  );
+  const [liveWarnings, setLiveWarnings] = useState<string[]>([]);
+  const [liveJwtInfo, setLiveJwtInfo] = useState<AzureJwtPrincipalInfo | null>(
+    () => decodeAzureJwtInfo(DEFAULT_AZURE_ACCESS_TOKEN)
   );
   const [isEventStreamActive, setIsEventStreamActive] = useState<boolean>(true);
 
@@ -73,23 +84,27 @@ export default function App() {
       scanAllSubscriptions: false,
     })
       .then((res) => {
-        if (
-          mounted &&
-          (res.storageAccounts.length > 0 || res.roleAssignments.length > 0)
-        ) {
-          setStorageAccounts(res.storageAccounts);
-          setRoleAssignments(res.roleAssignments);
-          setLiveSubscriptionId(
-            res.subscriptionIds[0] || DEFAULT_AZURE_SUBSCRIPTION_ID
-          );
-          setLiveSourceName(
-            `Azure ARM REST API (${DEFAULT_AZURE_SUBSCRIPTION_ID.slice(0, 8)}...)`
-          );
-          setIsLiveConnected(true);
-        }
+        if (!mounted) return;
+        setStorageAccounts(res.storageAccounts);
+        setRoleAssignments(res.roleAssignments);
+        setLiveWarnings(res.warnings || []);
+        if (res.jwtInfo) setLiveJwtInfo(res.jwtInfo);
+        setLiveSubscriptionId(
+          res.subscriptionIds[0] || DEFAULT_AZURE_SUBSCRIPTION_ID
+        );
+        setLiveSourceName(
+          `Azure ARM REST API (${DEFAULT_AZURE_SUBSCRIPTION_ID.slice(0, 8)}...)`
+        );
+        setIsLiveConnected(true);
       })
-      .catch(() => {
-        // Keep default dataset ready if browser CORS or token blocks direct background call
+      .catch((err) => {
+        if (!mounted) return;
+        setStorageAccounts([]);
+        setRoleAssignments([]);
+        setLiveWarnings([
+          err?.message || 'Unable to query Azure ARM REST endpoint',
+        ]);
+        setIsLiveConnected(true);
       });
     return () => {
       mounted = false;
@@ -173,6 +188,8 @@ export default function App() {
           read: false,
         }));
       setAlerts(initialAlerts);
+    } else if (findings.length === 0 && alerts.length > 0) {
+      setAlerts([]);
     }
   }, [findings, alerts.length]);
 
@@ -191,6 +208,7 @@ export default function App() {
   // Handle Preset Switching
   const handleSelectDataset = (key: string) => {
     setIsLiveConnected(false);
+    setLiveWarnings([]);
     if (key === 'hardened') {
       setActivePresetKey('hardened');
       setStorageAccounts(SAMPLE_HARDENED_DATASET.storageAccounts);
@@ -208,21 +226,26 @@ export default function App() {
     roleAssignments: RbacAssignment[];
     subscriptionId: string;
     sourceName: string;
+    warnings?: string[];
   }) => {
-    if (data.storageAccounts.length > 0) setStorageAccounts(data.storageAccounts);
-    if (data.roleAssignments.length > 0) setRoleAssignments(data.roleAssignments);
+    setStorageAccounts(data.storageAccounts);
+    setRoleAssignments(data.roleAssignments);
+    setLiveWarnings(data.warnings || []);
     setIsLiveConnected(true);
     setLiveSourceName(data.sourceName);
     setLiveSubscriptionId(data.subscriptionId);
     setIsEventStreamActive(true);
 
     const auditResult = executeFullAudit(
-      data.storageAccounts.length > 0 ? data.storageAccounts : storageAccounts,
-      data.roleAssignments.length > 0 ? data.roleAssignments : roleAssignments
+      data.storageAccounts,
+      data.roleAssignments
     );
     const firstCrit = auditResult.findings.find((f) => f.severity === 'CRITICAL');
     if (firstCrit) {
       triggerRealTimeAlert(firstCrit);
+    } else {
+      setAlerts([]);
+      setActiveBannerAlert(null);
     }
   };
 
@@ -752,6 +775,10 @@ export default function App() {
   }, [findings, selectedFindingId]);
 
   const unreadAlertCount = alerts.filter((a) => !a.read).length;
+  const totalLiveContainersCount = storageAccounts.reduce(
+    (sum, acc) => sum + acc.containers.length,
+    0
+  );
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 font-sans antialiased selection:bg-blue-600 selection:text-white">
@@ -781,7 +808,73 @@ export default function App() {
       />
 
       {/* Main Container */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+        {/* Live Azure Connection Status & Exact Resource Count Banner */}
+        {isLiveConnected && (
+          <div className="p-4 rounded-2xl bg-slate-900/90 border border-slate-800 space-y-3">
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
+                <span className="inline-flex items-center space-x-1.5 font-bold text-emerald-400">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+                  <span>LIVE AZURE ARM CONNECTION ACTIVE</span>
+                </span>
+                {liveJwtInfo && (
+                  <span className="text-slate-300 font-mono">
+                    Principal: <strong className="text-white">{liveJwtInfo.principalName}</strong>
+                  </span>
+                )}
+                <span className="text-slate-400 font-mono">
+                  Tenant: <span className="text-slate-200">{DEFAULT_AZURE_TENANT_ID}</span>
+                </span>
+                <span className="text-slate-400 font-mono">
+                  Subscription: <span className="text-cyan-300">{liveSubscriptionId}</span>
+                </span>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-3 text-xs">
+                <span className="font-mono text-slate-200 bg-slate-950 px-3 py-1 rounded-lg border border-slate-800">
+                  Live Counts: <strong>{storageAccounts.length}</strong> Storage Accounts ·{' '}
+                  <strong>{totalLiveContainersCount}</strong> Containers ·{' '}
+                  <strong>{roleAssignments.length}</strong> RBAC Assignments
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setIsLiveSyncModalOpen(true)}
+                  className="px-3 py-1 rounded-lg bg-blue-600/20 hover:bg-blue-600/30 text-blue-300 border border-blue-500/30 font-semibold transition-colors"
+                >
+                  Connection Details
+                </button>
+              </div>
+            </div>
+
+            {liveWarnings.length > 0 && (
+              <div className="p-3 rounded-xl bg-amber-950/30 border border-amber-500/30 text-xs text-amber-200 space-y-1.5">
+                <div className="font-bold text-amber-300">
+                  Azure Resource Manager (management.azure.com) Live Response Notice:
+                </div>
+                {liveWarnings.map((w, idx) => (
+                  <div key={idx} className="font-mono text-[11px] text-amber-100/90 break-words">
+                    • {w}
+                  </div>
+                ))}
+                <div className="text-[11px] text-slate-300 pt-1">
+                  <strong>Why Storage Accounts / Containers show 0:</strong> Your Bearer Token is valid and authenticated as{' '}
+                  <code className="text-cyan-300 font-mono">
+                    {liveJwtInfo?.principalName || 'ravindran.mani@live.com'}
+                  </code>
+                  , but Azure ARM requires an explicit subscription RBAC role (<code className="text-emerald-300 font-mono">Reader</code>) on{' '}
+                  <code className="text-cyan-300 font-mono">/subscriptions/{liveSubscriptionId}</code> (or Entra ID{' '}
+                  <em>"Access management for Azure resources"</em> toggled ON for Global Admins) to read Storage Accounts. Once granted, refresh your token with{' '}
+                  <code className="bg-slate-950 px-1.5 py-0.5 rounded text-cyan-300 font-mono">
+                    az account get-access-token --resource https://management.azure.com/
+                  </code>{' '}
+                  in Live Azure Sync.
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
         {activeTab === 'overview' && (
           <OverviewDashboard
             metrics={metrics}
