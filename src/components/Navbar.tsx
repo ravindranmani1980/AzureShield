@@ -33,8 +33,9 @@ interface NavbarProps {
   onMarkAllAlertsRead: () => void;
   isContinuousMonitoring: boolean;
   onToggleContinuousMonitoring: () => void;
-  activeTab: 'overview' | 'storage' | 'rbac' | 'findings';
-  setActiveTab: (tab: 'overview' | 'storage' | 'rbac' | 'findings') => void;
+  activeTab: 'overview' | 'storage' | 'rbac' | 'findings' | 'remediation_log';
+  setActiveTab: (tab: 'overview' | 'storage' | 'rbac' | 'findings' | 'remediation_log') => void;
+  remediationLogCount?: number;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -54,6 +55,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   onToggleContinuousMonitoring,
   activeTab,
   setActiveTab,
+  remediationLogCount = 0,
 }) => {
   const [showAlertsDropdown, setShowAlertsDropdown] = useState(false);
 
@@ -143,6 +145,27 @@ export const Navbar: React.FC<NavbarProps> = ({
               }`}
             >
               Remediation Register
+            </button>
+            <button
+              onClick={() => setActiveTab('remediation_log')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap flex items-center space-x-1.5 ${
+                activeTab === 'remediation_log'
+                  ? 'bg-emerald-600 text-white shadow-sm'
+                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
+              }`}
+            >
+              <span>Remediation Log</span>
+              <span
+                className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold font-mono ${
+                  activeTab === 'remediation_log'
+                    ? 'bg-white/20 text-white'
+                    : remediationLogCount > 0
+                    ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                    : 'bg-slate-800 text-slate-400'
+                }`}
+              >
+                {remediationLogCount}
+              </span>
             </button>
           </nav>
 
@@ -375,6 +398,19 @@ export const Navbar: React.FC<NavbarProps> = ({
             }`}
           >
             Remediation Register
+          </button>
+          <button
+            onClick={() => setActiveTab('remediation_log')}
+            className={`px-3 py-1 rounded-lg font-medium transition-colors whitespace-nowrap flex items-center space-x-1 ${
+              activeTab === 'remediation_log'
+                ? 'bg-emerald-600 text-white font-bold'
+                : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            <span>Remediation Log</span>
+            <span className="px-1.5 py-0.2 rounded-full text-[10px] font-mono bg-emerald-500/20 text-emerald-300">
+              {remediationLogCount}
+            </span>
           </button>
         </div>
       </div>

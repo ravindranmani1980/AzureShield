@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React from 'react';
+import React, { useState } from 'react';
 import {
   ShieldAlert,
   ShieldCheck,
@@ -18,29 +18,200 @@ import {
   ArrowUpRight,
   TrendingDown,
   Sparkles,
+  CheckCircle2,
+  Zap,
 } from 'lucide-react';
-import { AuditMetrics, Finding } from '../types/security';
+import { AuditMetrics, Finding, RemediationLogEntry } from '../types/security';
+import { RemediationLog } from './RemediationLog';
 
 interface OverviewDashboardProps {
   metrics: AuditMetrics;
   findings: Finding[];
-  onNavigateTab: (tab: 'storage' | 'rbac' | 'findings') => void;
+  hardenedFindingsCount?: number;
+  totalEvaluatedFindingsCount?: number;
+  remediationLog?: RemediationLogEntry[];
+  onClearRemediationLog?: () => void;
+  onNavigateTab: (tab: 'storage' | 'rbac' | 'findings' | 'remediation_log') => void;
   onFilterCategory?: (category: string) => void;
   onSelectFinding: (findingId: string) => void;
+  onRemediateFinding?: (findingId: string) => void;
+  onHardenAll?: () => void;
 }
 
 export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
   metrics,
   findings,
+  hardenedFindingsCount: hardenedCountProp,
+  totalEvaluatedFindingsCount: totalEvaluatedProp,
+  remediationLog = [],
+  onClearRemediationLog,
   onNavigateTab,
   onFilterCategory,
   onSelectFinding,
+  onRemediateFinding,
+  onHardenAll,
 }) => {
+  // Local fallback state in case OverviewDashboard is rendered standalone without parent state handlers
+  const [localHardenedIds, setLocalHardenedIds] = useState<string[]>([]);
+  const [localRemediationLog, setLocalRemediationLog] = useState<RemediationLogEntry[]>([]);
+
+  const createLogEntryFromFinding = (
+    finding: Finding,
+    method: RemediationLogEntry['remediationMethod'],
+    scoreBefore: number,
+    scoreAfter: number
+  ): RemediationLogEntry => {
+    const now = new Date();
+    return {
+      id: `remed-log-${now.getTime()}-${Math.random().toString(36).slice(2, 7)}`,
+      findingId: finding.id,
+      title: finding.title,
+      category: finding.category,
+      severity: finding.severity,
+      resourceId: finding.resourceId,
+      resourceName: finding.resourceName,
+      resourceType: finding.resourceType,
+      remediatedAt: now.toISOString(),
+      formattedTimestamp: now.toLocaleString(),
+      remediationMethod: method,
+      remediationSummary:
+        finding.remediation?.summary || 'Applied security hardening configuration.',
+      cliCommandExecuted: finding.remediation?.cliCommand || '',
+      terraformSnippet: finding.remediation?.terraformSnippet,
+      compliance: finding.compliance || {},
+      subscriptionId: 'sub-prod-corp-001',
+      postureScoreBefore: scoreBefore,
+      postureScoreAfter: scoreAfter,
+      operator: 'Mani Ravindran (SecOps Admin)',
+    };
+  };
+
+  const handleQuickHarden = (findingId: string) => {
+    if (onRemediateFinding) {
+      onRemediateFinding(findingId);
+    } else {
+      const target = findings.find((f) => f.id === findingId);
+      setLocalHardenedIds((prev) =>
+        prev.includes(findingId) ? prev : [...prev, findingId]
+      );
+      if (target) {
+        const entry = createLogEntryFromFinding(
+          target,
+          'Single Remediation',
+          realtimePostureScore,
+          Math.min(
+            100,
+            Math.round(
+              ((hardenedFindingsCount + 1) / Math.max(1, totalFindingsCount)) * 100
+            )
+          )
+        );
+        setLocalRemediationLog((prev) => [entry, ...prev]);
+      }
+    }
+  };
+
+  const handleQuickHardenAll = () => {
+    if (onHardenAll) {
+      onHardenAll();
+    } else {
+      const unhardened = findings.filter((f) => !localHardenedIds.includes(f.id));
+      setLocalHardenedIds(findings.map((f) => f.id));
+      if (unhardened.length > 0) {
+        const newEntries = unhardened.map((f, idx) =>
+          createLogEntryFromFinding(
+            f,
+            'Bulk Hardening',
+            realtimePostureScore,
+            Math.min(
+              100,
+              Math.round(
+                ((hardenedFindingsCount + idx + 1) /
+                  Math.max(1, totalFindingsCount)) *
+                  100
+              )
+            )
+          )
+        );
+        setLocalRemediationLog((prev) => [...newEntries, ...prev]);
+      }
+    }
+  };
+
+  const effectiveRemediationLog =
+    remediationLog.length > 0 ? remediationLog : localRemediationLog;
+
+  // Count findings explicitly marked hardened in the findings array or via local fallback
+  const inlineHardenedCount = findings.filter(
+    (f) =>
+      f.isHardened ||
+      f.status === 'hardened' ||
+      f.remediated ||
+      localHardenedIds.includes(f.id)
+  ).length;
+
+  const activeOpenFindings = findings.filter(
+    (f) =>
+      !f.isHardened &&
+      f.status !== 'hardened' &&
+      !f.remediated &&
+      !localHardenedIds.includes(f.id)
+  );
+
+  const openFindingsCount = activeOpenFindings.length;
+
+  // Calculate real-time Hardened Findings vs. Total Findings ratio
+  const baselineHardenedCount =
+    typeof hardenedCountProp === 'number'
+      ? hardenedCountProp
+      : typeof metrics.hardenedFindingsCount === 'number'
+      ? metrics.hardenedFindingsCount
+      : 0;
+
+  const hardenedFindingsCount = baselineHardenedCount + inlineHardenedCount;
+
+  const totalFindingsCount =
+    typeof totalEvaluatedProp === 'number'
+      ? totalEvaluatedProp
+      : typeof metrics.totalEvaluatedFindings === 'number'
+      ? metrics.totalEvaluatedFindings
+      : hardenedFindingsCount + openFindingsCount;
+
+  // Real-time Security Posture Score calculated from ratio of hardened findings to total findings
+  const realtimePostureScore =
+    totalFindingsCount > 0
+      ? Math.min(
+          100,
+          Math.max(0, Math.round((hardenedFindingsCount / totalFindingsCount) * 100))
+        )
+      : metrics.postureScore ?? 100;
+
+  const dynamicRiskGrade =
+    realtimePostureScore >= 95
+      ? 'A+'
+      : realtimePostureScore >= 85
+      ? 'A'
+      : realtimePostureScore >= 70
+      ? 'B'
+      : realtimePostureScore >= 55
+      ? 'C'
+      : realtimePostureScore >= 40
+      ? 'D'
+      : 'F';
+
   // Posture Score color
   const getScoreColor = (score: number) => {
     if (score >= 85) return 'text-emerald-400 stroke-emerald-500';
-    if (score >= 70) return 'text-amber-400 stroke-amber-500';
+    if (score >= 70) return 'text-blue-400 stroke-blue-500';
+    if (score >= 55) return 'text-amber-400 stroke-amber-500';
     return 'text-red-400 stroke-red-500';
+  };
+
+  const getProgressBarGradient = (score: number) => {
+    if (score >= 85) return 'from-emerald-600 via-emerald-500 to-teal-400';
+    if (score >= 70) return 'from-blue-600 via-cyan-500 to-emerald-400';
+    if (score >= 55) return 'from-amber-600 via-amber-500 to-yellow-400';
+    return 'from-red-600 via-orange-500 to-amber-500';
   };
 
   const getRiskGradeBg = (grade: string) => {
@@ -60,28 +231,28 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
   const categoryBreakdown = [
     {
       name: 'Storage Accounts & Blobs',
-      count: findings.filter((f) => f.category === 'storage').length,
+      count: activeOpenFindings.filter((f) => f.category === 'storage').length,
       icon: Server,
       color: 'from-blue-600 to-cyan-500',
       tab: 'storage' as const,
     },
     {
       name: 'RBAC & Overprivileged Roles',
-      count: findings.filter((f) => f.category === 'rbac').length,
+      count: activeOpenFindings.filter((f) => f.category === 'rbac').length,
       icon: Users,
       color: 'from-purple-600 to-indigo-500',
       tab: 'rbac' as const,
     },
     {
       name: 'Privilege Escalation Risks',
-      count: findings.filter((f) => f.category === 'privilege_escalation').length,
+      count: activeOpenFindings.filter((f) => f.category === 'privilege_escalation').length,
       icon: Unlock,
       color: 'from-rose-600 to-red-500',
       tab: 'rbac' as const,
     },
     {
       name: 'Network Perimeter & Firewalls',
-      count: findings.filter((f) => f.category === 'network').length,
+      count: activeOpenFindings.filter((f) => f.category === 'network').length,
       icon: ShieldAlert,
       color: 'from-amber-600 to-orange-500',
       tab: 'storage' as const,
@@ -154,22 +325,27 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Posture Meter Card */}
         <div className="lg:col-span-4 bg-slate-900 rounded-2xl p-6 border border-slate-800 shadow-lg flex flex-col justify-between">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="font-bold text-slate-100 text-sm tracking-wide">
-              SECURITY POSTURE SCORE
-            </h3>
+          <div className="flex items-center justify-between mb-2">
+            <div>
+              <h3 className="font-bold text-slate-100 text-sm tracking-wide">
+                SECURITY POSTURE SCORE
+              </h3>
+              <p className="text-[11px] text-slate-400">
+                Real-time Hardened vs. Total Findings Ratio
+              </p>
+            </div>
             <span
               className={`text-xs px-2.5 py-0.5 rounded-full font-bold border ${getRiskGradeBg(
-                metrics.riskGrade
+                dynamicRiskGrade
               )}`}
             >
-              Grade {metrics.riskGrade}
+              Grade {dynamicRiskGrade}
             </span>
           </div>
 
-          {/* Circular Score Visual */}
-          <div className="flex flex-col items-center justify-center my-4">
-            <div className="relative w-40 h-40 flex items-center justify-center">
+          {/* Circular Score Gauge */}
+          <div className="flex flex-col items-center justify-center my-3">
+            <div className="relative w-36 h-36 flex items-center justify-center">
               <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
                 {/* Background Track */}
                 <circle
@@ -184,46 +360,98 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
                   cx="50"
                   cy="50"
                   r="42"
-                  className={`fill-none transition-all duration-1000 ease-out ${getScoreColor(
-                    metrics.postureScore
+                  className={`fill-none transition-all duration-700 ease-out ${getScoreColor(
+                    realtimePostureScore
                   )}`}
                   strokeWidth="8"
                   strokeDasharray={264}
-                  strokeDashoffset={264 - (264 * metrics.postureScore) / 100}
+                  strokeDashoffset={264 - (264 * realtimePostureScore) / 100}
                   strokeLinecap="round"
                 />
               </svg>
               <div className="absolute flex flex-col items-center justify-center text-center">
-                <span className="text-4xl font-extrabold text-white tracking-tighter">
-                  {metrics.postureScore}
+                <span className="text-3xl font-extrabold text-white tracking-tighter">
+                  {realtimePostureScore}%
                 </span>
-                <span className="text-[11px] text-slate-400 font-medium">
-                  OUT OF 100
+                <span className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">
+                  {hardenedFindingsCount}/{totalFindingsCount} Hardened
                 </span>
               </div>
             </div>
 
-            <p className="text-xs text-center text-slate-400 mt-3 max-w-xs">
-              {metrics.postureScore >= 80
-                ? 'Healthy posture. Low attack surface on storage and role privileges.'
-                : metrics.postureScore >= 60
-                ? 'Moderate posture risk. Address high-priority storage & RBAC issues.'
-                : 'CRITICAL EXPOSURE. Public storage containers or excessive RBAC roles require immediate remediation.'}
+            <p className="text-xs text-center text-slate-400 mt-2 max-w-xs">
+              {realtimePostureScore >= 85
+                ? 'Hardened posture. Low attack surface across Azure Storage and RBAC.'
+                : realtimePostureScore >= 60
+                ? 'Moderate posture risk. Harden remaining storage & RBAC findings.'
+                : 'CRITICAL EXPOSURE. Public containers or excessive RBAC roles require immediate hardening.'}
             </p>
           </div>
 
+          {/* Real-Time Hardened Findings Ratio Progress Bar */}
+          <div className="my-3 p-3.5 rounded-xl bg-slate-950/70 border border-slate-800/90 space-y-2.5">
+            <div className="flex items-center justify-between text-xs">
+              <span className="font-semibold text-slate-300 flex items-center space-x-1.5">
+                <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+                <span>Hardening Progress</span>
+              </span>
+              <span className="font-mono font-bold text-slate-200">
+                {hardenedFindingsCount} / {totalFindingsCount} ({realtimePostureScore}%)
+              </span>
+            </div>
+
+            {/* Progress Bar Track */}
+            <div
+              role="progressbar"
+              aria-label="Security Posture Score"
+              aria-valuenow={realtimePostureScore}
+              aria-valuemin={0}
+              aria-valuemax={100}
+              className="relative w-full bg-slate-900 h-3 rounded-full overflow-hidden border border-slate-800"
+            >
+              <div
+                className={`h-full bg-gradient-to-r ${getProgressBarGradient(
+                  realtimePostureScore
+                )} rounded-full transition-all duration-700 ease-out`}
+                style={{ width: `${realtimePostureScore}%` }}
+              />
+            </div>
+
+            {/* Ratio Breakdown Pills */}
+            <div className="flex items-center justify-between text-[11px] text-slate-400 pt-0.5">
+              <span className="flex items-center space-x-1 text-emerald-400 font-medium">
+                <CheckCircle2 className="w-3 h-3" />
+                <span>{hardenedFindingsCount} Hardened</span>
+              </span>
+              <span className="text-amber-400 font-medium">
+                {openFindingsCount} Open
+              </span>
+              <span>{totalFindingsCount} Total</span>
+            </div>
+
+            {openFindingsCount > 0 && (
+              <button
+                onClick={handleQuickHardenAll}
+                className="w-full mt-1 py-1.5 px-3 rounded-lg text-xs font-semibold bg-emerald-600/20 hover:bg-emerald-600 text-emerald-300 hover:text-white border border-emerald-500/30 transition-all flex items-center justify-center space-x-1.5"
+              >
+                <Zap className="w-3.5 h-3.5" />
+                <span>Harden All Remaining ({openFindingsCount})</span>
+              </button>
+            )}
+          </div>
+
           {/* Quick Metrics Footer */}
-          <div className="pt-4 border-t border-slate-800 grid grid-cols-2 gap-3 text-center">
+          <div className="pt-3 border-t border-slate-800 grid grid-cols-2 gap-3 text-center">
             <div className="p-2.5 rounded-xl bg-slate-950/60 border border-slate-800/80">
-              <div className="text-xs text-slate-400">Total Loopholes</div>
+              <div className="text-xs text-slate-400">Open Loopholes</div>
               <div className="text-xl font-bold text-white">
-                {metrics.totalFindings}
+                {openFindingsCount}
               </div>
             </div>
             <div className="p-2.5 rounded-xl bg-slate-950/60 border border-slate-800/80">
-              <div className="text-xs text-slate-400">Dormant Accounts</div>
-              <div className="text-xl font-bold text-amber-400">
-                {metrics.inactiveRoleCount}
+              <div className="text-xs text-slate-400">Hardened Findings</div>
+              <div className="text-xl font-bold text-emerald-400">
+                {hardenedFindingsCount}
               </div>
             </div>
           </div>
@@ -447,62 +675,93 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
         <div className="flex items-center justify-between mb-4">
           <div>
             <h3 className="font-bold text-slate-100 text-sm tracking-wide">
-              IMMEDIATE ACTION ITEMS (CRITICAL SEVERITY)
+              IMMEDIATE ACTION ITEMS (PRIORITY REMEDIATION)
             </h3>
             <p className="text-xs text-slate-400">
-              High-exploitability vulnerabilities that should be patched first
+              Harden vulnerabilities directly to improve your real-time Security Posture Score
             </p>
           </div>
           <button
             onClick={() => onNavigateTab('findings')}
             className="text-xs font-semibold text-blue-400 hover:text-blue-300 flex items-center space-x-1"
           >
-            <span>View All ({findings.length})</span>
+            <span>View All ({activeOpenFindings.length})</span>
             <ArrowUpRight className="w-3.5 h-3.5" />
           </button>
         </div>
 
-        <div className="space-y-3">
-          {findings
-            .filter((f) => f.severity === 'CRITICAL')
-            .slice(0, 4)
-            .map((finding) => (
-              <div
-                key={finding.id}
-                onClick={() => onSelectFinding(finding.id)}
-                className="p-3.5 rounded-xl bg-slate-950/70 border border-slate-800 hover:border-red-500/40 cursor-pointer transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 group"
-              >
-                <div className="flex items-start space-x-3">
-                  <div className="p-2 rounded-lg bg-red-500/20 text-red-400 border border-red-500/30 flex-shrink-0 mt-0.5">
-                    <AlertOctagon className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <div className="flex items-center space-x-2">
-                      <span className="text-xs font-bold text-white group-hover:text-red-300 transition-colors">
-                        {finding.title}
-                      </span>
-                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 font-mono">
-                        {finding.category.toUpperCase()}
-                      </span>
+        {activeOpenFindings.length === 0 ? (
+          <div className="p-6 rounded-xl bg-emerald-950/20 border border-emerald-500/30 text-center space-y-2">
+            <ShieldCheck className="w-8 h-8 text-emerald-400 mx-auto" />
+            <div className="text-sm font-bold text-emerald-300">
+              100% Hardened Security Posture Achieved
+            </div>
+            <p className="text-xs text-slate-400 max-w-md mx-auto">
+              All {totalFindingsCount} evaluated security findings across Azure Storage Accounts, Blob Containers, and RBAC assignments are hardened.
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {activeOpenFindings
+              .slice(0, 4)
+              .map((finding) => (
+                <div
+                  key={finding.id}
+                  onClick={() => onSelectFinding(finding.id)}
+                  className="p-3.5 rounded-xl bg-slate-950/70 border border-slate-800 hover:border-red-500/40 cursor-pointer transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 group"
+                >
+                  <div className="flex items-start space-x-3">
+                    <div className="p-2 rounded-lg bg-red-500/20 text-red-400 border border-red-500/30 flex-shrink-0 mt-0.5">
+                      <AlertOctagon className="w-4 h-4" />
                     </div>
-                    <p className="text-xs text-slate-400 line-clamp-1 mt-0.5">
-                      {finding.description}
-                    </p>
+                    <div>
+                      <div className="flex items-center space-x-2">
+                        <span className="text-xs font-bold text-white group-hover:text-red-300 transition-colors">
+                          {finding.title}
+                        </span>
+                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 font-mono">
+                          {finding.category.toUpperCase()}
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-400 line-clamp-1 mt-0.5">
+                        {finding.description}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center space-x-2 self-end sm:self-center flex-shrink-0">
+                    <span className="text-xs font-mono text-slate-400 hidden md:inline">
+                      {finding.resourceName}
+                    </span>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleQuickHarden(finding.id);
+                      }}
+                      className="px-3 py-1 rounded-lg text-xs font-semibold bg-emerald-600/20 text-emerald-300 border border-emerald-500/30 hover:bg-emerald-600 hover:text-white transition-all flex items-center space-x-1"
+                    >
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                      <span>Harden</span>
+                    </button>
+                    <button className="px-3 py-1 rounded-lg text-xs font-semibold bg-red-600/20 text-red-300 border border-red-500/30 group-hover:bg-red-600 group-hover:text-white transition-all">
+                      Runbook
+                    </button>
                   </div>
                 </div>
-
-                <div className="flex items-center space-x-3 self-end sm:self-center flex-shrink-0">
-                  <span className="text-xs font-mono text-slate-400">
-                    {finding.resourceName}
-                  </span>
-                  <button className="px-3 py-1 rounded-lg text-xs font-semibold bg-red-600/20 text-red-300 border border-red-500/30 group-hover:bg-red-600 group-hover:text-white transition-all">
-                    Remediate
-                  </button>
-                </div>
-              </div>
-            ))}
-        </div>
+              ))}
+          </div>
+        )}
       </div>
+
+      {/* Live Session Remediation Log Panel */}
+      <RemediationLog
+        entries={effectiveRemediationLog}
+        onClearLog={
+          onClearRemediationLog || (() => setLocalRemediationLog([]))
+        }
+        compact={true}
+        onViewAllClick={() => onNavigateTab('remediation_log')}
+      />
     </div>
   );
 };

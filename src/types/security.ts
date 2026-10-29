@@ -101,6 +101,9 @@ export interface Finding {
   detectedAt: string;
   isNewAlert?: boolean;
   privilegeEscalationPath?: string;
+  isHardened?: boolean;
+  status?: 'open' | 'hardened';
+  remediated?: boolean;
 }
 
 export interface SecurityAlert {
@@ -118,6 +121,8 @@ export interface SecurityAlert {
 export interface AuditMetrics {
   totalResources: number;
   totalFindings: number;
+  hardenedFindingsCount?: number;
+  totalEvaluatedFindings?: number;
   criticalCount: number;
   highCount: number;
   mediumCount: number;
@@ -144,3 +149,26 @@ export interface AuditDataset {
   storageAccounts: StorageAccount[];
   roleAssignments: RbacAssignment[];
 }
+
+export interface RemediationLogEntry {
+  id: string;
+  findingId: string;
+  title: string;
+  category: VulnerabilityCategory;
+  severity: Severity;
+  resourceId: string;
+  resourceName: string;
+  resourceType: Finding['resourceType'];
+  remediatedAt: string;
+  formattedTimestamp: string;
+  remediationMethod: 'Single Remediation' | 'Bulk Hardening' | 'Runbook Execution';
+  remediationSummary: string;
+  cliCommandExecuted: string;
+  terraformSnippet?: string;
+  compliance: ComplianceMapping;
+  subscriptionId: string;
+  postureScoreBefore: number;
+  postureScoreAfter: number;
+  operator: string;
+}
+

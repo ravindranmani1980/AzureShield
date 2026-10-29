@@ -21,16 +21,28 @@ import {
   Layers,
   Sparkles,
 } from 'lucide-react';
-import { Finding, Severity, VulnerabilityCategory } from '../types/security';
+import {
+  Finding,
+  RemediationLogEntry,
+  Severity,
+  VulnerabilityCategory,
+} from '../types/security';
+import { RemediationLog } from './RemediationLog';
 
 interface FindingsListProps {
   findings: Finding[];
   onSelectFinding: (findingId: string) => void;
+  onRemediateFinding?: (findingId: string) => void;
+  remediationLog?: RemediationLogEntry[];
+  onClearRemediationLog?: () => void;
 }
 
 export const FindingsList: React.FC<FindingsListProps> = ({
   findings,
   onSelectFinding,
+  onRemediateFinding,
+  remediationLog = [],
+  onClearRemediationLog,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedSeverity, setSelectedSeverity] = useState<Severity | 'ALL'>('ALL');
@@ -229,6 +241,17 @@ export const FindingsList: React.FC<FindingsListProps> = ({
                 </div>
 
                 <div className="flex items-center space-x-2">
+                  {onRemediateFinding && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onRemediateFinding(finding.id);
+                      }}
+                      className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-600/20 hover:bg-emerald-600 text-emerald-300 hover:text-white border border-emerald-500/30 transition-all"
+                    >
+                      Harden
+                    </button>
+                  )}
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
@@ -379,6 +402,12 @@ export const FindingsList: React.FC<FindingsListProps> = ({
           );
         })}
       </div>
+
+      {/* Session Remediation Log inside Remediation Register */}
+      <RemediationLog
+        entries={remediationLog}
+        onClearLog={onClearRemediationLog}
+      />
     </div>
   );
 };

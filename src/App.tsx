@@ -12,6 +12,7 @@ import {
   AuditDataset,
   Finding,
   RbacAssignment,
+  RemediationLogEntry,
   SecurityAlert,
   StorageAccount,
 } from './types/security';
@@ -23,10 +24,17 @@ import { OverviewDashboard } from './components/OverviewDashboard';
 import { StorageAuditor } from './components/StorageAuditor';
 import { RbacAuditor } from './components/RbacAuditor';
 import { FindingsList } from './components/FindingsList';
+import { RemediationLog } from './components/RemediationLog';
 import { FindingDetailModal } from './components/FindingDetailModal';
 import { PdfPreviewModal } from './components/PdfPreviewModal';
 import { MisconfigurationSimulatorModal } from './components/MisconfigurationSimulatorModal';
 import { LiveAzureSyncModal } from './components/LiveAzureSyncModal';
+import {
+  DEFAULT_AZURE_ACCESS_TOKEN,
+  DEFAULT_AZURE_SUBSCRIPTION_ID,
+  DEFAULT_AZURE_TENANT_ID,
+  fetchLiveAzureResources,
+} from './utils/azureLiveApi';
 
 export default function App() {
   const [activePresetKey, setActivePresetKey] = useState<'high_risk' | 'hardened'>('high_risk');
@@ -36,7 +44,10 @@ export default function App() {
   const [roleAssignments, setRoleAssignments] = useState<RbacAssignment[]>(
     SAMPLE_HIGH_RISK_DATASET.roleAssignments
   );
-  const [activeTab, setActiveTab] = useState<'overview' | 'storage' | 'rbac' | 'findings'>('overview');
+  const [activeTab, setActiveTab] = useState<
+    'overview' | 'storage' | 'rbac' | 'findings' | 'remediation_log'
+  >('overview');
+  const [remediationLog, setRemediationLog] = useState<RemediationLogEntry[]>([]);
   
   // Real-time alerting states
   const [alerts, setAlerts] = useState<SecurityAlert[]>([]);
@@ -47,8 +58,43 @@ export default function App() {
   const [isLiveConnected, setIsLiveConnected] = useState<boolean>(false);
   const [isLiveSyncModalOpen, setIsLiveSyncModalOpen] = useState<boolean>(false);
   const [liveSourceName, setLiveSourceName] = useState<string>('');
-  const [liveSubscriptionId, setLiveSubscriptionId] = useState<string>('');
+  const [liveSubscriptionId, setLiveSubscriptionId] = useState<string>(
+    DEFAULT_AZURE_SUBSCRIPTION_ID
+  );
   const [isEventStreamActive, setIsEventStreamActive] = useState<boolean>(true);
+
+  // Automatically attempt live Azure ARM sync on startup using configured defaults
+  useEffect(() => {
+    let mounted = true;
+    fetchLiveAzureResources({
+      subscriptionId: DEFAULT_AZURE_SUBSCRIPTION_ID,
+      tenantId: DEFAULT_AZURE_TENANT_ID,
+      accessToken: DEFAULT_AZURE_ACCESS_TOKEN,
+      scanAllSubscriptions: false,
+    })
+      .then((res) => {
+        if (
+          mounted &&
+          (res.storageAccounts.length > 0 || res.roleAssignments.length > 0)
+        ) {
+          setStorageAccounts(res.storageAccounts);
+          setRoleAssignments(res.roleAssignments);
+          setLiveSubscriptionId(
+            res.subscriptionIds[0] || DEFAULT_AZURE_SUBSCRIPTION_ID
+          );
+          setLiveSourceName(
+            `Azure ARM REST API (${DEFAULT_AZURE_SUBSCRIPTION_ID.slice(0, 8)}...)`
+          );
+          setIsLiveConnected(true);
+        }
+      })
+      .catch(() => {
+        // Keep default dataset ready if browser CORS or token blocks direct background call
+      });
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   // Modals
   const [selectedFindingId, setSelectedFindingId] = useState<string | null>(null);
@@ -74,7 +120,7 @@ export default function App() {
         ? SAMPLE_HIGH_RISK_DATASET.description
         : SAMPLE_HARDENED_DATASET.description,
       subscriptionId: isLiveConnected
-        ? liveSubscriptionId || 'a8f93e11-44bb-4e92-91ef-00129a883100'
+        ? liveSubscriptionId || DEFAULT_AZURE_SUBSCRIPTION_ID
         : activePresetKey === 'high_risk'
         ? SAMPLE_HIGH_RISK_DATASET.subscriptionId
         : SAMPLE_HARDENED_DATASET.subscriptionId,
@@ -424,62 +470,269 @@ export default function App() {
     }
   };
 
-  // Mark an individual finding as remediated in memory
+  // Mark an individual finding as remediated / hardened in memory and log session remediation metadata
   const handleRemediateFinding = (findingId: string) => {
-    // If it's a storage public access finding
-    if (findingId.includes('PUB-ACCESS') || findingId.includes('EXPOSED')) {
-      setStorageAccounts((prev) =>
-        prev.map((acc) => ({
-          ...acc,
-          allowBlobPublicAccess: false,
-          containers: acc.containers.map((c) => ({
-            ...c,
-            publicAccess: 'None',
-          })),
-        }))
+    const targetFinding =
+      findings.find((f) => f.id === findingId) ||
+      findings.find(
+        (f) =>
+          f.id.includes(findingId) ||
+          findingId.includes(f.resourceName) ||
+          f.resourceName.includes(findingId)
       );
-    } else if (findingId.includes('INSECURE-HTTP')) {
-      setStorageAccounts((prev) =>
-        prev.map((acc) => ({ ...acc, supportsHttpsTrafficOnly: true }))
+
+    if (targetFinding) {
+      const now = new Date();
+      const totalEval = metrics.totalEvaluatedFindings || Math.max(1, findings.length);
+      const hardenedBefore = metrics.hardenedFindingsCount || 0;
+      const scoreBefore = metrics.postureScore;
+      const scoreAfter = Math.min(
+        100,
+        Math.round(((hardenedBefore + 1) / totalEval) * 100)
       );
-    } else if (findingId.includes('LEGACY-TLS')) {
-      setStorageAccounts((prev) =>
-        prev.map((acc) => ({ ...acc, minimumTlsVersion: 'TLS1_2' }))
-      );
-    } else if (findingId.includes('NO-FIREWALL')) {
-      setStorageAccounts((prev) =>
-        prev.map((acc) => ({
-          ...acc,
-          defaultAction: 'Deny',
-          ipRulesCount: 2,
-        }))
-      );
-    } else if (findingId.includes('GUEST') || findingId.includes('SUB-OWNER')) {
-      // Remove or demote the role assignment
-      setRoleAssignments((prev) =>
-        prev.filter((r) => !findingId.includes(r.id) && !r.isExternalGuest)
-      );
-    } else if (findingId.includes('PRIV-ESCALATION') || findingId.includes('ESC')) {
-      // Remove roleAssignments/write permission
-      setRoleAssignments((prev) =>
-        prev.map((r) => ({
-          ...r,
-          actions: r.actions.filter(
-            (a) =>
-              !a.includes('roleAssignments/write') &&
-              a !== 'Microsoft.Authorization/*'
-          ),
-        }))
-      );
-    } else if (findingId.includes('DORMANT')) {
-      // Revoke dormant role assignment
-      setRoleAssignments((prev) => prev.filter((r) => r.lastActiveDays <= 90));
+
+      const newLogEntry: RemediationLogEntry = {
+        id: `remed-log-${now.getTime()}-${Math.random().toString(36).slice(2, 7)}`,
+        findingId: targetFinding.id,
+        title: targetFinding.title,
+        category: targetFinding.category,
+        severity: targetFinding.severity,
+        resourceId: targetFinding.resourceId,
+        resourceName: targetFinding.resourceName,
+        resourceType: targetFinding.resourceType,
+        remediatedAt: now.toISOString(),
+        formattedTimestamp: now.toLocaleString(),
+        remediationMethod: selectedFindingId === targetFinding.id
+          ? 'Runbook Execution'
+          : 'Single Remediation',
+        remediationSummary: targetFinding.remediation.summary,
+        cliCommandExecuted: targetFinding.remediation.cliCommand,
+        terraformSnippet: targetFinding.remediation.terraformSnippet,
+        compliance: targetFinding.compliance,
+        subscriptionId: activeDataset.subscriptionId,
+        postureScoreBefore: scoreBefore,
+        postureScoreAfter: scoreAfter,
+        operator: 'Mani Ravindran (SecOps Admin)',
+      };
+
+      setRemediationLog((prev) => [newLogEntry, ...prev]);
     }
+
+    setStorageAccounts((prev) =>
+      prev.map((acc) => {
+        const matchesAccount =
+          findingId.includes(acc.name) ||
+          targetFinding?.resourceId === acc.id ||
+          targetFinding?.resourceId?.startsWith(`${acc.id}/`);
+
+        if (!matchesAccount) return acc;
+
+        if (findingId.includes('PUB-ACCESS')) {
+          return { ...acc, allowBlobPublicAccess: false };
+        }
+        if (findingId.includes('EXPOSED')) {
+          return {
+            ...acc,
+            containers: acc.containers.map((c) =>
+              findingId.includes(c.name) || targetFinding?.resourceId?.endsWith(`/${c.name}`)
+                ? { ...c, publicAccess: 'None' }
+                : c
+            ),
+          };
+        }
+        if (findingId.includes('INFINITE')) {
+          return {
+            ...acc,
+            containers: acc.containers.map((c) =>
+              findingId.includes(c.name) || targetFinding?.resourceId?.includes(`/${c.name}/`)
+                ? { ...c, hasStoredAccessPolicyWithNoExpiry: false }
+                : c
+            ),
+          };
+        }
+        if (findingId.includes('INSECURE-HTTP') || findingId.includes('SEC-HTTP')) {
+          return { ...acc, supportsHttpsTrafficOnly: true };
+        }
+        if (findingId.includes('LEGACY-TLS') || findingId.includes('SEC-TLS')) {
+          return { ...acc, minimumTlsVersion: 'TLS1_2' };
+        }
+        if (findingId.includes('NO-FIREWALL')) {
+          return { ...acc, defaultAction: 'Deny', ipRulesCount: Math.max(2, acc.ipRulesCount) };
+        }
+        if (findingId.includes('SHARED-KEY')) {
+          return { ...acc, allowSharedKeyAccess: false };
+        }
+        if (findingId.includes('NO-SOFT-DELETE')) {
+          return { ...acc, softDeleteEnabled: true, blobRetentionDays: 30 };
+        }
+        if (findingId.includes('NO-LOGGING')) {
+          return { ...acc, loggingEnabled: true };
+        }
+        if (findingId.includes('NO-DEFENDER')) {
+          return { ...acc, defenderForStorageEnabled: true };
+        }
+        if (findingId.includes('NO-CMK')) {
+          return { ...acc, customerManagedKeyEnabled: true };
+        }
+        if (findingId.includes('CROSS-TENANT')) {
+          return { ...acc, crossTenantReplicationRestricted: true };
+        }
+        return acc;
+      })
+    );
+
+    setRoleAssignments((prev) =>
+      prev.map((r) => {
+        const matchesRole =
+          findingId.includes(r.id) ||
+          targetFinding?.resourceId === r.id ||
+          targetFinding?.resourceName === r.principalName;
+
+        if (!matchesRole) return r;
+
+        if (findingId.includes('SUB-OWNER')) {
+          return {
+            ...r,
+            scope: r.scope.includes('/resourceGroups/')
+              ? r.scope
+              : `${r.scope}/resourceGroups/rg-scoped-workload`,
+          };
+        }
+        if (findingId.includes('GUEST')) {
+          return { ...r, isExternalGuest: false, roleDefinitionName: 'Reader', actions: ['*/read'] };
+        }
+        if (findingId.includes('PRIV-ESCALATION') || findingId.includes('ESC')) {
+          return {
+            ...r,
+            actions: r.actions.filter(
+              (a) =>
+                a !== '*' &&
+                !a.includes('roleAssignments/write') &&
+                !a.includes('roleAssignments/*') &&
+                a !== 'Microsoft.Authorization/*'
+            ),
+          };
+        }
+        if (findingId.includes('SP-OVERPRIVILEGED')) {
+          return {
+            ...r,
+            roleDefinitionName: 'Storage Blob Data Reader',
+            actions: ['Microsoft.Storage/storageAccounts/read'],
+          };
+        }
+        if (findingId.includes('DORMANT')) {
+          return { ...r, lastActiveDays: 0 };
+        }
+        if (findingId.includes('NO-MFA')) {
+          return { ...r, mfaEnforced: true };
+        }
+        return r;
+      })
+    );
 
     // Dismiss banner if it matches
     if (activeBannerAlert?.findingId === findingId) {
       setActiveBannerAlert(null);
     }
+  };
+
+  // Harden all active findings across all storage accounts, containers, and RBAC assignments
+  const handleHardenAllFindings = () => {
+    if (findings.length > 0) {
+      const now = new Date();
+      const totalEval = metrics.totalEvaluatedFindings || Math.max(1, findings.length);
+      const hardenedBefore = metrics.hardenedFindingsCount || 0;
+
+      const bulkEntries: RemediationLogEntry[] = findings.map((f, index) => {
+        const entryTime = new Date(now.getTime() + index);
+        const stepBefore = Math.min(
+          100,
+          Math.round(((hardenedBefore + index) / totalEval) * 100)
+        );
+        const stepAfter = Math.min(
+          100,
+          Math.round(((hardenedBefore + index + 1) / totalEval) * 100)
+        );
+
+        return {
+          id: `remed-log-${entryTime.getTime()}-${index}-${Math.random()
+            .toString(36)
+            .slice(2, 6)}`,
+          findingId: f.id,
+          title: f.title,
+          category: f.category,
+          severity: f.severity,
+          resourceId: f.resourceId,
+          resourceName: f.resourceName,
+          resourceType: f.resourceType,
+          remediatedAt: entryTime.toISOString(),
+          formattedTimestamp: entryTime.toLocaleString(),
+          remediationMethod: 'Bulk Hardening',
+          remediationSummary: f.remediation.summary,
+          cliCommandExecuted: f.remediation.cliCommand,
+          terraformSnippet: f.remediation.terraformSnippet,
+          compliance: f.compliance,
+          subscriptionId: activeDataset.subscriptionId,
+          postureScoreBefore: stepBefore,
+          postureScoreAfter: stepAfter,
+          operator: 'Mani Ravindran (SecOps Admin)',
+        };
+      });
+
+      setRemediationLog((prev) => [...bulkEntries.reverse(), ...prev]);
+    }
+
+    setStorageAccounts((prev) =>
+      prev.map((acc) => ({
+        ...acc,
+        allowBlobPublicAccess: false,
+        defaultAction: 'Deny',
+        ipRulesCount: Math.max(2, acc.ipRulesCount),
+        supportsHttpsTrafficOnly: true,
+        minimumTlsVersion:
+          acc.minimumTlsVersion === 'TLS1_0' || acc.minimumTlsVersion === 'TLS1_1'
+            ? 'TLS1_2'
+            : acc.minimumTlsVersion,
+        allowSharedKeyAccess: false,
+        customerManagedKeyEnabled: true,
+        softDeleteEnabled: true,
+        blobRetentionDays: Math.max(30, acc.blobRetentionDays),
+        loggingEnabled: true,
+        defenderForStorageEnabled: true,
+        crossTenantReplicationRestricted: true,
+        containers: acc.containers.map((c) => ({
+          ...c,
+          publicAccess: 'None',
+          hasStoredAccessPolicyWithNoExpiry: false,
+        })),
+      }))
+    );
+
+    setRoleAssignments((prev) =>
+      prev.map((r) => ({
+        ...r,
+        scope:
+          r.roleDefinitionName === 'Owner' && !r.scope.includes('/resourceGroups/')
+            ? `${r.scope}/resourceGroups/rg-scoped-workload`
+            : r.scope,
+        isExternalGuest: false,
+        roleDefinitionName:
+          r.principalType === 'ServicePrincipal' && r.roleDefinitionName === 'Owner'
+            ? 'Storage Blob Data Reader'
+            : r.roleDefinitionName,
+        actions: r.actions.filter(
+          (a) =>
+            a !== '*' &&
+            !a.includes('roleAssignments/write') &&
+            !a.includes('roleAssignments/*') &&
+            a !== 'Microsoft.Authorization/*'
+        ),
+        lastActiveDays: Math.min(r.lastActiveDays, 15),
+        mfaEnforced: true,
+      }))
+    );
+
+    setActiveBannerAlert(null);
   };
 
   // Lookup selected finding with fallback matching
@@ -524,6 +777,7 @@ export default function App() {
         }
         activeTab={activeTab}
         setActiveTab={setActiveTab}
+        remediationLogCount={remediationLog.length}
       />
 
       {/* Main Container */}
@@ -532,14 +786,19 @@ export default function App() {
           <OverviewDashboard
             metrics={metrics}
             findings={findings}
+            remediationLog={remediationLog}
+            onClearRemediationLog={() => setRemediationLog([])}
             onNavigateTab={(tab) => setActiveTab(tab)}
             onSelectFinding={(id) => setSelectedFindingId(id)}
+            onRemediateFinding={handleRemediateFinding}
+            onHardenAll={handleHardenAllFindings}
           />
         )}
 
         {activeTab === 'storage' && (
           <StorageAuditor
             storageAccounts={storageAccounts}
+            roleAssignments={roleAssignments}
             findings={findings}
             onSelectFinding={(id) => setSelectedFindingId(id)}
           />
@@ -557,6 +816,16 @@ export default function App() {
           <FindingsList
             findings={findings}
             onSelectFinding={(id) => setSelectedFindingId(id)}
+            onRemediateFinding={handleRemediateFinding}
+            remediationLog={remediationLog}
+            onClearRemediationLog={() => setRemediationLog([])}
+          />
+        )}
+
+        {activeTab === 'remediation_log' && (
+          <RemediationLog
+            entries={remediationLog}
+            onClearLog={() => setRemediationLog([])}
           />
         )}
       </main>

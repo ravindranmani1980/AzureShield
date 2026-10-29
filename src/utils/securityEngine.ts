@@ -701,14 +701,21 @@ export function executeFullAudit(
     (f) => f.id.includes('PUB-ACCESS') || f.id.includes('EXPOSED')
   ).length;
 
-  // Posture Score calculation (Starts at 100, drops with severity)
-  let penalty =
-    criticalCount * 22 +
-    highCount * 10 +
-    mediumCount * 4 +
-    lowCount * 1;
+  // Total security controls/findings evaluated across all Storage Accounts, Containers, and RBAC Assignments:
+  // 10 account-level rules per StorageAccount + 2 container-level rules per StorageContainer + 6 rules per RbacAssignment
+  const rawTotalChecks =
+    storageAccounts.length * 10 +
+    storageAccounts.reduce((acc, curr) => acc + curr.containers.length * 2, 0) +
+    roleAssignments.length * 6;
 
-  let postureScore = Math.max(0, Math.min(100, Math.round(100 - penalty)));
+  const totalEvaluatedFindings = Math.max(allFindings.length, rawTotalChecks);
+  const hardenedFindingsCount = Math.max(0, totalEvaluatedFindings - allFindings.length);
+
+  // Real-time Security Posture Score calculated from the ratio of hardened findings to total findings
+  const postureScore =
+    totalEvaluatedFindings > 0
+      ? Math.max(0, Math.min(100, Math.round((hardenedFindingsCount / totalEvaluatedFindings) * 100)))
+      : 100;
 
   let riskGrade: 'A+' | 'A' | 'B' | 'C' | 'D' | 'F' = 'A+';
   if (postureScore >= 95) riskGrade = 'A+';
@@ -726,6 +733,8 @@ export function executeFullAudit(
   const metrics: AuditMetrics = {
     totalResources,
     totalFindings: allFindings.length,
+    hardenedFindingsCount,
+    totalEvaluatedFindings,
     criticalCount,
     highCount,
     mediumCount,

@@ -8,13 +8,13 @@ import { AuditDataset, StorageAccount, RbacAssignment } from '../types/security'
 export const SAMPLE_HIGH_RISK_DATASET: AuditDataset = {
   presetName: 'Enterprise Production (Breach Imminent)',
   description: 'Realistic hybrid cloud environment with publicly exposed storage accounts and blob containers, wildcard RBAC permissions, and guest privilege escalations.',
-  subscriptionId: '4b8e219a-94fc-4809-b6bb-2a1e8a93ef01',
+  subscriptionId: '834dcd8e-ecbe-4340-b734-3729000c7562',
   storageAccounts: [
     {
-      id: '/subscriptions/4b8e219a-94fc-4809-b6bb-2a1e8a93ef01/resourceGroups/rg-enterprise-core/providers/Microsoft.Storage/storageAccounts/corpfinproddata',
+      id: '/subscriptions/834dcd8e-ecbe-4340-b734-3729000c7562/resourceGroups/rg-enterprise-core/providers/Microsoft.Storage/storageAccounts/corpfinproddata',
       name: 'corpfinproddata',
       resourceGroup: 'rg-enterprise-core',
-      subscriptionId: '4b8e219a-94fc-4809-b6bb-2a1e8a93ef01',
+      subscriptionId: '834dcd8e-ecbe-4340-b734-3729000c7562',
       location: 'eastus',
       allowBlobPublicAccess: true, // LOOPHOLE: Public Blob Access
       publicNetworkAccess: 'Enabled', // LOOPHOLE: No Firewall
@@ -55,10 +55,10 @@ export const SAMPLE_HIGH_RISK_DATASET: AuditDataset = {
       ],
     },
     {
-      id: '/subscriptions/4b8e219a-94fc-4809-b6bb-2a1e8a93ef01/resourceGroups/rg-web-frontend/providers/Microsoft.Storage/storageAccounts/webappmediacache',
+      id: '/subscriptions/834dcd8e-ecbe-4340-b734-3729000c7562/resourceGroups/rg-web-frontend/providers/Microsoft.Storage/storageAccounts/webappmediacache',
       name: 'webappmediacache',
       resourceGroup: 'rg-web-frontend',
-      subscriptionId: '4b8e219a-94fc-4809-b6bb-2a1e8a93ef01',
+      subscriptionId: '834dcd8e-ecbe-4340-b734-3729000c7562',
       location: 'westeurope',
       allowBlobPublicAccess: true,
       publicNetworkAccess: 'Enabled',
@@ -89,10 +89,10 @@ export const SAMPLE_HIGH_RISK_DATASET: AuditDataset = {
       ],
     },
     {
-      id: '/subscriptions/4b8e219a-94fc-4809-b6bb-2a1e8a93ef01/resourceGroups/rg-analytics/providers/Microsoft.Storage/storageAccounts/datalakeanalytics01',
+      id: '/subscriptions/834dcd8e-ecbe-4340-b734-3729000c7562/resourceGroups/rg-analytics/providers/Microsoft.Storage/storageAccounts/datalakeanalytics01',
       name: 'datalakeanalytics01',
       resourceGroup: 'rg-analytics',
-      subscriptionId: '4b8e219a-94fc-4809-b6bb-2a1e8a93ef01',
+      subscriptionId: '834dcd8e-ecbe-4340-b734-3729000c7562',
       location: 'centralus',
       allowBlobPublicAccess: false,
       publicNetworkAccess: 'Enabled',
@@ -132,7 +132,7 @@ export const SAMPLE_HIGH_RISK_DATASET: AuditDataset = {
       principalType: 'GuestUser', // LOOPHOLE: External Guest Admin
       roleDefinitionName: 'Owner',
       roleDefinitionId: '8e3af657-a8ff-443c-a75c-2fe8c4bcb635',
-      scope: '/subscriptions/4b8e219a-94fc-4809-b6bb-2a1e8a93ef01', // LOOPHOLE: Subscription scope Owner
+      scope: '/subscriptions/834dcd8e-ecbe-4340-b734-3729000c7562', // LOOPHOLE: Subscription scope Owner
       isCustomRole: false,
       actions: ['*'],
       notActions: [],
@@ -149,7 +149,7 @@ export const SAMPLE_HIGH_RISK_DATASET: AuditDataset = {
       principalType: 'ServicePrincipal',
       roleDefinitionName: 'Custom Automation Operator',
       roleDefinitionId: 'custom-role-771',
-      scope: '/subscriptions/4b8e219a-94fc-4809-b6bb-2a1e8a93ef01',
+      scope: '/subscriptions/834dcd8e-ecbe-4340-b734-3729000c7562',
       isCustomRole: true,
       actions: [
         'Microsoft.Storage/*',
@@ -171,7 +171,7 @@ export const SAMPLE_HIGH_RISK_DATASET: AuditDataset = {
       principalType: 'User',
       roleDefinitionName: 'Contributor',
       roleDefinitionId: 'b24988ac-6180-42a0-ab88-20f7382dd24c',
-      scope: '/subscriptions/4b8e219a-94fc-4809-b6bb-2a1e8a93ef01',
+      scope: '/subscriptions/834dcd8e-ecbe-4340-b734-3729000c7562',
       isCustomRole: false,
       actions: ['*'],
       notActions: ['Microsoft.Authorization/*/Delete'],
@@ -189,7 +189,7 @@ export const SAMPLE_HIGH_RISK_DATASET: AuditDataset = {
       principalType: 'User',
       roleDefinitionName: 'Storage Blob Data Owner',
       roleDefinitionId: 'b7e6dc6d-f1e8-4753-8033-0f276bb0955b',
-      scope: '/subscriptions/4b8e219a-94fc-4809-b6bb-2a1e8a93ef01/resourceGroups/rg-enterprise-core',
+      scope: '/subscriptions/834dcd8e-ecbe-4340-b734-3729000c7562/resourceGroups/rg-enterprise-core',
       isCustomRole: false,
       actions: ['Microsoft.Storage/storageAccounts/blobServices/containers/*'],
       notActions: [],

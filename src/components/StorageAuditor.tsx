@@ -14,17 +14,19 @@ import {
   Unlock,
   Terminal,
   Globe,
-  Radio,
-  ExternalLink,
-  ChevronRight,
   Database,
   Copy,
   Check,
+  ChevronRight,
+  Network,
 } from 'lucide-react';
-import { StorageAccount, Finding } from '../types/security';
+import { StorageAccount, Finding, RbacAssignment } from '../types/security';
+import { SAMPLE_HIGH_RISK_DATASET } from '../utils/defaultData';
+import { StorageAccessGraphD3 } from './StorageAccessGraphD3';
 
 interface StorageAuditorProps {
   storageAccounts: StorageAccount[];
+  roleAssignments?: RbacAssignment[];
   findings: Finding[];
   onSelectFinding: (findingId: string) => void;
   onRemediateAccount?: (accountName: string, action: string) => void;
@@ -32,13 +34,14 @@ interface StorageAuditorProps {
 
 export const StorageAuditor: React.FC<StorageAuditorProps> = ({
   storageAccounts,
+  roleAssignments = SAMPLE_HIGH_RISK_DATASET.roleAssignments,
   findings,
   onSelectFinding,
-  onRemediateAccount,
 }) => {
   const [selectedAccountName, setSelectedAccountName] = useState<string>(
     storageAccounts[0]?.name || ''
   );
+  const [showTopologyGraph, setShowTopologyGraph] = useState<boolean>(true);
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
   const selectedAccount =
@@ -70,39 +73,68 @@ export const StorageAuditor: React.FC<StorageAuditorProps> = ({
               Maniq Shield — Azure Blob Storage & Containers Audit
             </h2>
             <p className="text-xs text-slate-400">
-              Identifying anonymous container exposure, insecure HTTP transfer, deprecated TLS, and unexpired SAS policies.
+              Identifying anonymous container exposure, RBAC access paths, insecure HTTP transfer, deprecated TLS, and unexpired SAS policies.
             </p>
           </div>
         </div>
 
-        {/* Account Selector Pill */}
-        <div className="flex items-center space-x-2 overflow-x-auto pb-1 sm:pb-0">
-          {storageAccounts.map((account) => {
-            const hasCrit = findings.some(
-              (f) =>
-                f.severity === 'CRITICAL' &&
-                (f.resourceName.includes(account.name) ||
-                  f.resourceId.includes(account.name))
-            );
-            return (
-              <button
-                key={account.name}
-                onClick={() => setSelectedAccountName(account.name)}
-                className={`flex items-center space-x-2 px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all whitespace-nowrap ${
-                  selectedAccountName === account.name
-                    ? 'bg-blue-600 text-white border-blue-500 shadow-md shadow-blue-500/20'
-                    : 'bg-slate-950/60 text-slate-300 border-slate-800 hover:bg-slate-800'
-                }`}
-              >
-                <span>{account.name}</span>
-                {hasCrit && (
-                  <span className="w-2 h-2 rounded-full bg-red-400 animate-pulse" />
-                )}
-              </button>
-            );
-          })}
+        {/* Account Selector & Graph Toggle */}
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setShowTopologyGraph(!showTopologyGraph)}
+            className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all whitespace-nowrap ${
+              showTopologyGraph
+                ? 'bg-cyan-500/15 text-cyan-300 border-cyan-500/40'
+                : 'bg-slate-950/60 text-slate-400 border-slate-800 hover:bg-slate-800'
+            }`}
+          >
+            <Network className="w-3.5 h-3.5" />
+            <span>{showTopologyGraph ? 'Hide Access Graph' : 'Show Access Graph'}</span>
+          </button>
+
+          <div className="flex items-center space-x-2 overflow-x-auto pb-1 sm:pb-0">
+            {storageAccounts.map((account) => {
+              const hasCrit = findings.some(
+                (f) =>
+                  f.severity === 'CRITICAL' &&
+                  (f.resourceName.includes(account.name) ||
+                    f.resourceId.includes(account.name))
+              );
+              return (
+                <button
+                  key={account.name}
+                  onClick={() => setSelectedAccountName(account.name)}
+                  className={`flex items-center space-x-2 px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all whitespace-nowrap ${
+                    selectedAccountName === account.name
+                      ? 'bg-blue-600 text-white border-blue-500 shadow-md shadow-blue-500/20'
+                      : 'bg-slate-950/60 text-slate-300 border-slate-800 hover:bg-slate-800'
+                  }`}
+                >
+                  <span>{account.name}</span>
+                  {hasCrit && (
+                    <span className="text-[10px] font-mono text-red-300">
+                      CRIT
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
         </div>
       </div>
+
+      {/* D3 Node-Link Access Path & RBAC Relationship Topology */}
+      {showTopologyGraph && (
+        <StorageAccessGraphD3
+          storageAccounts={storageAccounts}
+          roleAssignments={roleAssignments}
+          findings={findings}
+          selectedAccountName={selectedAccount?.name || ''}
+          onSelectAccount={(accName) => setSelectedAccountName(accName)}
+          onSelectFinding={onSelectFinding}
+        />
+      )}
 
       {selectedAccount && (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">

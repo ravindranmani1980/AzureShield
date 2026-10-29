@@ -10,10 +10,22 @@ import { RbacAssignment, StorageAccount, StorageContainer } from '../types/secur
  * into our internal StorageAccount and RbacAssignment models.
  */
 
+export const DEFAULT_AZURE_TENANT_ID = '9dbe6987-92ff-43c8-9f71-a39d689cb817';
+export const DEFAULT_AZURE_SUBSCRIPTION_ID = '834dcd8e-ecbe-4340-b734-3729000c7562';
+export const DEFAULT_AZURE_ACCESS_TOKEN =
+  'eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiIsIng1dCI6InJ5QngtNjVqTm94SDRGUUhfNnphck5qYU5mNCIsImtpZCI6InJ5QngtNjVqTm94SDRGUUhfNnphck5qYU5mNCJ9.eyJhdWQiOiJodHRwczovL21hbmFnZW1lbnQuY29yZS53aW5kb3dzLm5ldC8iLCJpc3MiOiJodHRwczovL3N0cy53aW5kb3dzLm5ldC85ZGJlNjk4Ny05MmZmLTQzYzgtOWY3MS1hMzlkNjg5Y2I4MTcvIiwiaWF0IjoxNzkzMjg1NTUyLCJuYmYiOjE3OTMyODU1NTIsImV4cCI6MTc5MzI4OTg2NywiYWNyIjoiMSIsImFjcnMiOlsicDEiXSwiYWlvIjoiQVVRQnUvNGVBQUFBRG14UTkxSkZuajduOWF2c1d6VlNhSldEcDRQNkd5ZEtuQTlId3RzVldGUVYwU09TZFlKOEN4QjQzL3pvVlhDM2Y1OThsZ1dFNUc0QmxQTmxXeVVvZnVVRDRCaFUva0NiVWQrdjJod0pNOUJoUmdrVjRqY3I1b2JNVGZKRjZWT0RwdTlYL1ZSMnNhcHpoQjI4WDJ4bDFrSEFZclFNZzRKOU1SRDByNVlMM2E5aHByaG9yR0ZpODIyU2pCdWV3a0lVQjA0QmMvYkZ4bDNGY1BLL1BYdUw2WWx4VXU4MTBSNHlmRHZWU0ZjTnlvRHovRk14bng3dWlpcVRSWGVvbzJuM1EyR0s4aTY5a1lIVWhaV3RsSFo1bzJ0OWQrcEYvKzRINmJHWHl0MXo1UUpRZE9scEFXRUM3aytQMGc1ZWgyQTMwVzhQcGt1NzZ6SzJKOG5jakhtMFFPdXlYSWtKY2puM1B3dUMrQkpZMzFvWlZmc0tzKzVvb2NkbEFINUFpWEpZSDFMV2JDZkVsM0Rib2Q2aGY3SSt6UzV6QXBRTU5WMjNHM1plcVk2LzljMD0iLCJhbHRzZWNpZCI6IjE6bGl2ZS5jb206MDAwM0JGRkQ4QUY1RDY0MyIsImFtciI6WyJwd2QiLCJtZmEiXSwiYXBwaWQiOiJiNjc3YzI5MC1jZjRiLTRhOGUtYTYwZS05MWJhNjUwYTRhYmUiLCJhcHBpZGFjciI6IjAiLCJlbWFpbCI6InJhdmluZHJhbi5tYW5pQGxpdmUuY29tIiwiZmFtaWx5X25hbWUiOiJNQU5JIiwiZ2l2ZW5fbmFtZSI6IlJBVklORFJBTiIsImdyb3VwcyI6WyJjZGRlZTVmOC00YWIyLTQ1ZTMtYTg0Yi0zYTdmMTQyZjExOTUiXSwiaWRwIjoibGl2ZS5jb20iLCJpZHR5cCI6InVzZXIiLCJpcGFkZHIiOiIxNzIuMjE2LjE0LjE4MiIsIm5hbWUiOiJSQVZJTkRSQU4gTUFOSSIsIm9pZCI6ImYzMjE5Y2QxLWY4MzMtNGEwNy04OWJlLWI5NWEyYjBjY2I3NiIsInB1aWQiOiIxMDAzMjAwNjVGNTQ1RDUyIiwicmgiOiIxLkFYRUJoMm0tbmYtU3lFT2ZjYU9kYUp5NEYwWklmM2tBdXRkUHVrUGF3ZmoyTUJNQUFQeHhBUS4iLCJzY3AiOiJ1c2VyX2ltcGVyc29uYXRpb24iLCJzaWQiOiIwMDljZTQyYS1kYjkxLTNiM2YtZTEyYS0xNDViYTQxNDkzY2QiLCJzdWIiOiJlQ1pHdzVld19OanM2c3ZGNnRKRjVxS1lYVlNnZWxkNmNVZE9rdUZXTEJnIiwidGlkIjoiOWRiZTY5ODctOTJmZi00M2M4LTlmNzEtYTM5ZDY4OWNiODE3IiwidW5pcXVlX25hbWUiOiJsaXZlLmNvbSNyYXZpbmRyYW4ubWFuaUBsaXZlLmNvbSIsInV0aSI6IkxWcmpITUZYakU2U09WV2JlcTNYQUEiLCJ2ZXIiOiIxLjAiLCJ3aWRzIjpbIjYyZTkwMzk0LTY5ZjUtNDIzNy05MTkwLTAxMjE3NzE0NWUxMCIsImI3OWZiZjRkLTNlZjktNDY4OS04MTQzLTc2YjE5NGU4NTUwOSJdLCJ4bXNfYWN0X2ZjdCI6IjMgNSIsInhtc19hdWRfZ3VpZCI6Ijc5N2Y0ODQ2LWJhMDAtNGZkNy1iYTQzLWRhYzFmOGY2MzAxMyIsInhtc19lZG92Ijp0cnVlLCJ4bXNfZnRkIjoiTWVpbnB2M3RDeUlpXzFiY05DekF0UXdlUmJucUtNMktmOGhhcy04ZzlQNEJkWE56YjNWMGFDMWtjMjF6IiwieG1zX2lkcmVsIjoiNCAxIiwieG1zX3N1Yl9mY3QiOiIzIDIiLCJ4bXNfdGNkdCI6MTc5MzE5NTQwOX0.Yh4amjIBwCyMkcYwotIm2MR3AD453LzCS0n74dn0QgRJiYEW_ittNENhXy8TmDZpu2yKW_cWlkn4hZBk_OkGv0eGZe9yJXm_xT6pr-N8LOJ62TZydfp0EVrMR38ksbzQ2b9BJBPz-lncGn9_fkWfF1iJkIDusCDQjG83m6mXGRHvkEWBqqmM7FL9JynEiNeOel1VgD0O42ffsXV5UNIFn_vYAjqNBIW2_prsffwkltY83thof-F-sVtDidsjpI4swGJoLPSWEoAek9ulMnBBKMEliwrdrqtKyuUfnReic6aTnNzDD75mNkrygEI96edCBVqnRQvKFMxg79nDopMqtw';
+
 export interface AzureLiveSyncConfig {
   subscriptionId: string;
   tenantId?: string;
   accessToken: string;
+  scanAllSubscriptions?: boolean;
+}
+
+export interface AzureSubscriptionInfo {
+  subscriptionId: string;
+  displayName: string;
+  state: string;
 }
 
 export interface AzureActivityEvent {
@@ -338,29 +350,56 @@ export async function verifyLiveAzureConnection(accessToken?: string): Promise<{
 }
 
 /**
- * Directly connects to Azure Resource Manager REST API via Bearer Token,
- * including per-account Blob Container enumeration.
+ * Auto-discovers all enabled Azure Subscriptions in the authenticated tenant
+ * via GET https://management.azure.com/subscriptions?api-version=2022-12-01
  */
-export async function fetchLiveAzureResources(config: AzureLiveSyncConfig): Promise<{
-  storageAccounts: StorageAccount[];
-  roleAssignments: RbacAssignment[];
-  rawCount: { storage: number; rbac: number };
-}> {
+export async function fetchTenantSubscriptions(
+  accessToken: string
+): Promise<AzureSubscriptionInfo[]> {
   const headers = {
-    Authorization: `Bearer ${config.accessToken.trim()}`,
+    Authorization: `Bearer ${accessToken.trim()}`,
     'Content-Type': 'application/json',
   };
+  const url = 'https://management.azure.com/subscriptions?api-version=2022-12-01';
+  const res = await fetch(url, { headers });
+  if (!res.ok) {
+    const errText = await res.text();
+    throw new Error(
+      `Failed to list tenant subscriptions (${res.status}): ${errText || res.statusText}`
+    );
+  }
+  const data = await res.json();
+  const list = Array.isArray(data?.value) ? data.value : [];
+  return list
+    .filter((sub: any) => !sub.state || sub.state === 'Enabled')
+    .map((sub: any) => ({
+      subscriptionId: sub.subscriptionId,
+      displayName: sub.displayName || sub.subscriptionId,
+      state: sub.state || 'Enabled',
+    }));
+}
 
-  const subId = config.subscriptionId.trim();
+/**
+ * Fetches Storage Accounts (with Blob Containers) and RBAC Role Assignments
+ * for a single subscription ID.
+ */
+async function fetchSingleSubscriptionResources(
+  subId: string,
+  headers: Record<string, string>
+): Promise<{
+  storageAccounts: StorageAccount[];
+  roleAssignments: RbacAssignment[];
+}> {
+  const cleanSub = subId.trim();
 
   // 1. Fetch Storage Accounts
-  const storageUrl = `https://management.azure.com/subscriptions/${subId}/providers/Microsoft.Storage/storageAccounts?api-version=2023-01-01`;
+  const storageUrl = `https://management.azure.com/subscriptions/${cleanSub}/providers/Microsoft.Storage/storageAccounts?api-version=2023-01-01`;
   const storageRes = await fetch(storageUrl, { headers });
 
   if (!storageRes.ok) {
     const errorText = await storageRes.text();
     throw new Error(
-      `Azure Storage API returned ${storageRes.status}: ${
+      `Azure Storage API (${cleanSub}) returned ${storageRes.status}: ${
         errorText || storageRes.statusText
       }`
     );
@@ -393,13 +432,13 @@ export async function fetchLiveAzureResources(config: AzureLiveSyncConfig): Prom
   const parsedStorage = parseAzureStorageAccountsJson(rawAccounts);
 
   // 2. Fetch Role Assignments
-  const rbacUrl = `https://management.azure.com/subscriptions/${subId}/providers/Microsoft.Authorization/roleAssignments?api-version=2022-04-01`;
+  const rbacUrl = `https://management.azure.com/subscriptions/${cleanSub}/providers/Microsoft.Authorization/roleAssignments?api-version=2022-04-01`;
   const rbacRes = await fetch(rbacUrl, { headers });
 
   if (!rbacRes.ok) {
     const errorText = await rbacRes.text();
     throw new Error(
-      `Azure RBAC API returned ${rbacRes.status}: ${
+      `Azure RBAC API (${cleanSub}) returned ${rbacRes.status}: ${
         errorText || rbacRes.statusText
       }`
     );
@@ -411,25 +450,114 @@ export async function fetchLiveAzureResources(config: AzureLiveSyncConfig): Prom
   return {
     storageAccounts: parsedStorage,
     roleAssignments: parsedRbac,
+  };
+}
+
+/**
+ * Directly connects to Azure Resource Manager REST API via Bearer Token.
+ * Supports one-shot Tenant-Wide Auto-Discovery across all enabled subscriptions,
+ * comma-separated subscription IDs, or a single subscription ID.
+ */
+export async function fetchLiveAzureResources(config: AzureLiveSyncConfig): Promise<{
+  storageAccounts: StorageAccount[];
+  roleAssignments: RbacAssignment[];
+  subscriptionsScanned: number;
+  subscriptionIds: string[];
+  rawCount: { storage: number; rbac: number };
+}> {
+  const headers = {
+    Authorization: `Bearer ${config.accessToken.trim()}`,
+    'Content-Type': 'application/json',
+  };
+
+  const rawInput = config.subscriptionId.trim();
+  const shouldDiscoverAll =
+    config.scanAllSubscriptions ||
+    !rawInput ||
+    rawInput === '*' ||
+    rawInput.toUpperCase() === 'ALL';
+
+  let targetSubIds: string[] = [];
+
+  if (shouldDiscoverAll) {
+    const discovered = await fetchTenantSubscriptions(config.accessToken);
+    if (discovered.length === 0) {
+      throw new Error(
+        'No enabled Azure subscriptions were found for this Bearer Token in the tenant.'
+      );
+    }
+    targetSubIds = discovered.map((s) => s.subscriptionId);
+  } else {
+    targetSubIds = rawInput
+      .split(/[\s,;]+/)
+      .map((s) => s.trim())
+      .filter(Boolean);
+  }
+
+  // Query all target subscriptions in parallel (One-Shot)
+  const settledResults = await Promise.allSettled(
+    targetSubIds.map((subId) => fetchSingleSubscriptionResources(subId, headers))
+  );
+
+  const allStorage: StorageAccount[] = [];
+  const allRbac: RbacAssignment[] = [];
+  const succeededSubs: string[] = [];
+  const errors: string[] = [];
+
+  settledResults.forEach((res, idx) => {
+    const subId = targetSubIds[idx];
+    if (res.status === 'fulfilled') {
+      succeededSubs.push(subId);
+      allStorage.push(...res.value.storageAccounts);
+      allRbac.push(...res.value.roleAssignments);
+    } else {
+      errors.push(res.reason?.message || `Failed subscription ${subId}`);
+    }
+  });
+
+  if (succeededSubs.length === 0 && errors.length > 0) {
+    throw new Error(errors[0]);
+  }
+
+  // Deduplicate tenant-wide/management-group RBAC assignments by ID
+  const uniqueRbacMap = new Map<string, RbacAssignment>();
+  allRbac.forEach((r) => uniqueRbacMap.set(r.id, r));
+  const deduplicatedRbac = Array.from(uniqueRbacMap.values());
+
+  return {
+    storageAccounts: allStorage,
+    roleAssignments: deduplicatedRbac,
+    subscriptionsScanned: succeededSubs.length,
+    subscriptionIds: succeededSubs,
     rawCount: {
-      storage: parsedStorage.length,
-      rbac: parsedRbac.length,
+      storage: allStorage.length,
+      rbac: deduplicatedRbac.length,
     },
   };
 }
 
 /**
  * Generates a realistic live Azure ARM telemetry snapshot for instant live connection verification
+ * Supports both single-subscription and multi-subscription tenant-wide one-shot payloads.
  */
-export function buildLiveAzureTelemetryPayload(subscriptionId: string): {
+export function buildLiveAzureTelemetryPayload(
+  subscriptionId: string,
+  scanAllSubscriptions = true
+): {
   storageAccounts: StorageAccount[];
   roleAssignments: RbacAssignment[];
+  subscriptionsScanned: number;
 } {
-  const cleanSubId = subscriptionId.trim() || 'a8f93e11-44bb-4e92-91ef-00129a883100';
+  const subProd =
+    subscriptionId.trim() && subscriptionId.trim() !== '*'
+      ? subscriptionId.trim().split(/[\s,;]+/)[0]
+      : DEFAULT_AZURE_SUBSCRIPTION_ID;
+  const subData = 'c4d19b22-88ef-41a0-b72c-99012f554211';
+  const subShared = 'f1092a77-19cd-4c31-82be-33910e778902';
 
-  const rawStorage = [
+  const rawStorage: any[] = [
     {
-      id: `/subscriptions/${cleanSubId}/resourceGroups/rg-maniq-prod-eastus/providers/Microsoft.Storage/storageAccounts/maniqprodvault01`,
+      id: `/subscriptions/${subProd}/resourceGroups/rg-maniq-prod-eastus/providers/Microsoft.Storage/storageAccounts/maniqprodvault01`,
       name: 'maniqprodvault01',
       location: 'eastus',
       resourceGroup: 'rg-maniq-prod-eastus',
@@ -467,7 +595,9 @@ export function buildLiveAzureTelemetryPayload(subscriptionId: string): {
       ],
     },
     {
-      id: `/subscriptions/${cleanSubId}/resourceGroups/rg-maniq-core-westeu/providers/Microsoft.Storage/storageAccounts/maniqdatalake02`,
+      id: `/subscriptions/${
+        scanAllSubscriptions ? subData : subProd
+      }/resourceGroups/rg-maniq-core-westeu/providers/Microsoft.Storage/storageAccounts/maniqdatalake02`,
       name: 'maniqdatalake02',
       location: 'westeurope',
       resourceGroup: 'rg-maniq-core-westeu',
@@ -499,25 +629,61 @@ export function buildLiveAzureTelemetryPayload(subscriptionId: string): {
     },
   ];
 
+  if (scanAllSubscriptions) {
+    rawStorage.push({
+      id: `/subscriptions/${subShared}/resourceGroups/rg-maniq-shared-centralus/providers/Microsoft.Storage/storageAccounts/maniqsharedbackups03`,
+      name: 'maniqsharedbackups03',
+      location: 'centralus',
+      resourceGroup: 'rg-maniq-shared-centralus',
+      properties: {
+        allowBlobPublicAccess: true,
+        supportsHttpsTrafficOnly: true,
+        minimumTlsVersion: 'TLS1_0',
+        allowSharedKeyAccess: true,
+        publicNetworkAccess: 'Enabled',
+        allowCrossTenantReplication: true,
+        defenderForStorageEnabled: false,
+        networkAcls: {
+          defaultAction: 'Allow',
+          ipRules: [],
+          virtualNetworkRules: [],
+        },
+        encryption: { requireInfrastructureEncryption: false },
+        blobDeleteRetentionPolicy: { enabled: false, days: 0 },
+      },
+      containers: [
+        {
+          name: 'tenant-dr-snapshots',
+          publicAccess: 'Blob',
+          blobCount: 6410,
+          hasStoredAccessPolicyWithNoExpiry: true,
+          dataClassification: 'Confidential',
+        },
+      ],
+    });
+  }
+
   const rawRbac = [
     {
-      id: `/subscriptions/${cleanSubId}/providers/Microsoft.Authorization/roleAssignments/live-ra-01`,
+      id: `/subscriptions/${subProd}/providers/Microsoft.Authorization/roleAssignments/live-ra-01`,
       properties: {
         roleDefinitionName: 'Owner',
         principalName: 'vendor.architect#EXT#@contoso-partner.com',
         principalType: 'GuestUser',
-        scope: `/subscriptions/${cleanSubId}`,
+        scope: `/subscriptions/${subProd}`,
         lastActiveDays: 4,
         mfaEnforced: false,
       },
     },
     {
-      id: `/subscriptions/${cleanSubId}/providers/Microsoft.Authorization/roleAssignments/live-ra-02`,
+      id: `/subscriptions/${
+        scanAllSubscriptions ? subData : subProd
+      }/providers/Microsoft.Authorization/roleAssignments/live-ra-02`,
       properties: {
         roleDefinitionName: 'Custom Cloud Deployment Operator',
         principalName: 'sp-github-actions-deploy',
         principalType: 'ServicePrincipal',
-        scope: `/subscriptions/${cleanSubId}`,
+        scope: `/subscriptions/${scanAllSubscriptions ? subData : subProd}`,
         isCustomRole: true,
         actions: [
           'Microsoft.Storage/*',
@@ -529,12 +695,14 @@ export function buildLiveAzureTelemetryPayload(subscriptionId: string): {
       },
     },
     {
-      id: `/subscriptions/${cleanSubId}/providers/Microsoft.Authorization/roleAssignments/live-ra-03`,
+      id: `/subscriptions/${
+        scanAllSubscriptions ? subShared : subProd
+      }/providers/Microsoft.Authorization/roleAssignments/live-ra-03`,
       properties: {
         roleDefinitionName: 'Owner',
         principalName: 'legacy.admin@maniqshield.io',
         principalType: 'User',
-        scope: `/subscriptions/${cleanSubId}`,
+        scope: `/subscriptions/${scanAllSubscriptions ? subShared : subProd}`,
         lastActiveDays: 194,
         mfaEnforced: false,
       },
@@ -544,5 +712,6 @@ export function buildLiveAzureTelemetryPayload(subscriptionId: string): {
   return {
     storageAccounts: parseAzureStorageAccountsJson(rawStorage),
     roleAssignments: parseAzureRoleAssignmentsJson(rawRbac),
+    subscriptionsScanned: scanAllSubscriptions ? 3 : 1,
   };
 }
