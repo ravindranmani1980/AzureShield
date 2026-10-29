@@ -124,7 +124,7 @@ export const FindingsList: React.FC<FindingsListProps> = ({
               className="bg-slate-950/80 border border-slate-800 text-slate-300 text-xs rounded-xl px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer"
             >
               <option value="ALL">All Categories</option>
-              <option value="storage">Storage Buckets</option>
+              <option value="storage">Storage & Containers</option>
               <option value="rbac">RBAC & IAM</option>
               <option value="privilege_escalation">Privilege Escalation</option>
               <option value="network">Network Perimeter</option>

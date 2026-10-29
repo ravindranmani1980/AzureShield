@@ -44,6 +44,8 @@ export interface StorageAccount {
   blobRetentionDays: number;
   versioningEnabled: boolean;
   loggingEnabled: boolean;
+  defenderForStorageEnabled?: boolean;
+  crossTenantReplicationRestricted?: boolean;
   containers: StorageContainer[];
 }
 
@@ -126,6 +128,7 @@ export interface AuditMetrics {
   rbacFindingCount: number;
   privilegeEscalationCount: number;
   inactiveRoleCount: number;
+  exposedContainerCount: number;
   openBucketCount: number;
   complianceScores: {
     cisAzure: number;

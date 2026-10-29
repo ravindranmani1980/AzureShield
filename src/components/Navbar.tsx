@@ -24,6 +24,8 @@ interface NavbarProps {
   onDownloadPdf: () => void;
   onOpenPdfPreview: () => void;
   onOpenSimulator: () => void;
+  onOpenLiveSync: () => void;
+  isLiveConnected: boolean;
   alerts: SecurityAlert[];
   unreadAlertCount: number;
   onSelectAlert: (findingId: string) => void;
@@ -40,6 +42,8 @@ export const Navbar: React.FC<NavbarProps> = ({
   onDownloadPdf,
   onOpenPdfPreview,
   onOpenSimulator,
+  onOpenLiveSync,
+  isLiveConnected,
   alerts,
   unreadAlertCount,
   onSelectAlert,
@@ -116,7 +120,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                   : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
               }`}
             >
-              Storage Buckets
+              Storage Accounts & Blobs
             </button>
             <button
               onClick={() => setActiveTab('rbac')}
@@ -142,6 +146,32 @@ export const Navbar: React.FC<NavbarProps> = ({
 
           {/* Right Action Controls */}
           <div className="flex items-center space-x-2 sm:space-x-3">
+            {/* Live Azure Connect Button */}
+            <button
+              onClick={onOpenLiveSync}
+              className={`flex items-center space-x-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
+                isLiveConnected
+                  ? 'bg-cyan-500/20 border-cyan-500/40 text-cyan-300 shadow-sm shadow-cyan-500/20'
+                  : 'bg-slate-800/80 hover:bg-slate-800 border-slate-700 text-slate-300 hover:text-white'
+              }`}
+              title="Connect real-time Azure infrastructure via REST API or CLI"
+            >
+              <span className="relative flex h-2 w-2">
+                {isLiveConnected && (
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75" />
+                )}
+                <span
+                  className={`relative inline-flex rounded-full h-2 w-2 ${
+                    isLiveConnected ? 'bg-cyan-400' : 'bg-slate-500'
+                  }`}
+                />
+              </span>
+              <span className="hidden sm:inline">
+                {isLiveConnected ? 'Live Azure Connected' : 'Live Sync'}
+              </span>
+              <span className="sm:hidden">Live</span>
+            </button>
+
             {/* Environment Preset Selector */}
             <div className="relative hidden lg:block">
               <select

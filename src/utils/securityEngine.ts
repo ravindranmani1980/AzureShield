@@ -341,6 +341,108 @@ export function auditStorageAccount(account: StorageAccount): Finding[] {
     });
   }
 
+  // 9. Medium: Microsoft Defender for Storage (Advanced Threat Protection) Disabled
+  if (account.defenderForStorageEnabled === false) {
+    findings.push({
+      id: `SEC-STOR-${account.name}-NO-DEFENDER`,
+      title: `Microsoft Defender for Storage Disabled on '${account.name}'`,
+      category: 'storage',
+      severity: 'MEDIUM',
+      resourceId: account.id,
+      resourceName: account.name,
+      resourceType: 'StorageAccount',
+      description: `Microsoft Defender for Storage is not active on '${account.name}'. Advanced threat detection, near-real-time malware scanning on uploads, and behavioral anomaly detection (e.g., Tor exit node access, anomalous exfiltration volumes) are disabled.`,
+      exploitScenario: `Adversaries upload malicious executables or ransomware payloads to blob containers, which then spread laterally across internal workloads without trigger detection.`,
+      businessImpact: `Ransomware infection, malicious payload hosting, and lack of real-time security alerting.`,
+      compliance: {
+        cisAzure: '3.12',
+        cisTitle: 'Ensure that Microsoft Defender for Storage is set to On',
+        mcsb: 'LT-1: Threat Detection & Malware Protection',
+        nist: 'SI-3, SI-4',
+      },
+      remediation: {
+        summary: `Enable Microsoft Defender for Storage with automated malware scanning and sensitive data threat detection.`,
+        cliCommand: `az security atp storage update \\\n  --resource-group "${account.resourceGroup}" \\\n  --storage-account "${account.name}" \\\n  --is-enabled true`,
+        portalSteps: [
+          `Go to Storage Account '${account.name}' > 'Microsoft Defender for Cloud'.`,
+          `Click 'Enable Microsoft Defender for Storage'.`,
+          `Ensure 'Malware Scanning' and 'Sensitive Data Threat Detection' are toggled ON.`,
+        ],
+        terraformSnippet: `resource "azurerm_advanced_threat_protection" "threat_protection" {\n  target_resource_id = azurerm_storage_account.${account.name}.id\n  enabled            = true\n}`,
+        impactNotice: `Billed based on storage transaction volume per Microsoft Defender pricing.`,
+      },
+      detectedAt: now,
+    });
+  }
+
+  // 10. Low: Customer-Managed Keys (CMK / BYOK) Not Configured
+  if (!account.customerManagedKeyEnabled) {
+    findings.push({
+      id: `SEC-STOR-${account.name}-NO-CMK`,
+      title: `Customer-Managed Key (CMK / BYOK) Not Configured for '${account.name}'`,
+      category: 'encryption',
+      severity: 'LOW',
+      resourceId: account.id,
+      resourceName: account.name,
+      resourceType: 'StorageAccount',
+      description: `Storage account '${account.name}' is encrypted using default Microsoft-managed keys rather than Customer-Managed Keys (CMK) hosted in Azure Key Vault with Purge Protection. Organizations cannot independently control encryption key lifecycle or revoke key access in a security emergency.`,
+      exploitScenario: `In the event of insider threats or compliance audits requiring cryptographic data shredding (crypto-erasure), administrators cannot unilaterally revoke the underlying DEK/KEK without Key Vault control.`,
+      businessImpact: `Failure to satisfy strict FIPS 140-2 Level 2/3 cryptographic control standards in banking and healthcare.`,
+      compliance: {
+        cisAzure: '3.5',
+        cisTitle: 'Ensure Storage Account is encrypted with Customer-Managed Key (CMK)',
+        mcsb: 'DP-5: Encrypt data at rest',
+        nist: 'SC-12, SC-28',
+      },
+      remediation: {
+        summary: `Configure Azure Key Vault integration with auto-rotation and link Customer-Managed Key to the storage account.`,
+        cliCommand: `az storage account update \\\n  --name "${account.name}" \\\n  --resource-group "${account.resourceGroup}" \\\n  --encryption-key-name "storage-master-key" \\\n  --encryption-key-vault "https://corp-vault.vault.azure.net" \\\n  --encryption-key-source "Microsoft.Keyvault"`,
+        portalSteps: [
+          `Navigate to Storage Account '${account.name}' > 'Encryption'.`,
+          `Select 'Customer-managed keys'.`,
+          `Select an Azure Key Vault and RSA key with Purge Protection enabled.`,
+          `Save changes.`,
+        ],
+        terraformSnippet: `resource "azurerm_storage_account_customer_managed_key" "cmk" {\n  storage_account_id = azurerm_storage_account.${account.name}.id\n  key_vault_id       = azurerm_key_vault.vault.id\n  key_name           = "storage-kek"\n}`,
+        impactNotice: `Key Vault must maintain 99.99% availability; if Key Vault becomes unreachable, blob data access will be blocked.`,
+      },
+      detectedAt: now,
+    });
+  }
+
+  // 11. Medium: Cross-Tenant Replication Scope Permissive
+  if (account.crossTenantReplicationRestricted === false) {
+    findings.push({
+      id: `SEC-STOR-${account.name}-CROSS-TENANT`,
+      title: `Unrestricted Cross-Tenant Object Copy Permitted on '${account.name}'`,
+      category: 'network',
+      severity: 'MEDIUM',
+      resourceId: account.id,
+      resourceName: account.name,
+      resourceType: 'StorageAccount',
+      description: `The allowed copy scope on storage account '${account.name}' is set to unrestricted ('*'). This allows authorized identities to copy blobs across tenants, providing a covert channel to siphon corporate data into external unauthorized Azure tenants.`,
+      exploitScenario: `A rogue insider or compromised identity copies corporate database blobs to their personal outside Azure storage account via the Azure Blob Copy API.`,
+      businessImpact: `Covert data exfiltration bypassing perimeter egress firewalls.`,
+      compliance: {
+        cisAzure: '3.13',
+        mcsb: 'DP-2: Protect sensitive data from exfiltration',
+        nist: 'AC-4: Information Flow Enforcement',
+      },
+      remediation: {
+        summary: `Restrict allowedCopyScope to 'AAD' so blobs can only be copied to storage accounts registered within the same corporate Entra ID tenant.`,
+        cliCommand: `az storage account update \\\n  --name "${account.name}" \\\n  --resource-group "${account.resourceGroup}" \\\n  --allowed-copy-scope AAD`,
+        portalSteps: [
+          `Open Storage Account '${account.name}' > 'Configuration'.`,
+          `Under 'Allowed copy scope', select 'From storage accounts in the same Azure AD tenant'.`,
+          `Click 'Save'.`,
+        ],
+        terraformSnippet: `resource "azurerm_storage_account" "${account.name}" {\n  # ...\n  allowed_copy_scope = "AAD"\n}`,
+        impactNotice: `Copies to outside tenants or public storage will be rejected with HTTP 403.`,
+      },
+      detectedAt: now,
+    });
+  }
+
   return findings;
 }
 
@@ -595,7 +697,7 @@ export function executeFullAudit(
   const rbacFindingCount = allFindings.filter((f) => f.category === 'rbac').length;
   const privilegeEscalationCount = allFindings.filter((f) => f.category === 'privilege_escalation').length;
   const inactiveRoleCount = allFindings.filter((f) => f.id.includes('DORMANT')).length;
-  const openBucketCount = allFindings.filter(
+  const exposedContainerCount = allFindings.filter(
     (f) => f.id.includes('PUB-ACCESS') || f.id.includes('EXPOSED')
   ).length;
 
@@ -634,7 +736,8 @@ export function executeFullAudit(
     rbacFindingCount,
     privilegeEscalationCount,
     inactiveRoleCount,
-    openBucketCount,
+    exposedContainerCount,
+    openBucketCount: exposedContainerCount,
     complianceScores: {
       cisAzure: Math.min(100, cisPassRate),
       mcsb: Math.min(100, mcsbPassRate),

@@ -59,7 +59,7 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
 
   const categoryBreakdown = [
     {
-      name: 'Storage Buckets & Blobs',
+      name: 'Storage Accounts & Blobs',
       count: findings.filter((f) => f.category === 'storage').length,
       icon: Server,
       color: 'from-blue-600 to-cyan-500',
@@ -123,9 +123,9 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
                 <Server className="w-5 h-5" />
               </div>
               <div>
-                <div className="text-xs text-slate-400">Exposed Storage</div>
+                <div className="text-xs text-slate-400">Exposed Containers</div>
                 <div className="text-lg font-bold text-white group-hover:text-blue-400 transition-colors flex items-center space-x-1">
-                  <span>{metrics.openBucketCount} Buckets</span>
+                  <span>{metrics.exposedContainerCount || metrics.openBucketCount} Containers</span>
                   <ArrowUpRight className="w-4 h-4 opacity-50 group-hover:opacity-100" />
                 </div>
               </div>

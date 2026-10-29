@@ -154,10 +154,10 @@ export const PdfPreviewModal: React.FC<PdfPreviewModalProps> = ({
 
               <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
                 <div className="text-[10px] uppercase font-bold text-slate-500">
-                  Escalation & Storage
+                  Escalation & Containers
                 </div>
                 <div className="text-2xl font-black text-purple-700">
-                  {metrics.openBucketCount + metrics.privilegeEscalationCount}
+                  {(metrics.exposedContainerCount || metrics.openBucketCount) + metrics.privilegeEscalationCount}
                 </div>
                 <div className="text-[10px] text-slate-500 font-semibold">
                   High-Impact Paths

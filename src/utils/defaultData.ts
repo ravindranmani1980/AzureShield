@@ -7,7 +7,7 @@ import { AuditDataset, StorageAccount, RbacAssignment } from '../types/security'
 
 export const SAMPLE_HIGH_RISK_DATASET: AuditDataset = {
   presetName: 'Enterprise Production (Breach Imminent)',
-  description: 'Realistic hybrid cloud environment with publicly exposed storage buckets, wildcard RBAC permissions, and guest privilege escalations.',
+  description: 'Realistic hybrid cloud environment with publicly exposed storage accounts and blob containers, wildcard RBAC permissions, and guest privilege escalations.',
   subscriptionId: '4b8e219a-94fc-4809-b6bb-2a1e8a93ef01',
   storageAccounts: [
     {

@@ -26,6 +26,7 @@ import { FindingsList } from './components/FindingsList';
 import { FindingDetailModal } from './components/FindingDetailModal';
 import { PdfPreviewModal } from './components/PdfPreviewModal';
 import { MisconfigurationSimulatorModal } from './components/MisconfigurationSimulatorModal';
+import { LiveAzureSyncModal } from './components/LiveAzureSyncModal';
 
 export default function App() {
   const [activePresetKey, setActivePresetKey] = useState<'high_risk' | 'hardened'>('high_risk');
@@ -41,6 +42,12 @@ export default function App() {
   const [alerts, setAlerts] = useState<SecurityAlert[]>([]);
   const [activeBannerAlert, setActiveBannerAlert] = useState<SecurityAlert | null>(null);
   const [isContinuousMonitoring, setIsContinuousMonitoring] = useState<boolean>(true);
+
+  // Live Azure connection states
+  const [isLiveConnected, setIsLiveConnected] = useState<boolean>(false);
+  const [isLiveSyncModalOpen, setIsLiveSyncModalOpen] = useState<boolean>(false);
+  const [liveSourceName, setLiveSourceName] = useState<string>('');
+  const [isEventStreamActive, setIsEventStreamActive] = useState<boolean>(false);
 
   // Modals
   const [selectedFindingId, setSelectedFindingId] = useState<string | null>(null);
@@ -125,6 +132,7 @@ export default function App() {
 
   // Handle Preset Switching
   const handleSelectDataset = (key: string) => {
+    setIsLiveConnected(false);
     if (key === 'hardened') {
       setActivePresetKey('hardened');
       setStorageAccounts(SAMPLE_HARDENED_DATASET.storageAccounts);
@@ -136,11 +144,33 @@ export default function App() {
     }
   };
 
+  // Handle live Azure resources sync
+  const handleApplyLiveResources = (data: {
+    storageAccounts: StorageAccount[];
+    roleAssignments: RbacAssignment[];
+    subscriptionId: string;
+    sourceName: string;
+  }) => {
+    if (data.storageAccounts.length > 0) setStorageAccounts(data.storageAccounts);
+    if (data.roleAssignments.length > 0) setRoleAssignments(data.roleAssignments);
+    setIsLiveConnected(true);
+    setLiveSourceName(data.sourceName);
+
+    const auditResult = executeFullAudit(
+      data.storageAccounts.length > 0 ? data.storageAccounts : storageAccounts,
+      data.roleAssignments.length > 0 ? data.roleAssignments : roleAssignments
+    );
+    const firstCrit = auditResult.findings.find((f) => f.severity === 'CRITICAL');
+    if (firstCrit) {
+      triggerRealTimeAlert(firstCrit);
+    }
+  };
+
   // Real-time Misconfiguration Injection handler
   const handleInjectMisconfiguration = (scenarioType: string) => {
     const timestamp = Date.now();
 
-    if (scenarioType === 'open_bucket') {
+    if (scenarioType === 'open_container' || scenarioType === 'open_bucket') {
       // Injects public access container on an existing storage account
       const updatedAccounts = storageAccounts.map((acc, idx) => {
         if (idx === 0) {
@@ -465,6 +495,8 @@ export default function App() {
         onDownloadPdf={handleDownloadPdf}
         onOpenPdfPreview={() => setIsPdfPreviewOpen(true)}
         onOpenSimulator={() => setIsSimulatorOpen(true)}
+        onOpenLiveSync={() => setIsLiveSyncModalOpen(true)}
+        isLiveConnected={isLiveConnected}
         alerts={alerts}
         unreadAlertCount={unreadAlertCount}
         onSelectAlert={(findingId) => setSelectedFindingId(findingId)}
@@ -545,6 +577,18 @@ export default function App() {
         isOpen={isSimulatorOpen}
         onClose={() => setIsSimulatorOpen(false)}
         onInject={handleInjectMisconfiguration}
+      />
+
+      {/* Live Azure REST API & CLI Ingestion Modal */}
+      <LiveAzureSyncModal
+        isOpen={isLiveSyncModalOpen}
+        onClose={() => setIsLiveSyncModalOpen(false)}
+        onApplyLiveResources={handleApplyLiveResources}
+        isLiveConnected={isLiveConnected}
+        onToggleContinuousEventStream={() =>
+          setIsEventStreamActive(!isEventStreamActive)
+        }
+        isEventStreamActive={isEventStreamActive}
       />
 
       {/* Author & Reference Footer */}

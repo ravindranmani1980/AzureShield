@@ -30,7 +30,7 @@ export const MisconfigurationSimulatorModal: React.FC<
 
   const scenarios = [
     {
-      id: 'open_bucket',
+      id: 'open_container',
       title: 'Expose Storage Container to Anonymous Internet',
       category: 'Storage Misconfiguration',
       severity: 'CRITICAL',

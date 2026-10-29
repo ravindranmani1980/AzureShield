@@ -1,1 +1,14 @@
 @import "tailwindcss";
+
+/* Hide platform remix banner or buttons if injected into document */
+[class*="remix" i],
+[id*="remix" i],
+a[href*="remix" i],
+[data-testid*="remix" i],
+button[data-testid*="remix" i],
+.ai-studio-banner,
+.remix-pill {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}

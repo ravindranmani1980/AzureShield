@@ -67,7 +67,7 @@ export const StorageAuditor: React.FC<StorageAuditorProps> = ({
           </div>
           <div>
             <h2 className="text-xl font-bold text-white tracking-tight">
-              Azure Blob Storage & Buckets Audit
+              Azure Blob Storage & Containers Audit
             </h2>
             <p className="text-xs text-slate-400">
               Identifying anonymous container exposure, insecure HTTP transfer, deprecated TLS, and unexpired SAS policies.

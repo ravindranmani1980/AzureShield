@@ -129,7 +129,7 @@ export function generateVisualAidsCanvas(
 
     const categories = [
       {
-        name: 'Storage Buckets & Containers',
+        name: 'Storage Accounts & Blob Containers',
         count: findings.filter((f) => f.category === 'storage').length,
         color: '#0284C7',
       },
@@ -318,7 +318,7 @@ export function generateAzureSecurityPdfReport(
   doc.setFontSize(9);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(15, 23, 42);
-  doc.text(`Open Storage Buckets: ${metrics.openBucketCount}`, 138, scoreBoxY + 16);
+  doc.text(`Exposed Blob Containers: ${metrics.exposedContainerCount || metrics.openBucketCount}`, 138, scoreBoxY + 16);
   doc.text(`Privilege Escalations: ${metrics.privilegeEscalationCount}`, 138, scoreBoxY + 22);
   doc.text(`Dormant RBAC Roles: ${metrics.inactiveRoleCount}`, 138, scoreBoxY + 28);
 
@@ -370,7 +370,7 @@ export function generateAzureSecurityPdfReport(
   doc.setTextColor(51, 65, 85);
   const narrative = [
     `This assessment identified ${metrics.totalFindings} security misconfiguration(s) across storage assets and role-based access control (RBAC).`,
-    `Specifically, ${metrics.openBucketCount} storage asset(s) are actively configured with anonymous public access or lack network perimeter restrictions, creating exposure to unauthenticated data exfiltration.`,
+    `Specifically, ${metrics.exposedContainerCount || metrics.openBucketCount} storage asset(s) are actively configured with anonymous public access or lack network perimeter restrictions, creating exposure to unauthenticated data exfiltration.`,
     `In the identity domain, ${metrics.rbacFindingCount + metrics.privilegeEscalationCount} finding(s) involve overly permissive role assignments, external guest privilege escalation, or inactive accounts.`,
     `Immediate priority should be given to resolving CRITICAL findings using the attached remediation runbooks.`,
   ];
