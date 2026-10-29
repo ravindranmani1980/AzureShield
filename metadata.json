@@ -1,6 +1,6 @@
 {
-  "name": "AzureShield — Storage & RBAC Security Loophole Auditor",
-  "description": "Enterprise CSPM analyzer identifying Azure Storage Account and Blob Container misconfigurations, unauthorized RBAC access permissions, privilege escalations, real-time alerts, and executive PDF audit reports with remediation runbooks.",
+  "name": "Maniq Shield",
+  "description": "Maniq Shield by Mani Ravindran (ravindran.in) — Enterprise CSPM analyzer identifying Azure Storage Account and Blob Container misconfigurations, unauthorized RBAC access permissions, privilege escalations, real-time alerts, and executive PDF audit reports with remediation runbooks.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

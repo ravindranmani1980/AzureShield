@@ -26,6 +26,7 @@ interface NavbarProps {
   onOpenSimulator: () => void;
   onOpenLiveSync: () => void;
   isLiveConnected: boolean;
+  liveSourceName?: string;
   alerts: SecurityAlert[];
   unreadAlertCount: number;
   onSelectAlert: (findingId: string) => void;
@@ -44,6 +45,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenSimulator,
   onOpenLiveSync,
   isLiveConnected,
+  liveSourceName,
   alerts,
   unreadAlertCount,
   onSelectAlert,
@@ -71,22 +73,22 @@ export const Navbar: React.FC<NavbarProps> = ({
   return (
     <header className="sticky top-0 z-40 bg-slate-900/95 backdrop-blur-md border-b border-slate-800 text-slate-100">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16">
+        <div className="flex items-center justify-between h-16 gap-4">
           {/* Brand */}
-          <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-cyan-400 flex items-center justify-center shadow-lg shadow-blue-500/20">
+          <div className="flex items-center space-x-3 flex-shrink-0">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-cyan-400 flex items-center justify-center shadow-lg shadow-blue-500/20 flex-shrink-0">
               <ShieldAlert className="w-6 h-6 text-white" />
             </div>
-            <div>
-              <div className="flex items-center space-x-2">
-                <span className="font-bold text-lg tracking-tight bg-gradient-to-r from-white via-slate-100 to-slate-300 bg-clip-text text-transparent">
-                  AzureShield
+            <div className="flex-shrink-0">
+              <div className="flex items-center space-x-2 whitespace-nowrap">
+                <span className="font-extrabold text-lg sm:text-xl tracking-tight text-white whitespace-nowrap">
+                  Maniq Shield
                 </span>
-                <span className="text-xs px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20 font-mono">
+                <span className="text-xs px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20 font-mono whitespace-nowrap">
                   CSPM v2.4
                 </span>
               </div>
-              <p className="text-xs text-slate-400 hidden sm:block">
+              <p className="text-xs text-slate-400 hidden sm:block whitespace-nowrap">
                 Storage & RBAC Auditor • By{' '}
                 <a
                   href="https://ravindran.in"
@@ -100,11 +102,11 @@ export const Navbar: React.FC<NavbarProps> = ({
             </div>
           </div>
 
-          {/* Navigation Tabs */}
-          <nav className="hidden md:flex items-center space-x-1 bg-slate-950/60 p-1 rounded-xl border border-slate-800">
+          {/* Navigation Tabs (Visible on XL screens inline, and in sub-bar below for <XL) */}
+          <nav className="hidden xl:flex items-center space-x-1 bg-slate-950/60 p-1 rounded-xl border border-slate-800 flex-shrink-0">
             <button
               onClick={() => setActiveTab('overview')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap ${
                 activeTab === 'overview'
                   ? 'bg-blue-600 text-white shadow-sm'
                   : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
@@ -114,7 +116,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             </button>
             <button
               onClick={() => setActiveTab('storage')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap ${
                 activeTab === 'storage'
                   ? 'bg-blue-600 text-white shadow-sm'
                   : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
@@ -124,7 +126,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             </button>
             <button
               onClick={() => setActiveTab('rbac')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap ${
                 activeTab === 'rbac'
                   ? 'bg-blue-600 text-white shadow-sm'
                   : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
@@ -134,7 +136,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             </button>
             <button
               onClick={() => setActiveTab('findings')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap ${
                 activeTab === 'findings'
                   ? 'bg-blue-600 text-white shadow-sm'
                   : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
@@ -154,7 +156,11 @@ export const Navbar: React.FC<NavbarProps> = ({
                   ? 'bg-cyan-500/20 border-cyan-500/40 text-cyan-300 shadow-sm shadow-cyan-500/20'
                   : 'bg-slate-800/80 hover:bg-slate-800 border-slate-700 text-slate-300 hover:text-white'
               }`}
-              title="Connect real-time Azure infrastructure via REST API or CLI"
+              title={
+                isLiveConnected && liveSourceName
+                  ? `Connected: ${liveSourceName}`
+                  : 'Connect real-time Azure infrastructure via REST API or CLI'
+              }
             >
               <span className="relative flex h-2 w-2">
                 {isLiveConnected && (
@@ -328,47 +334,47 @@ export const Navbar: React.FC<NavbarProps> = ({
           </div>
         </div>
 
-        {/* Mobile Navigation Tabs */}
-        <div className="flex md:hidden items-center justify-around py-2 border-t border-slate-800/80 overflow-x-auto text-[11px]">
+        {/* Sub-Bar Navigation Tabs for <XL screens */}
+        <div className="flex xl:hidden items-center justify-start space-x-2 py-2 border-t border-slate-800/80 overflow-x-auto text-xs">
           <button
             onClick={() => setActiveTab('overview')}
-            className={`px-2.5 py-1 rounded-lg font-medium transition-colors ${
+            className={`px-3 py-1 rounded-lg font-medium transition-colors whitespace-nowrap ${
               activeTab === 'overview'
                 ? 'bg-blue-600 text-white font-bold'
                 : 'text-slate-400 hover:text-white'
             }`}
           >
-            Overview
+            Overview & Analytics
           </button>
           <button
             onClick={() => setActiveTab('storage')}
-            className={`px-2.5 py-1 rounded-lg font-medium transition-colors ${
+            className={`px-3 py-1 rounded-lg font-medium transition-colors whitespace-nowrap ${
               activeTab === 'storage'
                 ? 'bg-blue-600 text-white font-bold'
                 : 'text-slate-400 hover:text-white'
             }`}
           >
-            Storage
+            Storage Accounts & Blobs
           </button>
           <button
             onClick={() => setActiveTab('rbac')}
-            className={`px-2.5 py-1 rounded-lg font-medium transition-colors ${
+            className={`px-3 py-1 rounded-lg font-medium transition-colors whitespace-nowrap ${
               activeTab === 'rbac'
                 ? 'bg-blue-600 text-white font-bold'
                 : 'text-slate-400 hover:text-white'
             }`}
           >
-            RBAC
+            RBAC & Permissions
           </button>
           <button
             onClick={() => setActiveTab('findings')}
-            className={`px-2.5 py-1 rounded-lg font-medium transition-colors ${
+            className={`px-3 py-1 rounded-lg font-medium transition-colors whitespace-nowrap ${
               activeTab === 'findings'
                 ? 'bg-blue-600 text-white font-bold'
                 : 'text-slate-400 hover:text-white'
             }`}
           >
-            Remediation
+            Remediation Register
           </button>
         </div>
       </div>

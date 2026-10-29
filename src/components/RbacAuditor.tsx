@@ -104,7 +104,7 @@ export const RbacAuditor: React.FC<RbacAuditorProps> = ({
             </div>
             <div>
               <h2 className="text-xl font-bold text-white tracking-tight">
-                Role-Based Access Control (RBAC) & IAM Analyzer
+                Maniq Shield — Role-Based Access Control (RBAC) & IAM Analyzer
               </h2>
               <p className="text-xs text-slate-400">
                 Auditing Azure Active Directory / Entra ID role assignments for excessive privileges, dormant accounts, external guest access, and privilege escalation attack vectors.

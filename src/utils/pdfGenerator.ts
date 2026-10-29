@@ -222,10 +222,10 @@ export function generateAzureSecurityPdfReport(
   const website = options.website || 'ravindran.in';
 
   doc.setProperties({
-    title: 'AzureShield Security Audit Report',
+    title: 'Maniq Shield Security Audit Report',
     author: `${authorName} (${website})`,
     subject: 'Azure Storage & RBAC Loophole Assessment with Remediation Runbooks',
-    keywords: 'Azure, Storage, RBAC, IAM, CSPM, CIS Benchmark, ravindran.in',
+    keywords: 'Maniq Shield, Azure, Storage, RBAC, IAM, CSPM, CIS Benchmark, ravindran.in',
     creator: `${authorName} - https://${website}`,
   });
 
@@ -246,7 +246,7 @@ export function generateAzureSecurityPdfReport(
   doc.setTextColor(255, 255, 255);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(18);
-  doc.text('AzureShield — Cloud Security Loophole Assessment', 14, 13);
+  doc.text('Maniq Shield — Cloud Security Loophole Assessment', 14, 13);
 
   doc.setFontSize(9);
   doc.setFont('helvetica', 'normal');
@@ -525,7 +525,7 @@ export function generateAzureSecurityPdfReport(
     doc.setFontSize(7.5);
     doc.setTextColor(148, 163, 184);
     doc.text(
-      `AzureShield Security Report • Author: ${authorName} (https://${website}) • Confidential • ${auditDate}`,
+      `Maniq Shield Security Report • Author: ${authorName} (https://${website}) • Confidential • ${auditDate}`,
       14,
       pageHeight - 6
     );

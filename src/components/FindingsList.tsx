@@ -60,7 +60,7 @@ export const FindingsList: React.FC<FindingsListProps> = ({
   });
 
   const generateRemediationBashScript = () => {
-    const header = `#!/usr/bin/env bash\n# =========================================================\n# AzureShield Automated Remediation Script\n# Generated: ${new Date().toISOString()}\n# Total Issues Addressed: ${findings.length}\n# =========================================================\nset -euo pipefail\n\necho "[+] Starting Azure Cloud Hardening..."\n\n`;
+    const header = `#!/usr/bin/env bash\n# =========================================================\n# Maniq Shield Automated Remediation Script\n# Generated: ${new Date().toISOString()}\n# Total Issues Addressed: ${findings.length}\n# =========================================================\nset -euo pipefail\n\necho "[+] Starting Azure Cloud Hardening..."\n\n`;
     const commands = findings.map((f, i) => `# [${f.severity}] #${i + 1}: ${f.title}\n${f.remediation.cliCommand}\n`).join('\n');
     const footer = `\necho "[+] All Azure remediation commands applied successfully."\n`;
     
@@ -68,7 +68,7 @@ export const FindingsList: React.FC<FindingsListProps> = ({
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `azure_remediation_${Date.now()}.sh`;
+    a.download = `maniq_shield_remediation_${Date.now()}.sh`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -80,7 +80,7 @@ export const FindingsList: React.FC<FindingsListProps> = ({
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <h2 className="text-xl font-bold text-white tracking-tight">
-              Remediation Register & Action Runbooks
+              Maniq Shield — Remediation Register & Action Runbooks
             </h2>
             <p className="text-xs text-slate-400">
               Complete catalog of detected storage loopholes, unauthorized RBAC access, and step-by-step remediation commands.
@@ -93,7 +93,7 @@ export const FindingsList: React.FC<FindingsListProps> = ({
             title="Download unified Bash script with all Azure CLI remediation commands"
           >
             <Download className="w-4 h-4" />
-            <span>Export az_remediation.sh</span>
+            <span>Export maniq_shield_remediation.sh</span>
           </button>
         </div>
 

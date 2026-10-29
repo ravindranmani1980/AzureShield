@@ -99,14 +99,14 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
             <div className="flex items-center space-x-2 mb-2">
               <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-500/20 text-blue-300 border border-blue-500/30 flex items-center space-x-1">
                 <Sparkles className="w-3.5 h-3.5" />
-                <span>Continuous Cloud Posture Audit</span>
+                <span>Maniq Shield • Continuous Cloud Posture Audit</span>
               </span>
               <span className="text-xs text-slate-400">
                 • {metrics.totalResources} Azure Assets Evaluated
               </span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
-              Storage Loopholes & RBAC Vulnerability Posture
+              Maniq Shield — Storage & RBAC Security Posture
             </h1>
             <p className="text-sm text-slate-300 max-w-2xl mt-1 leading-relaxed">
               Auditing Azure Storage Accounts for anonymous blob exposure, insecure HTTP transport, deprecated TLS versions, and analyzing Azure Entra ID / RBAC assignments for privilege escalation and excessive credentials.

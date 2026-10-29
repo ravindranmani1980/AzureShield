@@ -103,7 +103,7 @@ export const MisconfigurationSimulatorModal: React.FC<
               Simulate Live Misconfiguration Injection
             </h2>
             <p className="text-xs text-slate-400">
-              Test AzureShield's Real-Time Alerting System by injecting a live security loophole into the cloud environment.
+              Test Maniq Shield's Real-Time Alerting System by injecting a live security loophole into the cloud environment.
             </p>
           </div>
         </div>

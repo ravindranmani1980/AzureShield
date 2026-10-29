@@ -8,6 +8,7 @@ import assert from 'node:assert/strict';
 import {
   parseAzureStorageAccountsJson,
   parseAzureRoleAssignmentsJson,
+  buildLiveAzureTelemetryPayload,
 } from './azureLiveApi';
 
 test('parses raw az storage account list JSON correctly', () => {
@@ -40,12 +41,13 @@ test('parses raw az storage account list JSON correctly', () => {
   assert.equal(parsed[0].defaultAction, 'Allow');
 });
 
-test('parses raw az role assignment list JSON correctly', () => {
+test('parses raw az role assignment list JSON and resolves ARM roleDefinitionId GUIDs', () => {
   const rawCliRbac = [
     {
       id: '/subscriptions/1234/providers/Microsoft.Authorization/roleAssignments/assign-99',
       properties: {
-        roleDefinitionName: 'Owner',
+        roleDefinitionId:
+          '/subscriptions/1234/providers/Microsoft.Authorization/roleDefinitions/8e3af657-a8ff-443c-a75c-2fe8c4bcb635',
         principalName: 'partner_dev#EXT#@external.com',
         principalType: 'User',
         scope: '/subscriptions/1234',
@@ -57,7 +59,16 @@ test('parses raw az role assignment list JSON correctly', () => {
   const parsed = parseAzureRoleAssignmentsJson(rawCliRbac);
   assert.equal(parsed.length, 1);
   assert.equal(parsed[0].roleDefinitionName, 'Owner');
+  assert.deepEqual(parsed[0].actions, ['*']);
   assert.equal(parsed[0].principalType, 'GuestUser');
   assert.equal(parsed[0].isExternalGuest, true);
   assert.equal(parsed[0].lastActiveDays, 120);
+});
+
+test('builds live Azure telemetry payload with Storage Accounts, Blob Containers, and RBAC assignments', () => {
+  const payload = buildLiveAzureTelemetryPayload('sub-live-999');
+  assert.equal(payload.storageAccounts.length, 2);
+  assert.equal(payload.storageAccounts[0].name, 'maniqprodvault01');
+  assert.equal(payload.storageAccounts[0].containers.length, 2);
+  assert.equal(payload.roleAssignments.length, 3);
 });

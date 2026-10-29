@@ -47,7 +47,8 @@ export default function App() {
   const [isLiveConnected, setIsLiveConnected] = useState<boolean>(false);
   const [isLiveSyncModalOpen, setIsLiveSyncModalOpen] = useState<boolean>(false);
   const [liveSourceName, setLiveSourceName] = useState<string>('');
-  const [isEventStreamActive, setIsEventStreamActive] = useState<boolean>(false);
+  const [liveSubscriptionId, setLiveSubscriptionId] = useState<string>('');
+  const [isEventStreamActive, setIsEventStreamActive] = useState<boolean>(true);
 
   // Modals
   const [selectedFindingId, setSelectedFindingId] = useState<string | null>(null);
@@ -62,22 +63,32 @@ export default function App() {
   // Active dataset representation
   const activeDataset: AuditDataset = useMemo(() => {
     return {
-      presetName:
-        activePresetKey === 'high_risk'
-          ? SAMPLE_HIGH_RISK_DATASET.presetName
-          : SAMPLE_HARDENED_DATASET.presetName,
-      description:
-        activePresetKey === 'high_risk'
-          ? SAMPLE_HIGH_RISK_DATASET.description
-          : SAMPLE_HARDENED_DATASET.description,
-      subscriptionId:
-        activePresetKey === 'high_risk'
-          ? SAMPLE_HIGH_RISK_DATASET.subscriptionId
-          : SAMPLE_HARDENED_DATASET.subscriptionId,
+      presetName: isLiveConnected
+        ? liveSourceName || 'Live Azure Subscription'
+        : activePresetKey === 'high_risk'
+        ? SAMPLE_HIGH_RISK_DATASET.presetName
+        : SAMPLE_HARDENED_DATASET.presetName,
+      description: isLiveConnected
+        ? 'Real-time synchronized Azure Storage Accounts, Blob Containers, and RBAC Role Assignments.'
+        : activePresetKey === 'high_risk'
+        ? SAMPLE_HIGH_RISK_DATASET.description
+        : SAMPLE_HARDENED_DATASET.description,
+      subscriptionId: isLiveConnected
+        ? liveSubscriptionId || 'a8f93e11-44bb-4e92-91ef-00129a883100'
+        : activePresetKey === 'high_risk'
+        ? SAMPLE_HIGH_RISK_DATASET.subscriptionId
+        : SAMPLE_HARDENED_DATASET.subscriptionId,
       storageAccounts,
       roleAssignments,
     };
-  }, [activePresetKey, storageAccounts, roleAssignments]);
+  }, [
+    isLiveConnected,
+    liveSourceName,
+    liveSubscriptionId,
+    activePresetKey,
+    storageAccounts,
+    roleAssignments,
+  ]);
 
   // Helper to trigger a real-time alert
   const triggerRealTimeAlert = useCallback((finding: Finding) => {
@@ -99,6 +110,7 @@ export default function App() {
 
   // Initialize initial alerts on mount for the existing critical findings
   useEffect(() => {
+    document.title = 'Maniq Shield';
     if (findings.length > 0 && alerts.length === 0) {
       const initialAlerts: SecurityAlert[] = findings
         .filter((f) => f.severity === 'CRITICAL')
@@ -155,6 +167,8 @@ export default function App() {
     if (data.roleAssignments.length > 0) setRoleAssignments(data.roleAssignments);
     setIsLiveConnected(true);
     setLiveSourceName(data.sourceName);
+    setLiveSubscriptionId(data.subscriptionId);
+    setIsEventStreamActive(true);
 
     const auditResult = executeFullAudit(
       data.storageAccounts.length > 0 ? data.storageAccounts : storageAccounts,
@@ -404,7 +418,7 @@ export default function App() {
         subscriptionId: activeDataset.subscriptionId,
         subscriptionName: activeDataset.presetName,
       });
-      doc.save(`AzureShield_Security_Loophole_Report_${Date.now()}.pdf`);
+      doc.save(`Maniq_Shield_Security_Loophole_Report_${Date.now()}.pdf`);
     } catch (err) {
       console.error('Error generating PDF report:', err);
     }
@@ -497,6 +511,7 @@ export default function App() {
         onOpenSimulator={() => setIsSimulatorOpen(true)}
         onOpenLiveSync={() => setIsLiveSyncModalOpen(true)}
         isLiveConnected={isLiveConnected}
+        liveSourceName={liveSourceName}
         alerts={alerts}
         unreadAlertCount={unreadAlertCount}
         onSelectAlert={(findingId) => setSelectedFindingId(findingId)}
@@ -585,17 +600,19 @@ export default function App() {
         onClose={() => setIsLiveSyncModalOpen(false)}
         onApplyLiveResources={handleApplyLiveResources}
         isLiveConnected={isLiveConnected}
+        liveSourceName={liveSourceName}
         onToggleContinuousEventStream={() =>
           setIsEventStreamActive(!isEventStreamActive)
         }
         isEventStreamActive={isEventStreamActive}
+        onTriggerDriftAlert={handleInjectMisconfiguration}
       />
 
       {/* Author & Reference Footer */}
       <footer className="mt-16 border-t border-slate-800/80 bg-slate-950/80 py-6 text-xs text-slate-400">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-3">
           <div className="flex items-center space-x-2">
-            <span className="font-semibold text-slate-300">AzureShield CSPM</span>
+            <span className="font-semibold text-slate-300">Maniq Shield CSPM</span>
             <span>•</span>
             <span>Storage & RBAC Security Loophole Auditor</span>
           </div>

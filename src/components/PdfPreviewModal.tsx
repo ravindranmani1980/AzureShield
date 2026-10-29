@@ -93,7 +93,7 @@ export const PdfPreviewModal: React.FC<PdfPreviewModalProps> = ({
             <div className="flex items-center justify-between pb-4 border-b border-slate-200">
               <div>
                 <span className="text-[10px] font-black tracking-widest uppercase text-blue-600">
-                  AZURESHIELD CSPM AUDIT REPORT
+                  MANIQ SHIELD CSPM AUDIT REPORT
                 </span>
                 <h1 className="text-xl font-black text-slate-900">
                   Azure Storage & RBAC Loophole Assessment
