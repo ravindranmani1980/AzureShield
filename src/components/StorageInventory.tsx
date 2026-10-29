@@ -372,93 +372,98 @@ export const StorageInventory: React.FC<StorageInventoryProps> = ({
 
   return (
     <div className="space-y-6">
-      {/* Header & Top Actions */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 p-6 rounded-2xl bg-slate-900 border border-slate-800">
-        <div>
-          <h2 className="text-xl font-bold text-white tracking-tight">
-            Azure Storage & Container Asset Inventory
-          </h2>
-          <p className="text-xs text-slate-400 mt-1 max-w-3xl">
-            Searchable tabular directory of all synchronized Azure Storage Accounts and Blob Containers, detailing anonymous public access configuration, network perimeter rules, transport security, and encryption key management.
-          </p>
+      {/* Header & Top Actions (Postrix .xh-panel) */}
+      <section className="xh-panel space-y-5">
+        <div className="xh-kicker">
+          <span className="k">Asset Configuration Directory · Storage &amp; Containers</span>
+          <span className="tag">
+            {summaryStats.totalAccounts} Accounts · {summaryStats.totalContainers} Containers
+          </span>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2.5 shrink-0">
-          {onNavigateToAuditor && (
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+          <div>
+            <h2 className="text-xl sm:text-2xl font-semibold text-[#EEF3F1] tracking-tight">
+              Azure Storage &amp; Container Asset Inventory
+            </h2>
+            <p className="text-xs text-[#A9B7BF] mt-1 max-w-3xl leading-relaxed">
+              Searchable tabular directory of all synchronized Azure Storage Accounts and Blob Containers, detailing anonymous public access configuration, network perimeter rules, transport security, and encryption key management.
+            </p>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2.5 shrink-0">
+            {onNavigateToAuditor && (
+              <button
+                type="button"
+                onClick={onNavigateToAuditor}
+                className="xh-btn whitespace-nowrap shrink-0"
+              >
+                <span>Open Topology &amp; Auditor View</span>
+                <ExternalLink className="w-3.5 h-3.5" />
+              </button>
+            )}
             <button
               type="button"
-              onClick={onNavigateToAuditor}
-              className="px-3.5 py-2 rounded-lg text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition-colors whitespace-nowrap shrink-0 flex items-center gap-1.5"
+              onClick={handleExportCsv}
+              disabled={filteredRows.length === 0}
+              className="xh-btn primary disabled:opacity-50 whitespace-nowrap shrink-0"
             >
-              <span>Open Topology & Auditor View</span>
-              <ExternalLink className="w-3.5 h-3.5 text-slate-400" />
+              <Download className="w-3.5 h-3.5" />
+              <span>Export Inventory CSV</span>
             </button>
-          )}
-          <button
-            type="button"
-            onClick={handleExportCsv}
-            disabled={filteredRows.length === 0}
-            className="px-3.5 py-2 rounded-lg text-xs font-semibold bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white transition-colors whitespace-nowrap shrink-0 flex items-center gap-1.5"
-          >
-            <Download className="w-3.5 h-3.5" />
-            <span>Export Inventory CSV</span>
-          </button>
-        </div>
-      </div>
-
-      {/* Inventory KPI Summary Strip */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="p-4 rounded-xl bg-slate-900 border border-slate-800">
-          <div className="text-xs text-slate-400">Storage Accounts</div>
-          <div className="text-2xl font-bold text-white font-mono tabular-nums mt-1">
-            {summaryStats.totalAccounts}
-          </div>
-          <div className="text-xs text-slate-500 mt-1 font-mono tabular-nums">
-            {summaryStats.publicAccountsCount} allowing public blob access ·{' '}
-            {summaryStats.totalAccounts - summaryStats.publicAccountsCount} private
           </div>
         </div>
 
-        <div className="p-4 rounded-xl bg-slate-900 border border-slate-800">
-          <div className="text-xs text-slate-400">Blob Containers & Objects</div>
-          <div className="text-2xl font-bold text-white font-mono tabular-nums mt-1">
-            {summaryStats.totalContainers}
+        {/* Inventory KPI Summary Strip (.xh-metric) */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
+          <div className="xh-metric">
+            <div className="lbl">
+              <span>STORAGE ACCOUNTS</span>
+            </div>
+            <div className="num tabular-nums">{summaryStats.totalAccounts}</div>
+            <p>
+              {summaryStats.publicAccountsCount} allowing public blob access ·{' '}
+              {summaryStats.totalAccounts - summaryStats.publicAccountsCount} private
+            </p>
           </div>
-          <div className="text-xs text-slate-500 mt-1 font-mono tabular-nums">
-            {summaryStats.totalBlobs.toLocaleString()} total indexed blobs
-          </div>
-        </div>
 
-        <div className="p-4 rounded-xl bg-slate-900 border border-slate-800">
-          <div className="text-xs text-slate-400">Public Access Exposure</div>
-          <div
-            className={`text-2xl font-bold font-mono tabular-nums mt-1 ${
-              summaryStats.exposedContainersCount > 0
-                ? 'text-red-400'
-                : 'text-emerald-400'
-            }`}
-          >
-            {summaryStats.exposedContainersCount} Exposed
+          <div className="xh-metric">
+            <div className="lbl">
+              <span>BLOB CONTAINERS</span>
+            </div>
+            <div className="num tabular-nums">{summaryStats.totalContainers}</div>
+            <p>{summaryStats.totalBlobs.toLocaleString()} total indexed blobs</p>
           </div>
-          <div className="text-xs text-slate-500 mt-1 font-mono tabular-nums">
-            {summaryStats.totalContainers - summaryStats.exposedContainersCount} private containers
-          </div>
-        </div>
 
-        <div className="p-4 rounded-xl bg-slate-900 border border-slate-800">
-          <div className="text-xs text-slate-400">Encryption & Transport</div>
-          <div className="text-2xl font-bold text-cyan-400 font-mono tabular-nums mt-1">
-            {summaryStats.tlsHardenedAccountsCount}/{summaryStats.totalAccounts} HTTPS+TLS1.2
+          <div className="xh-metric">
+            <div className="lbl">
+              <span>PUBLIC ACCESS EXPOSURE</span>
+            </div>
+            <div className="num hi tabular-nums">
+              {summaryStats.exposedContainersCount} Exposed
+            </div>
+            <p>
+              {summaryStats.totalContainers - summaryStats.exposedContainersCount} private containers
+            </p>
           </div>
-          <div className="text-xs text-slate-500 mt-1 font-mono tabular-nums">
-            {summaryStats.cmkEncryptedAccountsCount} CMK Key Vault ·{' '}
-            {summaryStats.totalAccounts - summaryStats.cmkEncryptedAccountsCount} Microsoft-Managed
+
+          <div className="xh-metric">
+            <div className="lbl">
+              <span>ENCRYPTION &amp; TRANSPORT</span>
+            </div>
+            <div className="num hi tabular-nums">
+              {summaryStats.tlsHardenedAccountsCount}/{summaryStats.totalAccounts} HTTPS+TLS1.2
+            </div>
+            <p>
+              {summaryStats.cmkEncryptedAccountsCount} CMK Key Vault ·{' '}
+              {summaryStats.totalAccounts - summaryStats.cmkEncryptedAccountsCount} Microsoft-Managed
+            </p>
           </div>
         </div>
-      </div>
+      </section>
 
       {/* Search & Filter Toolbar */}
-      <div className="p-4 rounded-2xl bg-slate-900 border border-slate-800 space-y-3">
+      <div className="p-4 rounded-xl bg-white border border-slate-200 shadow-xs space-y-3">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
           {/* Search Input */}
           <div className="relative flex-1">
@@ -469,13 +474,13 @@ export const StorageInventory: React.FC<StorageInventoryProps> = ({
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search by storage account, container name, resource group, region, public access (Container/Blob/None), or encryption (CMK/MMK/TLS)..."
               aria-label="Search storage inventory"
-              className="w-full bg-slate-950 border border-slate-800 focus:border-blue-500 rounded-xl pl-10 pr-20 py-2 text-xs text-slate-100 placeholder-slate-500 focus:outline-none transition-colors"
+              className="w-full bg-slate-50 border border-slate-200 focus:border-[#0E2238] focus:bg-white rounded-lg pl-10 pr-20 py-2 text-xs text-slate-900 placeholder-slate-500 focus:outline-none transition-colors"
             />
             {searchQuery && (
               <button
                 type="button"
                 onClick={() => setSearchQuery('')}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] text-slate-400 hover:text-white font-medium"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] text-slate-500 hover:text-slate-900 font-medium cursor-pointer"
               >
                 Clear
               </button>
@@ -483,14 +488,14 @@ export const StorageInventory: React.FC<StorageInventoryProps> = ({
           </div>
 
           {/* Segmented View Mode Switcher */}
-          <div className="flex items-center gap-1 p-1 bg-slate-950 border border-slate-800 rounded-xl self-start lg:self-auto shrink-0">
+          <div className="flex items-center gap-1 p-1 bg-slate-100 border border-slate-200 rounded-lg self-start lg:self-auto shrink-0">
             <button
               type="button"
               onClick={() => setViewMode('unified')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors whitespace-nowrap shrink-0 ${
+              className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
                 viewMode === 'unified'
-                  ? 'bg-blue-600 text-white'
-                  : 'text-slate-400 hover:text-slate-200'
+                  ? 'bg-[#0E2238] text-[#EEF3F1]'
+                  : 'text-slate-600 hover:text-slate-900'
               }`}
             >
               Unified Table ({filteredRows.length})
@@ -498,10 +503,10 @@ export const StorageInventory: React.FC<StorageInventoryProps> = ({
             <button
               type="button"
               onClick={() => setViewMode('accounts')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors whitespace-nowrap shrink-0 ${
+              className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
                 viewMode === 'accounts'
-                  ? 'bg-blue-600 text-white'
-                  : 'text-slate-400 hover:text-slate-200'
+                  ? 'bg-[#0E2238] text-[#EEF3F1]'
+                  : 'text-slate-600 hover:text-slate-900'
               }`}
             >
               By Storage Account ({filteredAccounts.length})
@@ -509,10 +514,10 @@ export const StorageInventory: React.FC<StorageInventoryProps> = ({
             <button
               type="button"
               onClick={() => setViewMode('containers')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors whitespace-nowrap shrink-0 ${
+              className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
                 viewMode === 'containers'
-                  ? 'bg-blue-600 text-white'
-                  : 'text-slate-400 hover:text-slate-200'
+                  ? 'bg-[#0E2238] text-[#EEF3F1]'
+                  : 'text-slate-600 hover:text-slate-900'
               }`}
             >
               Containers Only ({filteredRows.filter((r) => r.container !== null).length})
@@ -521,22 +526,22 @@ export const StorageInventory: React.FC<StorageInventoryProps> = ({
         </div>
 
         {/* Secondary Filter Bar: Public Access & Encryption Posture */}
-        <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-slate-800/80 text-xs">
+        <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-slate-200 text-xs">
           <div className="flex flex-wrap items-center gap-4">
             {/* Public Access Filter */}
             <div className="flex items-center gap-2">
-              <span className="text-slate-400 font-medium flex items-center gap-1">
+              <span className="text-slate-600 font-medium flex items-center gap-1">
                 <SlidersHorizontal className="w-3.5 h-3.5 text-slate-500" />
                 <span>Public Access:</span>
               </span>
-              <div className="flex items-center gap-1 bg-slate-950 p-1 rounded-lg border border-slate-800">
+              <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-lg border border-slate-200">
                 <button
                   type="button"
                   onClick={() => setAccessFilter('all')}
-                  className={`px-2.5 py-1 rounded text-xs font-medium transition-colors whitespace-nowrap shrink-0 ${
+                  className={`px-2.5 py-1 rounded text-xs font-medium transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
                     accessFilter === 'all'
-                      ? 'bg-slate-800 text-white'
-                      : 'text-slate-400 hover:text-slate-200'
+                      ? 'bg-white text-slate-900 shadow-xs'
+                      : 'text-slate-600 hover:text-slate-900'
                   }`}
                 >
                   All
@@ -544,10 +549,10 @@ export const StorageInventory: React.FC<StorageInventoryProps> = ({
                 <button
                   type="button"
                   onClick={() => setAccessFilter('exposed')}
-                  className={`px-2.5 py-1 rounded text-xs font-medium transition-colors whitespace-nowrap shrink-0 ${
+                  className={`px-2.5 py-1 rounded text-xs font-medium transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
                     accessFilter === 'exposed'
-                      ? 'bg-red-500/20 text-red-300 border border-red-500/30'
-                      : 'text-slate-400 hover:text-slate-200'
+                      ? 'bg-red-50 text-red-700 border border-red-200'
+                      : 'text-slate-600 hover:text-slate-900'
                   }`}
                 >
                   Public / Exposed
@@ -555,10 +560,10 @@ export const StorageInventory: React.FC<StorageInventoryProps> = ({
                 <button
                   type="button"
                   onClick={() => setAccessFilter('private')}
-                  className={`px-2.5 py-1 rounded text-xs font-medium transition-colors whitespace-nowrap shrink-0 ${
+                  className={`px-2.5 py-1 rounded text-xs font-medium transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
                     accessFilter === 'private'
-                      ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
-                      : 'text-slate-400 hover:text-slate-200'
+                      ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
+                      : 'text-slate-600 hover:text-slate-900'
                   }`}
                 >
                   Private Only
@@ -568,15 +573,15 @@ export const StorageInventory: React.FC<StorageInventoryProps> = ({
 
             {/* Encryption Filter */}
             <div className="flex items-center gap-2">
-              <span className="text-slate-400 font-medium">Encryption:</span>
-              <div className="flex items-center gap-1 bg-slate-950 p-1 rounded-lg border border-slate-800">
+              <span className="text-slate-600 font-medium">Encryption:</span>
+              <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-lg border border-slate-200">
                 <button
                   type="button"
                   onClick={() => setEncryptionFilter('all')}
-                  className={`px-2.5 py-1 rounded text-xs font-medium transition-colors whitespace-nowrap shrink-0 ${
+                  className={`px-2.5 py-1 rounded text-xs font-medium transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
                     encryptionFilter === 'all'
-                      ? 'bg-slate-800 text-white'
-                      : 'text-slate-400 hover:text-slate-200'
+                      ? 'bg-white text-slate-900 shadow-xs'
+                      : 'text-slate-600 hover:text-slate-900'
                   }`}
                 >
                   All
@@ -584,10 +589,10 @@ export const StorageInventory: React.FC<StorageInventoryProps> = ({
                 <button
                   type="button"
                   onClick={() => setEncryptionFilter('weak')}
-                  className={`px-2.5 py-1 rounded text-xs font-medium transition-colors whitespace-nowrap shrink-0 ${
+                  className={`px-2.5 py-1 rounded text-xs font-medium transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
                     encryptionFilter === 'weak'
-                      ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
-                      : 'text-slate-400 hover:text-slate-200'
+                      ? 'bg-amber-50 text-amber-800 border border-amber-200'
+                      : 'text-slate-600 hover:text-slate-900'
                   }`}
                 >
                   HTTP / Legacy TLS / MMK
@@ -595,28 +600,28 @@ export const StorageInventory: React.FC<StorageInventoryProps> = ({
                 <button
                   type="button"
                   onClick={() => setEncryptionFilter('hardened')}
-                  className={`px-2.5 py-1 rounded text-xs font-medium transition-colors whitespace-nowrap shrink-0 ${
+                  className={`px-2.5 py-1 rounded text-xs font-medium transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
                     encryptionFilter === 'hardened'
-                      ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30'
-                      : 'text-slate-400 hover:text-slate-200'
+                      ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
+                      : 'text-slate-600 hover:text-slate-900'
                   }`}
                 >
-                  HTTPS + TLS 1.2+ & CMK
+                  HTTPS + TLS 1.2+ &amp; CMK
                 </button>
               </div>
             </div>
           </div>
 
-          <div className="flex items-center gap-3 text-slate-400 font-mono tabular-nums">
+          <div className="flex items-center gap-3 text-slate-600 font-mono tabular-nums">
             <span>
-              Showing <strong className="text-white">{filteredRows.length}</strong> of{' '}
+              Showing <strong className="text-slate-900">{filteredRows.length}</strong> of{' '}
               {allRows.length} inventory records
             </span>
             {(searchQuery || accessFilter !== 'all' || encryptionFilter !== 'all') && (
               <button
                 type="button"
                 onClick={resetFilters}
-                className="flex items-center gap-1 text-blue-400 hover:text-blue-300 font-sans font-medium"
+                className="flex items-center gap-1 text-emerald-700 hover:underline font-sans font-medium cursor-pointer"
               >
                 <RotateCcw className="w-3 h-3" />
                 <span>Reset Filters</span>
@@ -628,11 +633,11 @@ export const StorageInventory: React.FC<StorageInventoryProps> = ({
 
       {/* Empty State Handling */}
       {storageAccounts.length === 0 ? (
-        <div className="p-10 rounded-2xl bg-slate-900 border border-slate-800 text-center space-y-3">
-          <div className="text-base font-bold text-white">
+        <div className="p-10 rounded-xl bg-white border border-slate-200 shadow-xs text-center space-y-3">
+          <div className="text-base font-serif font-semibold text-slate-900">
             No Azure Storage Accounts Synchronized in Current View
           </div>
-          <p className="text-xs text-slate-400 max-w-lg mx-auto leading-relaxed">
+          <p className="text-xs text-slate-600 max-w-lg mx-auto leading-relaxed">
             The active subscription currently returned 0 Storage Accounts from Azure Resource Manager, or the current Bearer Token does not yet hold subscription-level Reader access on Microsoft.Storage/storageAccounts.
           </p>
           {onSelectDataset && (
@@ -640,14 +645,14 @@ export const StorageInventory: React.FC<StorageInventoryProps> = ({
               <button
                 type="button"
                 onClick={() => onSelectDataset('high_risk')}
-                className="px-4 py-2 rounded-lg text-xs font-semibold bg-blue-600 hover:bg-blue-500 text-white transition-colors"
+                className="px-4 py-2 rounded-lg text-xs font-semibold bg-[#0E2238] hover:bg-[#081420] text-[#EEF3F1] transition-colors cursor-pointer"
               >
                 Load High-Risk Sample Inventory
               </button>
               <button
                 type="button"
                 onClick={() => onSelectDataset('hardened')}
-                className="px-4 py-2 rounded-lg text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition-colors"
+                className="px-4 py-2 rounded-lg text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 transition-colors cursor-pointer"
               >
                 Load CIS Hardened Baseline Inventory
               </button>
@@ -655,37 +660,37 @@ export const StorageInventory: React.FC<StorageInventoryProps> = ({
           )}
         </div>
       ) : filteredRows.length === 0 ? (
-        <div className="p-10 rounded-2xl bg-slate-900 border border-slate-800 text-center space-y-3">
-          <div className="text-base font-bold text-white">
+        <div className="p-10 rounded-xl bg-white border border-slate-200 shadow-xs text-center space-y-3">
+          <div className="text-base font-serif font-semibold text-slate-900">
             No Matching Storage Accounts or Containers
           </div>
-          <p className="text-xs text-slate-400 max-w-md mx-auto">
+          <p className="text-xs text-slate-600 max-w-md mx-auto">
             No inventory rows matched your current search query or filter criteria.
           </p>
           <button
             type="button"
             onClick={resetFilters}
-            className="px-4 py-2 rounded-lg text-xs font-semibold bg-blue-600 hover:bg-blue-500 text-white transition-colors"
+            className="px-4 py-2 rounded-lg text-xs font-semibold bg-[#0E2238] hover:bg-[#081420] text-[#EEF3F1] transition-colors cursor-pointer"
           >
             Reset All Filters
           </button>
         </div>
       ) : viewMode === 'accounts' ? (
         /* Hierarchical Storage Accounts View with Expandable Container Sub-Tables */
-        <div className="rounded-2xl bg-slate-900 border border-slate-800 overflow-hidden">
+        <div className="rounded-xl bg-white border border-slate-200 shadow-xs overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="border-b border-slate-800 bg-slate-950/80 text-[11px] font-semibold text-slate-400">
-                  <th className="py-3 px-4">Storage Account & Scope</th>
+                <tr className="border-b border-slate-200 bg-slate-50 text-[11px] font-mono uppercase tracking-wider font-semibold text-slate-600">
+                  <th className="py-3 px-4">Storage Account &amp; Scope</th>
                   <th className="py-3 px-4">Location</th>
-                  <th className="py-3 px-4">Account Public Access & Network</th>
-                  <th className="py-3 px-4">Encryption & Transport Settings</th>
+                  <th className="py-3 px-4">Account Public Access &amp; Network</th>
+                  <th className="py-3 px-4">Encryption &amp; Transport Settings</th>
                   <th className="py-3 px-4 text-right">Containers</th>
                   <th className="py-3 px-4 text-right">Findings</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-800/80 text-xs">
+              <tbody className="divide-y divide-slate-200 text-xs">
                 {filteredAccounts.map((acc) => {
                   const expanded = isAccountExpanded(acc.name);
                   const accFindings = findings.filter(
@@ -703,43 +708,43 @@ export const StorageInventory: React.FC<StorageInventoryProps> = ({
                     <React.Fragment key={acc.id}>
                       <tr
                         onClick={() => toggleAccountExpanded(acc.name)}
-                        className="hover:bg-slate-800/40 cursor-pointer transition-colors"
+                        className="hover:bg-slate-50/80 cursor-pointer transition-colors"
                       >
                         <td className="py-3.5 px-4">
                           <div className="flex items-center gap-2">
                             {expanded ? (
-                              <ChevronDown className="w-4 h-4 text-slate-400 shrink-0" />
+                              <ChevronDown className="w-4 h-4 text-slate-500 shrink-0" />
                             ) : (
-                              <ChevronRight className="w-4 h-4 text-slate-400 shrink-0" />
+                              <ChevronRight className="w-4 h-4 text-slate-500 shrink-0" />
                             )}
                             <div>
-                              <div className="font-mono font-bold text-white">
+                              <div className="font-mono font-bold text-slate-900">
                                 {acc.name}
                               </div>
-                              <div className="text-[11px] text-slate-400 font-mono">
+                              <div className="text-[11px] text-slate-500 font-mono">
                                 RG: {acc.resourceGroup} · Sub: {acc.subscriptionId.slice(0, 8)}...
                               </div>
                             </div>
                           </div>
                         </td>
 
-                        <td className="py-3.5 px-4 font-mono text-slate-300">
+                        <td className="py-3.5 px-4 font-mono text-slate-700">
                           {acc.location}
                         </td>
 
                         <td className="py-3.5 px-4">
                           <div className="space-y-0.5">
                             <div
-                              className={`font-medium ${
+                              className={`font-semibold ${
                                 acc.allowBlobPublicAccess
-                                  ? 'text-red-400'
-                                  : 'text-emerald-400'
+                                  ? 'text-red-700'
+                                  : 'text-emerald-700'
                               }`}
                             >
                               Blob Public Access:{' '}
                               {acc.allowBlobPublicAccess ? 'Enabled (Allowed)' : 'Disabled'}
                             </div>
-                            <div className="text-[11px] text-slate-400 font-mono tabular-nums">
+                            <div className="text-[11px] text-slate-500 font-mono tabular-nums">
                               Network: {acc.publicNetworkAccess} · Firewall: {acc.defaultAction} ·{' '}
                               {acc.privateEndpointConnectionsCount} Private Endpoints
                             </div>
@@ -748,7 +753,7 @@ export const StorageInventory: React.FC<StorageInventoryProps> = ({
 
                         <td className="py-3.5 px-4">
                           <div className="space-y-0.5">
-                            <div className="font-medium text-slate-200">
+                            <div className="font-medium text-slate-800">
                               Key: {acc.customerManagedKeyEnabled ? 'Customer-Managed (CMK)' : 'Microsoft-Managed (MMK)'}
                               {' · '}
                               Infra Double Enc: {acc.infrastructureEncryption ? 'On' : 'Off'}
@@ -758,8 +763,8 @@ export const StorageInventory: React.FC<StorageInventoryProps> = ({
                                 !acc.supportsHttpsTrafficOnly ||
                                 acc.minimumTlsVersion === 'TLS1_0' ||
                                 acc.minimumTlsVersion === 'TLS1_1'
-                                  ? 'text-amber-400'
-                                  : 'text-slate-400'
+                                  ? 'text-amber-700 font-semibold'
+                                  : 'text-slate-600'
                               }`}
                             >
                               {acc.supportsHttpsTrafficOnly ? 'HTTPS Only' : 'HTTP Allowed'} ·{' '}
@@ -770,12 +775,12 @@ export const StorageInventory: React.FC<StorageInventoryProps> = ({
                         </td>
 
                         <td className="py-3.5 px-4 text-right font-mono tabular-nums">
-                          <div className="font-bold text-white">
+                          <div className="font-bold text-slate-900">
                             {acc.containers.length} total
                           </div>
                           <div
                             className={`text-[11px] ${
-                              exposedContCount > 0 ? 'text-red-400' : 'text-emerald-400'
+                              exposedContCount > 0 ? 'text-red-700 font-semibold' : 'text-emerald-700'
                             }`}
                           >
                             {exposedContCount} public
@@ -790,52 +795,52 @@ export const StorageInventory: React.FC<StorageInventoryProps> = ({
                                 e.stopPropagation();
                                 onSelectFinding(accFindings[0].id);
                               }}
-                              className="text-red-400 hover:text-red-300 underline font-semibold"
+                              className="text-red-700 hover:underline font-semibold cursor-pointer"
                             >
                               {accFindings.length} open
                             </button>
                           ) : (
-                            <span className="text-emerald-400">0 issues</span>
+                            <span className="text-emerald-700 font-semibold">0 issues</span>
                           )}
                         </td>
                       </tr>
 
                       {expanded && (
-                        <tr className="bg-slate-950/60">
+                        <tr className="bg-slate-50/70">
                           <td colSpan={6} className="px-8 py-3">
                             {acc.containers.length === 0 ? (
                               <div className="text-xs text-slate-500 py-2 font-mono">
                                 No Blob Containers present in storage account {acc.name}.
                               </div>
                             ) : (
-                              <div className="border border-slate-800/90 rounded-xl overflow-hidden">
+                              <div className="border border-slate-200 bg-white rounded-lg overflow-hidden">
                                 <table className="w-full text-left border-collapse">
                                   <thead>
-                                    <tr className="bg-slate-900/90 border-b border-slate-800 text-[11px] text-slate-400">
+                                    <tr className="bg-slate-100 border-b border-slate-200 text-[11px] font-mono text-slate-600">
                                       <th className="py-2 px-3">Container Name</th>
                                       <th className="py-2 px-3">Container Public Access</th>
-                                      <th className="py-2 px-3">SAS & Access Policy</th>
-                                      <th className="py-2 px-3">WORM Immutability & Classification</th>
+                                      <th className="py-2 px-3">SAS &amp; Access Policy</th>
+                                      <th className="py-2 px-3">WORM Immutability &amp; Classification</th>
                                       <th className="py-2 px-3 text-right">Blobs</th>
                                     </tr>
                                   </thead>
-                                  <tbody className="divide-y divide-slate-800/60 text-xs">
+                                  <tbody className="divide-y divide-slate-200 text-xs">
                                     {acc.containers.map((cont) => (
                                       <tr
                                         key={cont.id || cont.name}
-                                        className="hover:bg-slate-900/50"
+                                        className="hover:bg-slate-50"
                                       >
-                                        <td className="py-2.5 px-3 font-mono font-semibold text-cyan-300">
+                                        <td className="py-2.5 px-3 font-mono font-semibold text-emerald-800">
                                           {cont.name}
                                         </td>
                                         <td className="py-2.5 px-3">
                                           <span
-                                            className={`font-medium ${
+                                            className={`font-semibold ${
                                               cont.publicAccess === 'Container'
-                                                ? 'text-red-400'
+                                                ? 'text-red-700'
                                                 : cont.publicAccess === 'Blob'
-                                                ? 'text-amber-400'
-                                                : 'text-emerald-400'
+                                                ? 'text-amber-700'
+                                                : 'text-emerald-700'
                                             }`}
                                           >
                                             {cont.publicAccess === 'Container'
@@ -845,7 +850,7 @@ export const StorageInventory: React.FC<StorageInventoryProps> = ({
                                               : 'None (Private)'}
                                           </span>
                                         </td>
-                                        <td className="py-2.5 px-3 text-[11px] text-slate-300">
+                                        <td className="py-2.5 px-3 text-[11px] text-slate-700">
                                           {cont.hasStoredAccessPolicyWithNoExpiry
                                             ? 'Infinite Stored Policy'
                                             : 'Standard Expiry'}{' '}
@@ -854,11 +859,11 @@ export const StorageInventory: React.FC<StorageInventoryProps> = ({
                                             ? 'Full-Perm SAS Active'
                                             : 'Scoped SAS'}
                                         </td>
-                                        <td className="py-2.5 px-3 text-[11px] text-slate-300">
+                                        <td className="py-2.5 px-3 text-[11px] text-slate-700">
                                           WORM: {cont.immutabilityPolicyEnabled ? 'Locked' : 'Unlocked'}{' '}
                                           · Class: {cont.dataClassification || 'Internal'}
                                         </td>
-                                        <td className="py-2.5 px-3 text-right font-mono tabular-nums text-slate-200">
+                                        <td className="py-2.5 px-3 text-right font-mono tabular-nums text-slate-900">
                                           {(cont.blobCount ?? 0).toLocaleString()}
                                         </td>
                                       </tr>
@@ -879,18 +884,18 @@ export const StorageInventory: React.FC<StorageInventoryProps> = ({
         </div>
       ) : (
         /* Unified & Containers-Only Flat Searchable Table View */
-        <div className="rounded-2xl bg-slate-900 border border-slate-800 overflow-hidden">
+        <div className="rounded-xl bg-white border border-slate-200 shadow-xs overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="border-b border-slate-800 bg-slate-950/80 text-[11px] font-semibold text-slate-400">
+                <tr className="border-b border-slate-200 bg-slate-50 text-[11px] font-mono uppercase tracking-wider font-semibold text-slate-600">
                   <th className="py-3 px-4">
                     <button
                       type="button"
                       onClick={() => handleSort('accountName')}
-                      className="flex items-center gap-1 hover:text-white transition-colors whitespace-nowrap"
+                      className="flex items-center gap-1 hover:text-slate-900 transition-colors whitespace-nowrap cursor-pointer"
                     >
-                      <span>Storage Account & Resource Group</span>
+                      <span>Storage Account &amp; Resource Group</span>
                       <ArrowUpDown className="w-3 h-3" />
                     </button>
                   </th>
@@ -898,9 +903,9 @@ export const StorageInventory: React.FC<StorageInventoryProps> = ({
                     <button
                       type="button"
                       onClick={() => handleSort('containerName')}
-                      className="flex items-center gap-1 hover:text-white transition-colors whitespace-nowrap"
+                      className="flex items-center gap-1 hover:text-slate-900 transition-colors whitespace-nowrap cursor-pointer"
                     >
-                      <span>Blob Container & Classification</span>
+                      <span>Blob Container &amp; Classification</span>
                       <ArrowUpDown className="w-3 h-3" />
                     </button>
                   </th>
@@ -908,7 +913,7 @@ export const StorageInventory: React.FC<StorageInventoryProps> = ({
                     <button
                       type="button"
                       onClick={() => handleSort('publicAccess')}
-                      className="flex items-center gap-1 hover:text-white transition-colors whitespace-nowrap"
+                      className="flex items-center gap-1 hover:text-slate-900 transition-colors whitespace-nowrap cursor-pointer"
                     >
                       <span>Public Access Settings</span>
                       <ArrowUpDown className="w-3 h-3" />
@@ -918,9 +923,9 @@ export const StorageInventory: React.FC<StorageInventoryProps> = ({
                     <button
                       type="button"
                       onClick={() => handleSort('encryption')}
-                      className="flex items-center gap-1 hover:text-white transition-colors whitespace-nowrap"
+                      className="flex items-center gap-1 hover:text-slate-900 transition-colors whitespace-nowrap cursor-pointer"
                     >
-                      <span>Encryption & Transport Settings</span>
+                      <span>Encryption &amp; Transport Settings</span>
                       <ArrowUpDown className="w-3 h-3" />
                     </button>
                   </th>
@@ -928,7 +933,7 @@ export const StorageInventory: React.FC<StorageInventoryProps> = ({
                     <button
                       type="button"
                       onClick={() => handleSort('blobCount')}
-                      className="flex items-center justify-end gap-1 ml-auto hover:text-white transition-colors whitespace-nowrap"
+                      className="flex items-center justify-end gap-1 ml-auto hover:text-slate-900 transition-colors whitespace-nowrap cursor-pointer"
                     >
                       <span>Blobs</span>
                       <ArrowUpDown className="w-3 h-3" />
@@ -938,7 +943,7 @@ export const StorageInventory: React.FC<StorageInventoryProps> = ({
                     <button
                       type="button"
                       onClick={() => handleSort('findings')}
-                      className="flex items-center justify-end gap-1 ml-auto hover:text-white transition-colors whitespace-nowrap"
+                      className="flex items-center justify-end gap-1 ml-auto hover:text-slate-900 transition-colors whitespace-nowrap cursor-pointer"
                     >
                       <span>Audit Status</span>
                       <ArrowUpDown className="w-3 h-3" />
@@ -946,7 +951,7 @@ export const StorageInventory: React.FC<StorageInventoryProps> = ({
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-800/80 text-xs">
+              <tbody className="divide-y divide-slate-200 text-xs">
                 {filteredRows.map((row) => {
                   const { account: acc, container: cont, rowFindings } = row;
                   const topFinding = rowFindings[0];
@@ -954,26 +959,24 @@ export const StorageInventory: React.FC<StorageInventoryProps> = ({
                   return (
                     <tr
                       key={row.rowId}
-                      className="hover:bg-slate-800/40 transition-colors"
+                      className="hover:bg-slate-50/80 transition-colors"
                     >
-                      {/* Storage Account & Resource Group */}
                       <td className="py-3.5 px-4 align-top">
-                        <div className="font-mono font-bold text-white">
+                        <div className="font-mono font-bold text-slate-900">
                           {acc.name}
                         </div>
-                        <div className="text-[11px] text-slate-400 font-mono mt-0.5">
+                        <div className="text-[11px] text-slate-500 font-mono mt-0.5">
                           {acc.resourceGroup} · {acc.location}
                         </div>
                       </td>
 
-                      {/* Container Name & Classification */}
                       <td className="py-3.5 px-4 align-top">
                         {cont ? (
                           <div>
-                            <div className="font-mono font-semibold text-cyan-300">
+                            <div className="font-mono font-semibold text-emerald-800">
                               {cont.name}
                             </div>
-                            <div className="text-[11px] text-slate-400 mt-0.5">
+                            <div className="text-[11px] text-slate-500 mt-0.5">
                               {cont.dataClassification || 'Internal'} ·{' '}
                               {cont.immutabilityPolicyEnabled
                                 ? 'WORM Locked'
@@ -987,50 +990,49 @@ export const StorageInventory: React.FC<StorageInventoryProps> = ({
                         )}
                       </td>
 
-                      {/* Public Access Settings (Account + Container) */}
                       <td className="py-3.5 px-4 align-top">
                         <div className="space-y-0.5">
                           {cont ? (
                             <div
                               className={`font-semibold ${
                                 cont.publicAccess === 'Container'
-                                  ? 'text-red-400'
+                                  ? 'text-red-700'
                                   : cont.publicAccess === 'Blob'
-                                  ? 'text-amber-400'
-                                  : 'text-emerald-400'
+                                  ? 'text-amber-700'
+                                  : 'text-emerald-700'
                               }`}
                             >
-                              Container Access:{' '}
+                              Container:{' '}
                               {cont.publicAccess === 'Container'
-                                ? 'Container (Anonymous Read/List)'
+                                ? 'Public (Container Read/List)'
                                 : cont.publicAccess === 'Blob'
-                                ? 'Blob (Anonymous Read)'
-                                : 'None (Private)'}
+                                ? 'Public (Blob Read Only)'
+                                : 'Private (None)'}
                             </div>
                           ) : (
-                            <div className="text-slate-400 font-medium">
-                              Container Access: N/A
+                            <div className="text-slate-600 font-medium">
+                              Container: N/A
                             </div>
                           )}
 
-                          <div className="text-[11px] text-slate-400 font-mono">
-                            Account Public Blob:{' '}
+                          <div className="text-[11px] text-slate-600 font-mono">
+                            Account Blob Public:{' '}
                             <span
                               className={
                                 acc.allowBlobPublicAccess
-                                  ? 'text-red-300'
-                                  : 'text-emerald-300'
+                                  ? 'text-red-700 font-semibold'
+                                  : 'text-emerald-700'
                               }
                             >
                               {acc.allowBlobPublicAccess ? 'Allowed' : 'Disabled'}
                             </span>{' '}
-                            · Firewall: {acc.defaultAction} ({acc.publicNetworkAccess})
+                            · Firewall: {acc.defaultAction}
                           </div>
 
                           {cont &&
                             (cont.hasStoredAccessPolicyWithNoExpiry ||
                               cont.sasTokenIssuedWithFullPermissions) && (
-                              <div className="text-[11px] text-amber-300 font-mono">
+                              <div className="text-[11px] text-amber-700 font-mono font-semibold">
                                 {cont.hasStoredAccessPolicyWithNoExpiry
                                   ? 'No-Expiry Policy'
                                   : ''}
@@ -1046,15 +1048,14 @@ export const StorageInventory: React.FC<StorageInventoryProps> = ({
                         </div>
                       </td>
 
-                      {/* Encryption & Transport Settings */}
                       <td className="py-3.5 px-4 align-top">
                         <div className="space-y-0.5">
-                          <div className="font-medium text-slate-200">
+                          <div className="font-medium text-slate-800">
                             {acc.customerManagedKeyEnabled
                               ? 'Customer-Managed Key (CMK)'
                               : 'Microsoft-Managed Key (MMK)'}{' '}
                             ·{' '}
-                            <span className="text-slate-400">
+                            <span className="text-slate-500">
                               {acc.infrastructureEncryption
                                 ? 'Double Infra Enc'
                                 : 'Standard Enc'}
@@ -1065,8 +1066,8 @@ export const StorageInventory: React.FC<StorageInventoryProps> = ({
                               !acc.supportsHttpsTrafficOnly ||
                               acc.minimumTlsVersion === 'TLS1_0' ||
                               acc.minimumTlsVersion === 'TLS1_1'
-                                ? 'text-amber-400'
-                                : 'text-emerald-400'
+                                ? 'text-amber-700 font-semibold'
+                                : 'text-emerald-700'
                             }`}
                           >
                             {acc.supportsHttpsTrafficOnly
@@ -1080,24 +1081,22 @@ export const StorageInventory: React.FC<StorageInventoryProps> = ({
                         </div>
                       </td>
 
-                      {/* Blob Count */}
-                      <td className="py-3.5 px-4 align-top text-right font-mono tabular-nums text-slate-200">
+                      <td className="py-3.5 px-4 align-top text-right font-mono tabular-nums text-slate-900">
                         {cont ? (cont.blobCount ?? 0).toLocaleString() : '—'}
                       </td>
 
-                      {/* Audit Status / Findings Drill-Down */}
                       <td className="py-3.5 px-4 align-top text-right font-mono tabular-nums">
                         {rowFindings.length > 0 && topFinding ? (
                           <button
                             type="button"
                             onClick={() => onSelectFinding(topFinding.id)}
-                            className="text-red-400 hover:text-red-300 underline font-semibold whitespace-nowrap"
+                            className="text-red-700 hover:underline font-semibold whitespace-nowrap cursor-pointer"
                           >
                             {rowFindings.length}{' '}
                             {rowFindings.length === 1 ? 'finding' : 'findings'} →
                           </button>
                         ) : (
-                          <span className="text-emerald-400 whitespace-nowrap">
+                          <span className="text-emerald-700 font-semibold whitespace-nowrap">
                             Hardened
                           </span>
                         )}

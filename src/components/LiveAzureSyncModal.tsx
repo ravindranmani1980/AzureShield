@@ -368,35 +368,35 @@ export const LiveAzureSyncModal: React.FC<LiveAzureSyncModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-md animate-in fade-in duration-150">
-      <div className="relative w-full max-w-3xl max-h-[92vh] flex flex-col bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl text-slate-100 overflow-hidden">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#081420]/80 backdrop-blur-sm animate-in fade-in duration-150">
+      <div className="relative w-full max-w-3xl max-h-[92vh] flex flex-col bg-white border border-slate-200 rounded-2xl shadow-2xl text-[#16232F] overflow-hidden">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800 bg-slate-950/70">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-white/10 bg-[#081420] text-[#F3F5F1]">
           <div className="flex items-center space-x-3">
-            <div className="p-2.5 rounded-xl bg-gradient-to-tr from-cyan-500 to-blue-600 text-white shadow-md shadow-cyan-500/20">
+            <div className="p-2.5 rounded-lg bg-[#2BB5A0] text-[#081420]">
               <Zap className="w-5 h-5" />
             </div>
             <div>
               <div className="flex items-center space-x-2">
-                <h3 className="font-bold text-sm text-white">
+                <h3 className="font-serif font-bold text-base text-white">
                   Maniq Shield — Live Azure Connection & Telemetry
                 </h3>
                 <span
-                  className={`text-[10px] px-2 py-0.5 rounded-full font-bold flex items-center space-x-1 border ${
+                  className={`text-[10px] font-mono px-2 py-0.5 rounded font-bold flex items-center space-x-1 border ${
                     isLiveConnected
-                      ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
-                      : 'bg-cyan-500/20 text-cyan-300 border-cyan-500/30'
+                      ? 'bg-[#2BB5A0]/20 text-[#5FD3BF] border-[#2BB5A0]/40'
+                      : 'bg-white/10 text-[#EBC385] border-white/20'
                   }`}
                 >
                   <span
                     className={`w-1.5 h-1.5 rounded-full animate-ping mr-1 ${
-                      isLiveConnected ? 'bg-emerald-400' : 'bg-cyan-400'
+                      isLiveConnected ? 'bg-[#5FD3BF]' : 'bg-[#EBC385]'
                     }`}
                   />
                   {isLiveConnected ? 'CONNECTED' : 'READY TO SYNC'}
                 </span>
               </div>
-              <p className="text-xs text-slate-400">
+              <p className="text-xs text-[#B7C3CC]">
                 {isLiveConnected && liveSourceName
                   ? `Active Source: ${liveSourceName}`
                   : 'Connect directly to Azure ARM REST API (Single or All Tenant Subscriptions), Cloud Shell CLI, or Live Telemetry.'}
@@ -406,7 +406,7 @@ export const LiveAzureSyncModal: React.FC<LiveAzureSyncModalProps> = ({
 
           <button
             onClick={onClose}
-            className="p-1.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+            className="p-1.5 rounded-lg text-[#B7C3CC] hover:text-white hover:bg-white/10 transition-colors"
             aria-label="Close dialog"
           >
             <X className="w-5 h-5" />
@@ -414,16 +414,16 @@ export const LiveAzureSyncModal: React.FC<LiveAzureSyncModalProps> = ({
         </div>
 
         {/* Live Endpoint Reachability Diagnostics Bar */}
-        <div className="px-6 py-2.5 bg-slate-950/90 border-b border-slate-800/80 flex flex-wrap items-center justify-between gap-2 text-xs">
+        <div className="px-6 py-2.5 bg-[#0D1C2D] border-b border-white/10 flex flex-wrap items-center justify-between gap-2 text-xs text-[#E5ECE9]">
           <div className="flex items-center space-x-2">
             <Wifi
               className={`w-3.5 h-3.5 ${
                 endpointHealth?.reachable
-                  ? 'text-emerald-400'
-                  : 'text-cyan-400'
+                  ? 'text-[#5FD3BF]'
+                  : 'text-[#EBC385]'
               }`}
             />
-            <span className="text-slate-300 font-medium">
+            <span className="font-mono text-[11px]">
               {isCheckingHealth
                 ? 'Pinging https://management.azure.com...'
                 : endpointHealth?.message ||
@@ -435,7 +435,7 @@ export const LiveAzureSyncModal: React.FC<LiveAzureSyncModalProps> = ({
             type="button"
             onClick={handleCheckEndpointHealth}
             disabled={isCheckingHealth}
-            className="flex items-center space-x-1 px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-slate-700 text-[11px] font-semibold transition-colors disabled:opacity-50"
+            className="xh-btn text-[11px] py-1 px-2.5 disabled:opacity-50"
           >
             <RefreshCw
               className={`w-3 h-3 ${isCheckingHealth ? 'animate-spin' : ''}`}
@@ -445,49 +445,49 @@ export const LiveAzureSyncModal: React.FC<LiveAzureSyncModalProps> = ({
         </div>
 
         {/* Navigation Tabs */}
-        <div className="flex items-center px-6 pt-3 border-b border-slate-800 bg-slate-950/40 space-x-2 text-xs">
+        <div className="flex items-center px-6 pt-3 border-b border-slate-200 bg-slate-50 space-x-2 text-xs">
           <button
             onClick={() => setActiveTab('api')}
             className={`pb-2.5 px-3 font-semibold border-b-2 transition-all flex items-center space-x-1.5 ${
               activeTab === 'api'
-                ? 'border-blue-500 text-white'
-                : 'border-transparent text-slate-400 hover:text-slate-200'
+                ? 'border-[#1F8A79] text-[#16232F]'
+                : 'border-transparent text-[#546471] hover:text-[#16232F]'
             }`}
           >
-            <Globe className="w-4 h-4 text-blue-400" />
+            <Globe className="w-4 h-4 text-[#1F8A79]" />
             <span>Azure ARM REST API</span>
           </button>
           <button
             onClick={() => setActiveTab('cli')}
             className={`pb-2.5 px-3 font-semibold border-b-2 transition-all flex items-center space-x-1.5 ${
               activeTab === 'cli'
-                ? 'border-blue-500 text-white'
-                : 'border-transparent text-slate-400 hover:text-slate-200'
+                ? 'border-[#1F8A79] text-[#16232F]'
+                : 'border-transparent text-[#546471] hover:text-[#16232F]'
             }`}
           >
-            <Terminal className="w-4 h-4 text-cyan-400" />
+            <Terminal className="w-4 h-4 text-[#1F8A79]" />
             <span>Azure Cloud Shell / CLI Stream</span>
           </button>
           <button
             onClick={() => setActiveTab('stream')}
             className={`pb-2.5 px-3 font-semibold border-b-2 transition-all flex items-center space-x-1.5 ${
               activeTab === 'stream'
-                ? 'border-blue-500 text-white'
-                : 'border-transparent text-slate-400 hover:text-slate-200'
+                ? 'border-[#1F8A79] text-[#16232F]'
+                : 'border-transparent text-[#546471] hover:text-[#16232F]'
             }`}
           >
-            <Radio className="w-4 h-4 text-emerald-400" />
+            <Radio className="w-4 h-4 text-[#1F8A79]" />
             <span>Real-Time Activity Event Stream</span>
           </button>
         </div>
 
         {/* Tab 1: Direct ARM REST API Sync */}
         {activeTab === 'api' && (
-          <div className="p-6 space-y-4 overflow-y-auto flex-1">
-            <div className="p-3.5 rounded-xl bg-blue-500/10 border border-blue-500/20 text-xs text-blue-300 leading-relaxed flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="p-6 space-y-4 overflow-y-auto flex-1 bg-white">
+            <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 text-xs text-[#16232F] leading-relaxed flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
                 <strong>One-Shot Tenant & Multi-Subscription Discovery:</strong> Automatically enumerates{' '}
-                <code className="bg-slate-950 px-1 py-0.5 rounded text-cyan-300 font-mono">
+                <code className="bg-[#081420] px-1.5 py-0.5 rounded text-[#5FD3BF] font-mono">
                   GET /subscriptions
                 </code>{' '}
                 and scans all Storage Accounts, Blob Containers, and RBAC Role Assignments in parallel.
@@ -496,7 +496,7 @@ export const LiveAzureSyncModal: React.FC<LiveAzureSyncModalProps> = ({
                 type="button"
                 onClick={handleInstantLiveTelemetrySync}
                 disabled={isLoading}
-                className="flex items-center space-x-1.5 px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-md shadow-emerald-600/20 whitespace-nowrap transition-all active:scale-95"
+                className="flex items-center space-x-1.5 px-3 py-2 rounded-lg bg-[#2BB5A0] hover:bg-[#1F8A79] text-[#081420] hover:text-white font-bold text-xs whitespace-nowrap transition-all"
               >
                 <Sparkles className="w-3.5 h-3.5" />
                 <span>Connect Live Cloud Telemetry (1-Click Sync)</span>
@@ -504,26 +504,26 @@ export const LiveAzureSyncModal: React.FC<LiveAzureSyncModalProps> = ({
             </div>
 
             {/* Scan Scope Selector: All Tenant Subscriptions vs Specific Subscription(s) */}
-            <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
-                <div className="text-xs font-bold text-white flex items-center space-x-2">
-                  <ShieldCheck className="w-4 h-4 text-cyan-400" />
+                <div className="text-xs font-bold text-[#16232F] flex items-center space-x-2">
+                  <ShieldCheck className="w-4 h-4 text-[#1F8A79]" />
                   <span>Subscription Scan Scope (One-Shot Mode)</span>
                 </div>
-                <p className="text-[11px] text-slate-400 mt-0.5">
+                <p className="text-[11px] text-[#546471] mt-0.5">
                   {scanAllSubscriptions
                     ? 'Auto-discovers every enabled subscription in your Entra Tenant and audits them in parallel.'
                     : 'Scans a single Subscription ID or a comma-separated list of Subscription IDs.'}
                 </p>
               </div>
-              <div className="flex items-center space-x-1.5 bg-slate-900 p-1 rounded-xl border border-slate-800">
+              <div className="flex items-center space-x-1.5 bg-white p-1 rounded-lg border border-slate-200">
                 <button
                   type="button"
                   onClick={() => setScanAllSubscriptions(true)}
-                  className={`px-2.5 py-1.5 rounded-lg text-[11px] font-bold transition-all ${
+                  className={`px-2.5 py-1.5 rounded-md text-[11px] font-bold transition-all ${
                     scanAllSubscriptions
-                      ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30'
-                      : 'text-slate-400 hover:text-slate-200'
+                      ? 'bg-[#0E2238] text-white'
+                      : 'text-[#546471] hover:text-[#16232F]'
                   }`}
                 >
                   All Tenant Subscriptions
@@ -531,10 +531,10 @@ export const LiveAzureSyncModal: React.FC<LiveAzureSyncModalProps> = ({
                 <button
                   type="button"
                   onClick={() => setScanAllSubscriptions(false)}
-                  className={`px-2.5 py-1.5 rounded-lg text-[11px] font-bold transition-all ${
+                  className={`px-2.5 py-1.5 rounded-md text-[11px] font-bold transition-all ${
                     !scanAllSubscriptions
-                      ? 'bg-blue-500/20 text-blue-300 border border-blue-500/30'
-                      : 'text-slate-400 hover:text-slate-200'
+                      ? 'bg-[#0E2238] text-white'
+                      : 'text-[#546471] hover:text-[#16232F]'
                   }`}
                 >
                   Specific Subscription(s)
@@ -544,7 +544,7 @@ export const LiveAzureSyncModal: React.FC<LiveAzureSyncModalProps> = ({
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs font-bold text-slate-300 mb-1">
+                <label className="block text-xs font-bold text-[#16232F] mb-1">
                   {scanAllSubscriptions
                     ? 'Subscription Filter (* = All Enabled in Tenant):'
                     : 'Azure Subscription ID(s) (Comma-separated):'}
@@ -555,12 +555,12 @@ export const LiveAzureSyncModal: React.FC<LiveAzureSyncModalProps> = ({
                   disabled={scanAllSubscriptions}
                   onChange={(e) => setSubscriptionId(e.target.value)}
                   placeholder="sub-id-1, sub-id-2, sub-id-3"
-                  className="w-full bg-slate-950 border border-slate-800 text-slate-200 text-xs rounded-xl px-3 py-2 font-mono focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:opacity-70 disabled:text-cyan-300"
+                  className="w-full bg-slate-50 border border-slate-300 text-[#16232F] text-xs rounded-lg px-3 py-2 font-mono focus:outline-none focus:ring-1 focus:ring-[#2BB5A0] disabled:opacity-70"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-300 mb-1">
+                <label className="block text-xs font-bold text-[#16232F] mb-1">
                   Azure Entra Tenant ID (Optional):
                 </label>
                 <input
@@ -568,17 +568,17 @@ export const LiveAzureSyncModal: React.FC<LiveAzureSyncModalProps> = ({
                   value={tenantId}
                   onChange={(e) => setTenantId(e.target.value)}
                   placeholder="e.g. 72f988bf-86f1-41af-91ab-2d7cd011db47"
-                  className="w-full bg-slate-950 border border-slate-800 text-slate-200 text-xs rounded-xl px-3 py-2 font-mono focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  className="w-full bg-slate-50 border border-slate-300 text-[#16232F] text-xs rounded-lg px-3 py-2 font-mono focus:outline-none focus:ring-1 focus:ring-[#2BB5A0]"
                 />
               </div>
             </div>
 
             <div>
               <div className="flex items-center justify-between mb-1">
-                <label className="text-xs font-bold text-slate-300">
+                <label className="text-xs font-bold text-[#16232F]">
                   Azure ARM Bearer Access Token (Tenant-Wide Read Token):
                 </label>
-                <span className="text-[11px] text-slate-400 font-mono">
+                <span className="text-[11px] text-[#546471] font-mono">
                   OAuth2 Bearer Token
                 </span>
               </div>
@@ -587,11 +587,11 @@ export const LiveAzureSyncModal: React.FC<LiveAzureSyncModalProps> = ({
                 value={accessToken}
                 onChange={(e) => setAccessToken(e.target.value)}
                 placeholder="Paste token from: az account get-access-token --resource https://management.azure.com --query accessToken -o tsv"
-                className="w-full bg-slate-950 border border-slate-800 text-slate-200 text-xs rounded-xl p-3 font-mono focus:outline-none focus:ring-1 focus:ring-blue-500"
+                className="w-full bg-slate-50 border border-slate-300 text-[#16232F] text-xs rounded-lg p-3 font-mono focus:outline-none focus:ring-1 focus:ring-[#2BB5A0]"
               />
-              <div className="mt-1 text-[11px] text-slate-400">
+              <div className="mt-1 text-[11px] text-[#546471]">
                 One token works across all subscriptions in your tenant where you hold{' '}
-                <code className="bg-slate-950 px-1 py-0.5 rounded text-emerald-300 font-mono">
+                <code className="bg-slate-100 px-1 py-0.5 rounded text-[#1F8A79] font-mono">
                   Reader
                 </code>{' '}
                 access (Tip: assign Reader at the <strong>Root Management Group</strong> level for tenant-wide coverage).
@@ -600,22 +600,22 @@ export const LiveAzureSyncModal: React.FC<LiveAzureSyncModalProps> = ({
 
             {/* Status Message */}
             {syncStatus.type === 'error' && (
-              <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-300 text-xs flex items-start space-x-2">
-                <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+              <div className="p-3 rounded-lg bg-red-50 border border-red-200 text-red-800 text-xs flex items-start space-x-2">
+                <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5 text-red-600" />
                 <span>{syncStatus.message}</span>
               </div>
             )}
 
             {syncStatus.type === 'success' && (
-              <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-xs flex items-start justify-between gap-3">
+              <div className="p-3 rounded-lg bg-emerald-50 border border-emerald-200 text-[#16232F] text-xs flex items-start justify-between gap-3">
                 <div className="flex items-start space-x-2">
-                  <CheckCircle2 className="w-4 h-4 flex-shrink-0 mt-0.5 text-emerald-400" />
+                  <CheckCircle2 className="w-4 h-4 flex-shrink-0 mt-0.5 text-[#1F8A79]" />
                   <span>{syncStatus.message}</span>
                 </div>
                 <button
                   type="button"
                   onClick={onClose}
-                  className="px-3 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-[11px] whitespace-nowrap"
+                  className="px-3 py-1 rounded-md bg-[#0E2238] hover:bg-[#15314E] text-white font-bold text-[11px] whitespace-nowrap"
                 >
                   View Audit Results →
                 </button>
@@ -626,7 +626,7 @@ export const LiveAzureSyncModal: React.FC<LiveAzureSyncModalProps> = ({
               <button
                 type="button"
                 onClick={() => setActiveTab('cli')}
-                className="text-xs text-cyan-400 hover:text-cyan-300 font-semibold"
+                className="text-xs text-[#1F8A79] hover:text-[#15695B] font-semibold"
               >
                 Or Use Multi-Subscription Azure CLI / Resource Graph →
               </button>
@@ -636,7 +636,7 @@ export const LiveAzureSyncModal: React.FC<LiveAzureSyncModalProps> = ({
                   type="button"
                   onClick={handleFetchFromAzure}
                   disabled={isLoading}
-                  className="flex items-center space-x-2 px-4 py-2 rounded-xl text-xs font-semibold bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white shadow-lg shadow-blue-600/20 transition-all active:scale-95 disabled:opacity-50"
+                  className="flex items-center space-x-2 px-4 py-2 rounded-lg text-xs font-semibold bg-[#0E2238] hover:bg-[#15314E] text-white transition-all disabled:opacity-50"
                 >
                   {isLoading ? (
                     <>
@@ -661,17 +661,17 @@ export const LiveAzureSyncModal: React.FC<LiveAzureSyncModalProps> = ({
 
         {/* Tab 2: CLI Output Ingestion */}
         {activeTab === 'cli' && (
-          <div className="p-6 space-y-4 overflow-y-auto flex-1">
+          <div className="p-6 space-y-4 overflow-y-auto flex-1 bg-white">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-              <span className="text-xs text-slate-300 font-medium">
+              <span className="text-xs text-[#16232F] font-medium">
                 Export across <strong>all subscriptions in your tenant in one shot</strong> using Azure Resource Graph or Bash loop:
               </span>
               <button
                 type="button"
                 onClick={loadRealWorldAzureSnapshot}
-                className="text-xs px-3 py-1.5 rounded-xl bg-blue-500/15 hover:bg-blue-500/25 text-blue-300 border border-blue-500/30 font-semibold flex items-center space-x-1.5 transition-all whitespace-nowrap"
+                className="text-xs px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-[#16232F] border border-slate-300 font-semibold flex items-center space-x-1.5 transition-all whitespace-nowrap"
               >
-                <Sparkles className="w-3.5 h-3.5" />
+                <Sparkles className="w-3.5 h-3.5 text-[#1F8A79]" />
                 <span>Load Multi-Sub Sample Payload (3 Subs)</span>
               </button>
             </div>
@@ -679,10 +679,10 @@ export const LiveAzureSyncModal: React.FC<LiveAzureSyncModalProps> = ({
             <div className="space-y-3">
               <div>
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between text-xs mb-1 gap-1">
-                  <span className="font-bold text-slate-300 font-mono">
+                  <span className="font-bold text-[#16232F] font-mono">
                     1. One-Shot All Tenant Storage Accounts (Resource Graph or CLI Loop)
                   </span>
-                  <code className="text-[10px] text-cyan-300 bg-slate-950 px-2 py-0.5 rounded font-mono">
+                  <code className="text-[10px] text-[#5FD3BF] bg-[#081420] px-2 py-0.5 rounded font-mono">
                     az graph query -q "Resources | where type =~ 'microsoft.storage/storageaccounts'" --first 1000 -o json --query data
                   </code>
                 </div>
@@ -691,16 +691,16 @@ export const LiveAzureSyncModal: React.FC<LiveAzureSyncModalProps> = ({
                   value={storageJsonText}
                   onChange={(e) => setStorageJsonText(e.target.value)}
                   placeholder={'[ { "name": "maniqprodvault01", "properties": { "allowBlobPublicAccess": true } } ]'}
-                  className="w-full bg-slate-950 border border-slate-800 text-slate-200 text-xs rounded-xl p-3 font-mono focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  className="w-full bg-slate-50 border border-slate-300 text-[#16232F] text-xs rounded-lg p-3 font-mono focus:outline-none focus:ring-1 focus:ring-[#2BB5A0]"
                 />
               </div>
 
               <div>
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between text-xs mb-1 gap-1">
-                  <span className="font-bold text-slate-300 font-mono">
+                  <span className="font-bold text-[#16232F] font-mono">
                     2. One-Shot All Tenant RBAC Role Assignments (Multi-Sub Loop)
                   </span>
-                  <code className="text-[10px] text-cyan-300 bg-slate-950 px-2 py-0.5 rounded font-mono">
+                  <code className="text-[10px] text-[#5FD3BF] bg-[#081420] px-2 py-0.5 rounded font-mono">
                     az account list --query "[?state=='Enabled'].id" -o tsv | xargs -I {} az role assignment list --all --subscription {} -o json | jq -s 'add'
                   </code>
                 </div>
@@ -709,13 +709,13 @@ export const LiveAzureSyncModal: React.FC<LiveAzureSyncModalProps> = ({
                   value={rbacJsonText}
                   onChange={(e) => setRbacJsonText(e.target.value)}
                   placeholder='[ { "properties": { "roleDefinitionName": "Owner", "principalName": "user#EXT#@partner.com", ... } } ]'
-                  className="w-full bg-slate-950 border border-slate-800 text-slate-200 text-xs rounded-xl p-3 font-mono focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  className="w-full bg-slate-50 border border-slate-300 text-[#16232F] text-xs rounded-lg p-3 font-mono focus:outline-none focus:ring-1 focus:ring-[#2BB5A0]"
                 />
               </div>
 
               {cliError && (
-                <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-300 text-xs flex items-center space-x-2">
-                  <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                <div className="p-3 rounded-lg bg-red-50 border border-red-200 text-red-800 text-xs flex items-center space-x-2">
+                  <AlertCircle className="w-4 h-4 flex-shrink-0 text-red-600" />
                   <span>{cliError}</span>
                 </div>
               )}
@@ -725,7 +725,7 @@ export const LiveAzureSyncModal: React.FC<LiveAzureSyncModalProps> = ({
               <button
                 type="button"
                 onClick={handleParseCliJson}
-                className="flex items-center space-x-2 px-4 py-2 rounded-xl text-xs font-semibold bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white shadow-lg shadow-blue-600/20 transition-all active:scale-95"
+                className="flex items-center space-x-2 px-4 py-2 rounded-lg text-xs font-semibold bg-[#0E2238] hover:bg-[#15314E] text-white transition-all"
               >
                 <Layers className="w-4 h-4" />
                 <span>Ingest & Run Multi-Subscription Audit</span>
@@ -736,14 +736,14 @@ export const LiveAzureSyncModal: React.FC<LiveAzureSyncModalProps> = ({
 
         {/* Tab 3: Real-Time Event Stream */}
         {activeTab === 'stream' && (
-          <div className="p-6 space-y-4 overflow-y-auto flex-1">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-2xl bg-slate-950 border border-slate-800">
+          <div className="p-6 space-y-4 overflow-y-auto flex-1 bg-white">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-xl bg-slate-50 border border-slate-200">
               <div className="flex items-center space-x-3">
                 <div
-                  className={`p-3 rounded-xl ${
+                  className={`p-3 rounded-lg border ${
                     isEventStreamActive
-                      ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
-                      : 'bg-slate-800 text-slate-400'
+                      ? 'bg-emerald-50 text-[#1F8A79] border-emerald-200'
+                      : 'bg-white text-[#546471] border-slate-200'
                   }`}
                 >
                   <Radio
@@ -753,10 +753,10 @@ export const LiveAzureSyncModal: React.FC<LiveAzureSyncModalProps> = ({
                   />
                 </div>
                 <div>
-                  <h4 className="text-sm font-bold text-white flex items-center space-x-2">
+                  <h4 className="font-serif text-sm font-bold text-[#16232F] flex items-center space-x-2">
                     <span>Azure Activity Log & Event Grid Telemetry Stream</span>
                   </h4>
-                  <p className="text-xs text-slate-400">
+                  <p className="text-xs text-[#546471]">
                     Monitors real-time ARM management-plane operations (Blob Container ACL edits, RBAC role assignments, firewall changes).
                   </p>
                 </div>
@@ -784,7 +784,7 @@ export const LiveAzureSyncModal: React.FC<LiveAzureSyncModalProps> = ({
                       };
                       setActivityEvents((prev) => [driftEvent, ...prev]);
                     }}
-                    className="px-3 py-1.5 rounded-xl text-xs font-bold bg-red-500/20 hover:bg-red-500/30 text-red-300 border border-red-500/30 transition-all whitespace-nowrap"
+                    className="px-3 py-1.5 rounded-lg text-xs font-bold bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 transition-all whitespace-nowrap"
                   >
                     Simulate Live Drift Event
                   </button>
@@ -792,10 +792,10 @@ export const LiveAzureSyncModal: React.FC<LiveAzureSyncModalProps> = ({
                 <button
                   type="button"
                   onClick={onToggleContinuousEventStream}
-                  className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
+                  className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${
                     isEventStreamActive
-                      ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/30'
-                      : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+                      ? 'bg-[#1F8A79] text-white'
+                      : 'bg-[#0E2238] text-white hover:bg-[#15314E]'
                   }`}
                 >
                   {isEventStreamActive ? 'STREAM ACTIVE' : 'START STREAM'}
@@ -806,11 +806,11 @@ export const LiveAzureSyncModal: React.FC<LiveAzureSyncModalProps> = ({
             {/* Live Stream Feed */}
             <div className="space-y-2">
               <div className="flex items-center justify-between text-xs">
-                <span className="font-bold text-slate-300 flex items-center space-x-1.5">
-                  <Activity className="w-3.5 h-3.5 text-cyan-400" />
+                <span className="font-bold text-[#16232F] flex items-center space-x-1.5">
+                  <Activity className="w-3.5 h-3.5 text-[#1F8A79]" />
                   <span>Live Azure Activity Log Events ({activityEvents.length})</span>
                 </span>
-                <span className="text-[11px] text-slate-400 font-mono">
+                <span className="text-[11px] text-[#546471] font-mono">
                   Polling interval: 5.5s
                 </span>
               </div>
@@ -818,7 +818,7 @@ export const LiveAzureSyncModal: React.FC<LiveAzureSyncModalProps> = ({
                 {activityEvents.map((evt) => (
                   <div
                     key={evt.id}
-                    className="p-3 rounded-xl bg-slate-950 border border-slate-800/80 space-y-1"
+                    className="p-3 rounded-lg bg-[#081420] text-[#E5ECE9] border border-slate-800 space-y-1"
                   >
                     <div className="flex items-center justify-between gap-2">
                       <div className="flex items-center space-x-2 min-w-0">
@@ -827,22 +827,22 @@ export const LiveAzureSyncModal: React.FC<LiveAzureSyncModalProps> = ({
                             evt.riskLevel === 'CRITICAL'
                               ? 'bg-red-500 animate-ping'
                               : evt.riskLevel === 'HIGH'
-                              ? 'bg-amber-400'
-                              : 'bg-emerald-400'
+                              ? 'bg-[#D79A45]'
+                              : 'bg-[#2BB5A0]'
                           }`}
                         />
-                        <span className="text-slate-200 font-bold truncate">
+                        <span className="text-white font-bold truncate">
                           {evt.operationName}
                         </span>
                       </div>
-                      <span className="text-[10px] text-slate-400 flex-shrink-0">
+                      <span className="text-[10px] text-[#B7C3CC] flex-shrink-0">
                         {evt.timestamp}
                       </span>
                     </div>
-                    <div className="text-[11px] text-slate-400 font-sans">
+                    <div className="text-[11px] text-[#B7C3CC] font-sans">
                       {evt.description}
                     </div>
-                    <div className="text-[10px] text-slate-500 flex items-center justify-between pt-1">
+                    <div className="text-[10px] text-[#7D8C99] flex items-center justify-between pt-1">
                       <span>Resource: {evt.resourceName}</span>
                       <span>
                         Caller: {evt.caller} ({evt.callerIpAddress})

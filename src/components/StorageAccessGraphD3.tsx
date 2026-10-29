@@ -1021,26 +1021,26 @@ export const StorageAccessGraphD3: React.FC<StorageAccessGraphD3Props> = ({
   }, [findings, selectedNode]);
 
   return (
-    <div className="bg-slate-900 rounded-2xl border border-slate-800 overflow-hidden">
+    <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-xs">
       {/* Top Toolbar */}
-      <div className="px-5 py-4 border-b border-slate-800 flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-slate-950/50">
+      <div className="px-5 py-4 border-b border-slate-200 flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-slate-50">
         <div className="flex items-start space-x-3">
-          <div className="p-2.5 rounded-xl bg-blue-500/15 text-blue-400 border border-blue-500/30 mt-0.5">
+          <div className="p-2.5 rounded-lg bg-[#0E2238] text-[#5FD3BF] border border-[#2BB5A0]/30 mt-0.5">
             <Network className="w-5 h-5" />
           </div>
           <div>
             <div className="flex flex-wrap items-center gap-2">
-              <h3 className="text-sm font-bold text-white tracking-tight">
+              <h3 className="font-serif text-base font-bold text-[#16232F]">
                 Interactive Access Path & Blast-Radius Topology (D3 Force Graph)
               </h3>
-              <span className="text-xs text-slate-400 font-mono tabular-nums">
+              <span className="text-xs text-[#546471] font-mono tabular-nums">
                 {summaryStats.identitiesCount} Identities ·{' '}
                 {summaryStats.storageCount} Storage Accounts ·{' '}
                 {summaryStats.containersCount} Containers ·{' '}
                 {summaryStats.vulnerablePathsCount} Vulnerable Paths
               </span>
             </div>
-            <p className="text-xs text-slate-400 mt-0.5">
+            <p className="text-xs text-[#546471] mt-0.5">
               Drag nodes to rearrange, scroll or click controls to zoom, and select any node to inspect effective RBAC permissions and container exposure paths.
             </p>
           </div>
@@ -1049,14 +1049,14 @@ export const StorageAccessGraphD3: React.FC<StorageAccessGraphD3Props> = ({
         {/* Interactive Graph Controls */}
         <div className="flex flex-wrap items-center gap-2">
           {/* Scope Segmented Control */}
-          <div className="flex items-center bg-slate-950 p-1 rounded-xl border border-slate-800">
+          <div className="flex items-center bg-white p-1 rounded-lg border border-slate-200">
             <button
               type="button"
               onClick={() => setScopeMode('all')}
-              className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-colors whitespace-nowrap ${
+              className={`px-2.5 py-1 rounded-md text-xs font-semibold transition-colors whitespace-nowrap ${
                 scopeMode === 'all'
-                  ? 'bg-blue-600 text-white'
-                  : 'text-slate-400 hover:text-slate-200'
+                  ? 'bg-[#0E2238] text-white'
+                  : 'text-[#546471] hover:text-[#16232F]'
               }`}
             >
               All Storage Accounts ({storageAccounts.length})
@@ -1064,10 +1064,10 @@ export const StorageAccessGraphD3: React.FC<StorageAccessGraphD3Props> = ({
             <button
               type="button"
               onClick={() => setScopeMode('selected')}
-              className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-colors whitespace-nowrap ${
+              className={`px-2.5 py-1 rounded-md text-xs font-semibold transition-colors whitespace-nowrap ${
                 scopeMode === 'selected'
-                  ? 'bg-blue-600 text-white'
-                  : 'text-slate-400 hover:text-slate-200'
+                  ? 'bg-[#0E2238] text-white'
+                  : 'text-[#546471] hover:text-[#16232F]'
               }`}
             >
               Focus: {selectedAccountName}
@@ -1078,10 +1078,10 @@ export const StorageAccessGraphD3: React.FC<StorageAccessGraphD3Props> = ({
           <button
             type="button"
             onClick={() => setOnlyRiskyPaths(!onlyRiskyPaths)}
-            className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border transition-colors whitespace-nowrap ${
+            className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors whitespace-nowrap ${
               onlyRiskyPaths
-                ? 'bg-red-500/20 text-red-300 border-red-500/40'
-                : 'bg-slate-950 text-slate-300 border-slate-800 hover:bg-slate-800'
+                ? 'bg-red-50 text-red-700 border-red-200'
+                : 'bg-white text-[#546471] border-slate-200 hover:bg-slate-100'
             }`}
           >
             <Filter className="w-3.5 h-3.5" />
@@ -1089,12 +1089,12 @@ export const StorageAccessGraphD3: React.FC<StorageAccessGraphD3Props> = ({
           </button>
 
           {/* Zoom & Reset Buttons */}
-          <div className="flex items-center bg-slate-950 rounded-xl border border-slate-800 p-0.5">
+          <div className="flex items-center bg-white rounded-lg border border-slate-200 p-0.5">
             <button
               type="button"
               onClick={() => handleZoom(1.25)}
               title="Zoom In"
-              className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition-colors"
+              className="p-1.5 text-[#546471] hover:text-[#16232F] rounded-md hover:bg-slate-100 transition-colors"
             >
               <ZoomIn className="w-4 h-4" />
             </button>
@@ -1102,7 +1102,7 @@ export const StorageAccessGraphD3: React.FC<StorageAccessGraphD3Props> = ({
               type="button"
               onClick={() => handleZoom(0.8)}
               title="Zoom Out"
-              className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition-colors"
+              className="p-1.5 text-[#546471] hover:text-[#16232F] rounded-md hover:bg-slate-100 transition-colors"
             >
               <ZoomOut className="w-4 h-4" />
             </button>
@@ -1110,7 +1110,7 @@ export const StorageAccessGraphD3: React.FC<StorageAccessGraphD3Props> = ({
               type="button"
               onClick={handleResetView}
               title="Reset Layout & Zoom"
-              className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition-colors"
+              className="p-1.5 text-[#546471] hover:text-[#16232F] rounded-md hover:bg-slate-100 transition-colors"
             >
               <RotateCcw className="w-4 h-4" />
             </button>
@@ -1123,7 +1123,7 @@ export const StorageAccessGraphD3: React.FC<StorageAccessGraphD3Props> = ({
         {/* Left: D3 SVG Canvas */}
         <div
           ref={containerRef}
-          className="lg:col-span-8 relative bg-slate-950/80 border-b lg:border-b-0 lg:border-r border-slate-800 flex flex-col justify-between"
+          className="lg:col-span-8 relative bg-[#081420] border-b lg:border-b-0 lg:border-r border-slate-200 flex flex-col justify-between"
         >
           <svg
             ref={svgRef}
@@ -1132,7 +1132,7 @@ export const StorageAccessGraphD3: React.FC<StorageAccessGraphD3Props> = ({
           />
 
           {/* Graph Legend Bar */}
-          <div className="px-4 py-2.5 bg-slate-950 border-t border-slate-800/80 flex flex-wrap items-center justify-between gap-3 text-[11px] text-slate-400">
+          <div className="px-4 py-2.5 bg-[#0D1C2D] border-t border-white/10 flex flex-wrap items-center justify-between gap-3 text-[11px] text-[#B7C3CC]">
             <div className="flex flex-wrap items-center gap-4">
               <span className="flex items-center space-x-1.5">
                 <span className="w-3 h-0.5 bg-red-500 inline-block" />
@@ -1147,24 +1147,24 @@ export const StorageAccessGraphD3: React.FC<StorageAccessGraphD3Props> = ({
                 <span>Data-Plane Blob Role</span>
               </span>
               <span className="flex items-center space-x-1.5">
-                <span className="w-3 h-0.5 bg-emerald-500 inline-block" />
+                <span className="w-3 h-0.5 bg-[#2BB5A0] inline-block" />
                 <span>Hardened / Least-Privilege Path</span>
               </span>
             </div>
-            <span className="font-mono text-[10px] text-slate-500">
+            <span className="font-mono text-[10px] text-[#7D8C99]">
               Click any node to inspect access vectors
             </span>
           </div>
         </div>
 
         {/* Right: Selected Node & Access Path Inspector */}
-        <div className="lg:col-span-4 p-5 bg-slate-900/90 flex flex-col justify-between space-y-4 max-h-[530px] overflow-y-auto">
+        <div className="lg:col-span-4 p-5 bg-white flex flex-col justify-between space-y-4 max-h-[530px] overflow-y-auto">
           {selectedNode ? (
             <div className="space-y-4">
               {/* Selected Node Header */}
-              <div className="pb-3 border-b border-slate-800">
+              <div className="pb-3 border-b border-slate-200">
                 <div className="flex items-center justify-between gap-2 mb-1">
-                  <span className="text-[11px] font-mono text-slate-400">
+                  <span className="text-[11px] font-mono text-[#546471]">
                     {selectedNode.nodeType === 'storage_account'
                       ? 'Azure Storage Account'
                       : selectedNode.nodeType === 'container'
@@ -1176,12 +1176,12 @@ export const StorageAccessGraphD3: React.FC<StorageAccessGraphD3Props> = ({
                   <span
                     className={`text-[11px] font-bold font-mono ${
                       selectedNode.riskLevel === 'CRITICAL'
-                        ? 'text-red-400'
+                        ? 'text-red-700'
                         : selectedNode.riskLevel === 'HIGH'
-                        ? 'text-orange-400'
+                        ? 'text-orange-700'
                         : selectedNode.riskLevel === 'MEDIUM'
-                        ? 'text-amber-400'
-                        : 'text-emerald-400'
+                        ? 'text-amber-700'
+                        : 'text-[#1F8A79]'
                     }`}
                   >
                     {selectedNode.riskLevel} RISK
@@ -1190,28 +1190,28 @@ export const StorageAccessGraphD3: React.FC<StorageAccessGraphD3Props> = ({
 
                 <div className="flex items-center space-x-2.5">
                   {selectedNode.nodeType === 'storage_account' ? (
-                    <Server className="w-5 h-5 text-blue-400 flex-shrink-0" />
+                    <Server className="w-5 h-5 text-[#1F8A79] flex-shrink-0" />
                   ) : selectedNode.nodeType === 'container' ? (
-                    <Database className="w-5 h-5 text-sky-400 flex-shrink-0" />
+                    <Database className="w-5 h-5 text-[#2BB5A0] flex-shrink-0" />
                   ) : selectedNode.nodeType === 'anonymous' ? (
-                    <Globe className="w-5 h-5 text-red-400 flex-shrink-0" />
+                    <Globe className="w-5 h-5 text-red-600 flex-shrink-0" />
                   ) : (
-                    <UserCheck className="w-5 h-5 text-indigo-400 flex-shrink-0" />
+                    <UserCheck className="w-5 h-5 text-[#0E2238] flex-shrink-0" />
                   )}
-                  <h4 className="text-base font-bold text-white truncate">
+                  <h4 className="font-serif text-base font-bold text-[#16232F] truncate">
                     {selectedNode.label}
                   </h4>
                 </div>
-                <p className="text-xs text-slate-400 mt-1">
+                <p className="text-xs text-[#546471] mt-1">
                   {selectedNode.subLabel}
                 </p>
 
                 {/* Unboxed metadata attributes */}
-                <div className="mt-2.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-300 font-mono">
+                <div className="mt-2.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-[#546471] font-mono">
                   {selectedNode.badges.map((b, i) => (
                     <React.Fragment key={b}>
                       {i > 0 && (
-                        <span className="text-slate-600" aria-hidden="true">
+                        <span className="text-slate-300" aria-hidden="true">
                           ·
                         </span>
                       )}
@@ -1223,32 +1223,32 @@ export const StorageAccessGraphD3: React.FC<StorageAccessGraphD3Props> = ({
 
               {/* Node-Specific Security Properties */}
               <div className="space-y-2 text-xs">
-                <div className="text-slate-400 font-semibold">
+                <div className="text-[#546471] font-semibold">
                   Configuration & Posture Context
                 </div>
-                <div className="p-3 rounded-xl bg-slate-950/80 border border-slate-800 space-y-1.5 font-mono text-[11px]">
+                <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 space-y-1.5 font-mono text-[11px]">
                   {selectedNode.nodeType === 'identity' ||
                   selectedNode.nodeType === 'anonymous' ? (
                     <>
                       <div className="flex justify-between">
-                        <span className="text-slate-400">Role Definition:</span>
-                        <span className="text-slate-200 font-semibold">
+                        <span className="text-[#546471]">Role Definition:</span>
+                        <span className="text-[#16232F] font-semibold">
                           {selectedNode.metadata.roleName}
                         </span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-slate-400">Principal Type:</span>
-                        <span className="text-slate-200">
+                        <span className="text-[#546471]">Principal Type:</span>
+                        <span className="text-[#16232F]">
                           {selectedNode.metadata.principalType}
                         </span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-slate-400">MFA Enforcement:</span>
+                        <span className="text-[#546471]">MFA Enforcement:</span>
                         <span
                           className={
                             selectedNode.metadata.mfaEnforced
-                              ? 'text-emerald-400'
-                              : 'text-red-400 font-semibold'
+                              ? 'text-[#1F8A79] font-semibold'
+                              : 'text-red-700 font-semibold'
                           }
                         >
                           {selectedNode.metadata.mfaEnforced
@@ -1258,8 +1258,8 @@ export const StorageAccessGraphD3: React.FC<StorageAccessGraphD3Props> = ({
                       </div>
                       {selectedNode.metadata.lastActiveDays !== undefined && (
                         <div className="flex justify-between">
-                          <span className="text-slate-400">Last Activity:</span>
-                          <span className="text-slate-200 tabular-nums">
+                          <span className="text-[#546471]">Last Activity:</span>
+                          <span className="text-[#16232F] tabular-nums">
                             {selectedNode.metadata.lastActiveDays} days ago
                           </span>
                         </div>
@@ -1268,36 +1268,36 @@ export const StorageAccessGraphD3: React.FC<StorageAccessGraphD3Props> = ({
                   ) : selectedNode.nodeType === 'storage_account' ? (
                     <>
                       <div className="flex justify-between">
-                        <span className="text-slate-400">Resource Group:</span>
-                        <span className="text-slate-200">
+                        <span className="text-[#546471]">Resource Group:</span>
+                        <span className="text-[#16232F]">
                           {selectedNode.metadata.resourceGroup}
                         </span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-slate-400">Public Blob ACL:</span>
+                        <span className="text-[#546471]">Public Blob ACL:</span>
                         <span
                           className={
                             selectedNode.metadata.publicAccess === 'Enabled'
-                              ? 'text-red-400 font-semibold'
-                              : 'text-emerald-400'
+                              ? 'text-red-700 font-semibold'
+                              : 'text-[#1F8A79] font-semibold'
                           }
                         >
                           {selectedNode.metadata.publicAccess}
                         </span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-slate-400">Minimum TLS:</span>
-                        <span className="text-slate-200">
+                        <span className="text-[#546471]">Minimum TLS:</span>
+                        <span className="text-[#16232F]">
                           {selectedNode.metadata.tlsVersion}
                         </span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-slate-400">HTTPS Transfer:</span>
+                        <span className="text-[#546471]">HTTPS Transfer:</span>
                         <span
                           className={
                             selectedNode.metadata.httpsOnly
-                              ? 'text-emerald-400'
-                              : 'text-red-400 font-semibold'
+                              ? 'text-[#1F8A79] font-semibold'
+                              : 'text-red-700 font-semibold'
                           }
                         >
                           {selectedNode.metadata.httpsOnly
@@ -1309,32 +1309,32 @@ export const StorageAccessGraphD3: React.FC<StorageAccessGraphD3Props> = ({
                   ) : (
                     <>
                       <div className="flex justify-between">
-                        <span className="text-slate-400">Parent Account:</span>
-                        <span className="text-slate-200">
+                        <span className="text-[#546471]">Parent Account:</span>
+                        <span className="text-[#16232F]">
                           {selectedNode.metadata.parentAccount}
                         </span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-slate-400">Anonymous Access:</span>
+                        <span className="text-[#546471]">Anonymous Access:</span>
                         <span
                           className={
                             selectedNode.metadata.publicAccess !== 'None'
-                              ? 'text-red-400 font-semibold'
-                              : 'text-emerald-400'
+                              ? 'text-red-700 font-semibold'
+                              : 'text-[#1F8A79] font-semibold'
                           }
                         >
                           {selectedNode.metadata.publicAccess}
                         </span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-slate-400">Classification:</span>
-                        <span className="text-slate-200">
+                        <span className="text-[#546471]">Classification:</span>
+                        <span className="text-[#16232F]">
                           {selectedNode.metadata.dataClassification}
                         </span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-slate-400">Stored Blobs:</span>
-                        <span className="text-slate-200 tabular-nums">
+                        <span className="text-[#546471]">Stored Blobs:</span>
+                        <span className="text-[#16232F] tabular-nums">
                           {selectedNode.metadata.blobCount?.toLocaleString()}
                         </span>
                       </div>
@@ -1346,7 +1346,7 @@ export const StorageAccessGraphD3: React.FC<StorageAccessGraphD3Props> = ({
               {/* Connected Access Paths (Edges) */}
               <div className="space-y-2">
                 <div className="flex items-center justify-between text-xs">
-                  <span className="text-slate-400 font-semibold">
+                  <span className="text-[#546471] font-semibold">
                     Connected Access Paths ({selectedNodeLinks.length})
                   </span>
                 </div>
@@ -1369,14 +1369,14 @@ export const StorageAccessGraphD3: React.FC<StorageAccessGraphD3Props> = ({
                         key={link.id}
                         type="button"
                         onClick={() => peerNode && setSelectedNodeId(peerNode.id)}
-                        className="w-full text-left p-2.5 rounded-xl bg-slate-950/70 hover:bg-slate-950 border border-slate-800 transition-colors space-y-1"
+                        className="w-full text-left p-2.5 rounded-lg bg-slate-50 hover:bg-slate-100 border border-slate-200 transition-colors space-y-1"
                       >
                         <div className="flex items-center justify-between gap-2">
-                          <span className="text-xs font-semibold text-white truncate flex items-center space-x-1.5">
+                          <span className="text-xs font-semibold text-[#16232F] truncate flex items-center space-x-1.5">
                             {link.isVulnerable ? (
-                              <Unlock className="w-3.5 h-3.5 text-red-400 flex-shrink-0" />
+                              <Unlock className="w-3.5 h-3.5 text-red-600 flex-shrink-0" />
                             ) : (
-                              <Lock className="w-3.5 h-3.5 text-emerald-400 flex-shrink-0" />
+                              <Lock className="w-3.5 h-3.5 text-[#1F8A79] flex-shrink-0" />
                             )}
                             <span className="truncate">
                               {peerNode?.label || peerId}
@@ -1385,14 +1385,14 @@ export const StorageAccessGraphD3: React.FC<StorageAccessGraphD3Props> = ({
                           <span
                             className={`text-[10px] font-mono font-semibold ${
                               link.isVulnerable
-                                ? 'text-red-400'
-                                : 'text-emerald-400'
+                                ? 'text-red-700'
+                                : 'text-[#1F8A79]'
                             }`}
                           >
                             {link.relationLabel}
                           </span>
                         </div>
-                        <p className="text-[11px] text-slate-400 leading-snug">
+                        <p className="text-[11px] text-[#546471] leading-snug">
                           {link.description}
                         </p>
                       </button>
@@ -1403,11 +1403,11 @@ export const StorageAccessGraphD3: React.FC<StorageAccessGraphD3Props> = ({
 
               {/* Associated Security Findings Drill-Down */}
               <div className="space-y-2">
-                <div className="text-xs text-slate-400 font-semibold">
+                <div className="text-xs text-[#546471] font-semibold">
                   Associated Security Findings ({selectedNodeFindings.length})
                 </div>
                 {selectedNodeFindings.length === 0 ? (
-                  <div className="p-3 rounded-xl bg-slate-950/50 border border-slate-800 text-xs text-emerald-400 flex items-center space-x-2">
+                  <div className="p-3 rounded-lg bg-emerald-50 border border-emerald-200 text-xs text-[#1F8A79] font-medium flex items-center space-x-2">
                     <ShieldCheck className="w-4 h-4 flex-shrink-0" />
                     <span>No open security findings on this node.</span>
                   </div>
@@ -1416,36 +1416,36 @@ export const StorageAccessGraphD3: React.FC<StorageAccessGraphD3Props> = ({
                     {selectedNodeFindings.slice(0, 3).map((finding) => (
                       <div
                         key={finding.id}
-                        className="p-2.5 rounded-xl bg-slate-950 border border-slate-800 flex items-center justify-between gap-2"
+                        className="p-2.5 rounded-lg bg-slate-50 border border-slate-200 flex items-center justify-between gap-2"
                       >
                         <div className="min-w-0">
                           <div className="flex items-center space-x-1.5 text-[10px] font-mono">
                             <span
                               className={
                                 finding.severity === 'CRITICAL'
-                                  ? 'text-red-400 font-bold'
-                                  : 'text-orange-400 font-bold'
+                                  ? 'text-red-700 font-bold'
+                                  : 'text-orange-700 font-bold'
                               }
                             >
                               {finding.severity}
                             </span>
                             {finding.compliance.cisAzure && (
                               <>
-                                <span className="text-slate-600">·</span>
-                                <span className="text-slate-400">
+                                <span className="text-slate-300">·</span>
+                                <span className="text-[#546471]">
                                   CIS {finding.compliance.cisAzure}
                                 </span>
                               </>
                             )}
                           </div>
-                          <div className="text-xs font-semibold text-slate-200 truncate">
+                          <div className="text-xs font-semibold text-[#16232F] truncate">
                             {finding.title}
                           </div>
                         </div>
                         <button
                           type="button"
                           onClick={() => onSelectFinding(finding.id)}
-                          className="px-2.5 py-1 rounded-lg bg-blue-600/20 hover:bg-blue-600/30 text-blue-300 border border-blue-500/30 text-[11px] font-semibold flex items-center space-x-1 whitespace-nowrap shrink-0"
+                          className="px-2.5 py-1 rounded-md bg-[#0E2238] hover:bg-[#15314E] text-white text-[11px] font-semibold flex items-center space-x-1 whitespace-nowrap shrink-0"
                         >
                           <span>Runbook</span>
                           <ChevronRight className="w-3 h-3" />
@@ -1457,7 +1457,7 @@ export const StorageAccessGraphD3: React.FC<StorageAccessGraphD3Props> = ({
               </div>
             </div>
           ) : (
-            <div className="py-12 text-center text-slate-400 text-xs">
+            <div className="py-12 text-center text-[#546471] text-xs">
               Select a node in the D3 topology graph to inspect its access paths and security findings.
             </div>
           )}

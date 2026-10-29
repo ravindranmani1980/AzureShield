@@ -5,20 +5,13 @@
 
 import React, { useState } from 'react';
 import {
-  Users,
-  ShieldAlert,
   UserX,
-  Unlock,
-  KeyRound,
   Terminal,
-  ExternalLink,
-  ChevronDown,
   ChevronRight,
   UserCheck,
   Bot,
   Copy,
   Check,
-  AlertTriangle,
   Flame,
   ArrowRight,
 } from 'lucide-react';
@@ -95,75 +88,83 @@ export const RbacAuditor: React.FC<RbacAuditorProps> = ({
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="p-5 rounded-2xl bg-slate-900 border border-slate-800 shadow-lg">
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-          <div className="flex items-center space-x-3">
-            <div className="p-3 rounded-xl bg-purple-500/20 text-purple-400 border border-purple-500/30">
-              <Users className="w-6 h-6" />
-            </div>
-            <div>
-              <h2 className="text-xl font-bold text-white tracking-tight">
-                Maniq Shield — Role-Based Access Control (RBAC) & IAM Analyzer
-              </h2>
-              <p className="text-xs text-slate-400">
-                Auditing Azure Active Directory / Entra ID role assignments for excessive privileges, dormant accounts, external guest access, and privilege escalation attack vectors.
-              </p>
-            </div>
-          </div>
+      {/* Header (.xh-panel) */}
+      <section className="xh-panel space-y-5">
+        <div className="xh-kicker">
+          <span className="k">Identity &amp; Access Management · RBAC Auditor</span>
+          <span className="tag">{roleAssignments.length} Role Assignments Audited</span>
+        </div>
 
-          {/* Metric Badges */}
-          <div className="flex items-center gap-2 flex-wrap">
-            <div className="px-3 py-1.5 rounded-xl bg-slate-950/70 border border-slate-800 text-xs">
-              <span className="text-slate-400">Total Assignments: </span>
-              <span className="font-bold text-white">{roleAssignments.length}</span>
-            </div>
-            <div className="px-3 py-1.5 rounded-xl bg-red-500/10 border border-red-500/30 text-xs text-red-300">
-              <span className="text-red-400">Escalation Risks: </span>
-              <span className="font-bold">{privilegeEscalationFindings.length}</span>
-            </div>
-            <div className="px-3 py-1.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-xs text-amber-300">
-              <span className="text-amber-400">Dormant (&gt;90d): </span>
-              <span className="font-bold">{dormantCount}</span>
-            </div>
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+          <div>
+            <h2 className="text-xl sm:text-2xl font-semibold text-[#EEF3F1] tracking-tight">
+              Maniq Shield — Role-Based Access Control (RBAC) &amp; IAM Analyzer
+            </h2>
+            <p className="text-xs text-[#A9B7BF] mt-1 max-w-3xl leading-relaxed">
+              Auditing Azure Active Directory / Entra ID role assignments for excessive privileges, dormant accounts, external guest access, and privilege escalation attack vectors.
+            </p>
           </div>
         </div>
-      </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+          <div className="xh-metric">
+            <div className="lbl">
+              <span>TOTAL ASSIGNMENTS</span>
+            </div>
+            <div className="num tabular-nums">{roleAssignments.length}</div>
+            <p>Evaluated across subscription &amp; resource group scopes</p>
+          </div>
+          <div className="xh-metric">
+            <div className="lbl">
+              <span>ESCALATION RISKS</span>
+            </div>
+            <div className="num hi tabular-nums">{privilegeEscalationFindings.length}</div>
+            <p>Identities with roleAssignments/write or wildcard authority</p>
+          </div>
+          <div className="xh-metric">
+            <div className="lbl">
+              <span>DORMANT (&gt;90 DAYS)</span>
+            </div>
+            <div className="num tabular-nums">{dormantCount}</div>
+            <p>{guestCount} external guest (#EXT#) principals active</p>
+          </div>
+        </div>
+      </section>
 
       {/* Privilege Escalation Threat Vector Spotlight */}
       {privilegeEscalationFindings.length > 0 && (
-        <div className="p-5 rounded-2xl bg-gradient-to-r from-red-950/60 via-slate-900 to-slate-900 border border-red-500/40 shadow-xl relative overflow-hidden">
-          <div className="flex items-start space-x-3.5 relative z-10">
-            <div className="p-2.5 rounded-xl bg-red-600 text-white flex-shrink-0">
-              <Flame className="w-5 h-5 animate-bounce" />
+        <div className="p-5 rounded-xl bg-white border border-red-300 shadow-xs">
+          <div className="flex items-start space-x-3.5">
+            <div className="p-2.5 rounded-lg bg-red-600 text-white flex-shrink-0">
+              <Flame className="w-5 h-5" />
             </div>
             <div className="flex-1">
               <div className="flex items-center space-x-2 mb-1">
-                <span className="text-xs font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-red-600 text-white">
+                <span className="text-[11px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-red-50 text-red-700 border border-red-200">
                   CRITICAL EXPLOIT CHAIN DETECTED
                 </span>
-                <span className="text-xs text-slate-400">
+                <span className="text-xs font-mono text-slate-500">
                   Potential Administrative Takeover Path
                 </span>
               </div>
-              <h3 className="text-base font-bold text-white">
-                Unauthorized Privilege Escalation via 'roleAssignments/write'
+              <h3 className="text-base font-serif font-semibold text-slate-900">
+                Unauthorized Privilege Escalation via &apos;roleAssignments/write&apos;
               </h3>
-              <p className="text-xs text-slate-300 mt-1 max-w-3xl leading-relaxed">
-                Non-Owner identities hold permission to create or modify Azure role assignments. Threat actors compromising these service accounts or custom operators can issue API calls to self-grant 'Owner' or 'Storage Blob Data Owner', completely bypassing organizational access boundaries.
+              <p className="text-xs text-slate-600 mt-1 max-w-3xl leading-relaxed">
+                Non-Owner identities hold permission to create or modify Azure role assignments. Threat actors compromising these service accounts or custom operators can issue API calls to self-grant &apos;Owner&apos; or &apos;Storage Blob Data Owner&apos;, completely bypassing organizational access boundaries.
               </p>
 
               {/* Visual Attack Chain Graph */}
-              <div className="mt-4 p-3.5 rounded-xl bg-slate-950/80 border border-slate-800 flex flex-col md:flex-row items-center gap-3 text-xs font-mono">
-                <div className="px-3 py-1.5 rounded-lg bg-slate-800 text-slate-200 border border-slate-700">
+              <div className="mt-4 p-3.5 rounded-lg bg-slate-50 border border-slate-200 flex flex-col md:flex-row items-center gap-3 text-xs font-mono">
+                <div className="px-3 py-1.5 rounded bg-white text-slate-800 border border-slate-300">
                   1. Compromise Operator / SP
                 </div>
-                <ArrowRight className="w-4 h-4 text-red-400 rotate-90 md:rotate-0" />
-                <div className="px-3 py-1.5 rounded-lg bg-red-950/80 text-red-300 border border-red-500/40">
+                <ArrowRight className="w-4 h-4 text-red-600 rotate-90 md:rotate-0" />
+                <div className="px-3 py-1.5 rounded bg-red-50 text-red-800 border border-red-200">
                   2. Invoke roleAssignments/write
                 </div>
-                <ArrowRight className="w-4 h-4 text-red-400 rotate-90 md:rotate-0" />
-                <div className="px-3 py-1.5 rounded-lg bg-red-600 text-white font-bold shadow-lg shadow-red-600/30">
+                <ArrowRight className="w-4 h-4 text-red-600 rotate-90 md:rotate-0" />
+                <div className="px-3 py-1.5 rounded bg-red-600 text-white font-bold">
                   3. Self-Promote to Subscription Owner
                 </div>
               </div>
@@ -173,54 +174,59 @@ export const RbacAuditor: React.FC<RbacAuditorProps> = ({
       )}
 
       {/* Controls & Filter Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      <div className="p-4 rounded-xl bg-white border border-slate-200 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div className="flex items-center space-x-1.5 overflow-x-auto pb-1 sm:pb-0">
           <button
+            type="button"
             onClick={() => setFilterMode('all')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+            className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all cursor-pointer whitespace-nowrap ${
               filterMode === 'all'
-                ? 'bg-purple-600 text-white shadow-sm'
-                : 'bg-slate-900 text-slate-400 hover:text-white border border-slate-800'
+                ? 'bg-[#0E2238] text-[#EEF3F1]'
+                : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
             }`}
           >
             All Identities ({roleAssignments.length})
           </button>
           <button
+            type="button"
             onClick={() => setFilterMode('escalation')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+            className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all cursor-pointer whitespace-nowrap ${
               filterMode === 'escalation'
-                ? 'bg-red-600 text-white shadow-sm'
-                : 'bg-slate-900 text-slate-400 hover:text-white border border-slate-800'
+                ? 'bg-red-600 text-white'
+                : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
             }`}
           >
             Escalation Paths ({privilegeEscalationFindings.length})
           </button>
           <button
+            type="button"
             onClick={() => setFilterMode('overprivileged')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+            className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all cursor-pointer whitespace-nowrap ${
               filterMode === 'overprivileged'
-                ? 'bg-purple-600 text-white shadow-sm'
-                : 'bg-slate-900 text-slate-400 hover:text-white border border-slate-800'
+                ? 'bg-[#0E2238] text-[#EEF3F1]'
+                : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
             }`}
           >
             Overprivileged ({overprivilegedCount})
           </button>
           <button
+            type="button"
             onClick={() => setFilterMode('dormant')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+            className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all cursor-pointer whitespace-nowrap ${
               filterMode === 'dormant'
-                ? 'bg-purple-600 text-white shadow-sm'
-                : 'bg-slate-900 text-slate-400 hover:text-white border border-slate-800'
+                ? 'bg-[#0E2238] text-[#EEF3F1]'
+                : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
             }`}
           >
             Dormant &gt;90d ({dormantCount})
           </button>
           <button
+            type="button"
             onClick={() => setFilterMode('guest')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+            className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all cursor-pointer whitespace-nowrap ${
               filterMode === 'guest'
-                ? 'bg-purple-600 text-white shadow-sm'
-                : 'bg-slate-900 text-slate-400 hover:text-white border border-slate-800'
+                ? 'bg-[#0E2238] text-[#EEF3F1]'
+                : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
             }`}
           >
             External Guests ({guestCount})
@@ -232,7 +238,7 @@ export const RbacAuditor: React.FC<RbacAuditorProps> = ({
           placeholder="Search by identity or role..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          className="bg-slate-900 border border-slate-800 text-slate-200 text-xs rounded-xl px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-purple-500 w-full sm:w-64"
+          className="bg-slate-50 border border-slate-200 focus:border-[#0E2238] focus:bg-white text-slate-900 text-xs rounded-lg px-3 py-1.5 focus:outline-none w-full sm:w-64"
         />
       </div>
 
@@ -250,23 +256,23 @@ export const RbacAuditor: React.FC<RbacAuditorProps> = ({
           return (
             <div
               key={assignment.id}
-              className={`p-5 rounded-2xl border transition-all ${
+              className={`p-5 rounded-xl bg-white border transition-all shadow-xs ${
                 hasCritical
-                  ? 'bg-slate-900/90 border-red-500/40 shadow-lg'
+                  ? 'border-red-300'
                   : associatedFindings.length > 0
-                  ? 'bg-slate-900/90 border-amber-500/30'
-                  : 'bg-slate-900 border-slate-800'
+                  ? 'border-amber-300'
+                  : 'border-slate-200'
               }`}
             >
-              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4 border-b border-slate-800/80">
+              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4 border-b border-slate-200">
                 <div className="flex items-start space-x-3.5">
                   <div
-                    className={`p-2.5 rounded-xl flex-shrink-0 ${
+                    className={`p-2.5 rounded-lg flex-shrink-0 border ${
                       assignment.principalType === 'GuestUser'
-                        ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30'
+                        ? 'bg-red-50 text-red-700 border-red-200'
                         : assignment.principalType === 'ServicePrincipal'
-                        ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30'
-                        : 'bg-purple-500/20 text-purple-400 border border-purple-500/30'
+                        ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                        : 'bg-slate-100 text-slate-800 border-slate-200'
                     }`}
                   >
                     {assignment.principalType === 'ServicePrincipal' ? (
@@ -280,45 +286,56 @@ export const RbacAuditor: React.FC<RbacAuditorProps> = ({
 
                   <div>
                     <div className="flex items-center space-x-2 flex-wrap gap-y-1">
-                      <span className="font-bold text-sm text-white">
+                      <span className="font-mono font-bold text-sm text-slate-900">
                         {assignment.principalName}
                       </span>
-                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 font-mono">
+                      <span className="text-[10px] px-2 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200 font-mono">
                         {assignment.principalType}
                       </span>
                       {assignment.isExternalGuest && (
-                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-red-600 text-white font-bold">
+                        <span className="text-[10px] px-2 py-0.5 rounded bg-red-600 text-white font-mono font-bold">
                           EXTERNAL GUEST (#EXT#)
                         </span>
                       )}
                       {isDormant && (
-                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/30 font-bold">
+                        <span className="text-[10px] px-2 py-0.5 rounded bg-amber-50 text-amber-800 border border-amber-200 font-mono font-bold">
                           DORMANT ({assignment.lastActiveDays} DAYS INACTIVE)
                         </span>
                       )}
                       {!assignment.mfaEnforced && (
-                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-red-500/20 text-red-400 border border-red-500/30 font-bold">
+                        <span className="text-[10px] px-2 py-0.5 rounded bg-red-50 text-red-700 border border-red-200 font-mono font-bold">
                           MFA MISSING
                         </span>
                       )}
                     </div>
 
-                    <div className="text-xs text-slate-400 mt-1 flex items-center space-x-2 font-mono">
-                      <span>Role: <strong className="text-purple-300">{assignment.roleDefinitionName}</strong></span>
-                      <span>•</span>
-                      <span className="truncate max-w-xs">Scope: {assignment.scope}</span>
+                    <div className="text-xs text-slate-600 mt-1 flex items-center space-x-2 font-mono">
+                      <span>
+                        Role:{' '}
+                        <strong className="text-emerald-800">
+                          {assignment.roleDefinitionName}
+                        </strong>
+                      </span>
+                      <span>·</span>
+                      <span className="truncate max-w-xs">
+                        Scope: {assignment.scope}
+                      </span>
                     </div>
                   </div>
                 </div>
 
                 <div className="flex items-center space-x-3 self-end lg:self-center">
-                  <span className="text-xs text-slate-400">
-                    Last active: <strong className="text-slate-200">{assignment.lastActiveDays}d ago</strong>
+                  <span className="text-xs font-mono text-slate-500">
+                    Last active:{' '}
+                    <strong className="text-slate-900">
+                      {assignment.lastActiveDays}d ago
+                    </strong>
                   </span>
                   {associatedFindings.length > 0 && (
                     <button
+                      type="button"
                       onClick={() => onSelectFinding(associatedFindings[0].id)}
-                      className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-purple-600 hover:bg-purple-500 text-white shadow-sm flex items-center space-x-1"
+                      className="px-3 py-1.5 rounded-md text-xs font-semibold bg-[#0E2238] hover:bg-[#081420] text-[#EEF3F1] flex items-center space-x-1 cursor-pointer"
                     >
                       <span>Remediation Runbook</span>
                       <ChevronRight className="w-3.5 h-3.5" />
@@ -333,51 +350,52 @@ export const RbacAuditor: React.FC<RbacAuditorProps> = ({
                   {associatedFindings.map((finding) => (
                     <div
                       key={finding.id}
-                      className="p-3.5 rounded-xl bg-slate-950/70 border border-slate-800 text-xs space-y-2"
+                      className="p-3.5 rounded-lg bg-slate-50 border border-slate-200 text-xs space-y-2"
                     >
                       <div className="flex items-center justify-between">
                         <div className="flex items-center space-x-2">
                           <span
-                            className={`px-2 py-0.5 rounded text-[10px] font-extrabold ${
+                            className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold border ${
                               finding.severity === 'CRITICAL'
-                                ? 'bg-red-500/20 text-red-400 border border-red-500/30'
-                                : 'bg-orange-500/20 text-orange-400 border border-orange-500/30'
+                                ? 'bg-red-50 text-red-700 border-red-200'
+                                : 'bg-orange-50 text-orange-700 border-orange-200'
                             }`}
                           >
                             {finding.severity}
                           </span>
-                          <span className="font-bold text-slate-100">
+                          <span className="font-bold text-slate-900">
                             {finding.title}
                           </span>
                         </div>
                         {finding.compliance.cisAzure && (
-                          <span className="text-[10px] text-slate-400 font-mono">
+                          <span className="text-[10px] text-slate-600 font-mono">
                             CIS {finding.compliance.cisAzure}
                           </span>
                         )}
                       </div>
 
-                      <p className="text-slate-300 leading-relaxed">
+                      <p className="text-slate-600 leading-relaxed">
                         {finding.description}
                       </p>
 
                       {/* Remediation Azure CLI snippet */}
                       <div className="space-y-1 pt-1">
-                        <div className="flex items-center justify-between text-[11px] text-slate-400 font-medium">
+                        <div className="flex items-center justify-between text-[11px] text-slate-600 font-medium">
                           <span className="flex items-center space-x-1">
-                            <Terminal className="w-3.5 h-3.5 text-purple-400" />
+                            <Terminal className="w-3.5 h-3.5 text-emerald-700" />
                             <span>Remediation Command:</span>
                           </span>
                           <button
+                            type="button"
                             onClick={() =>
                               copyToClipboard(finding.remediation.cliCommand, finding.id)
                             }
-                            className="text-purple-400 hover:text-purple-300 flex items-center space-x-1 text-[10px]"
+                            className="text-emerald-700 hover:underline flex items-center space-x-1 text-[10px] font-mono cursor-pointer"
                           >
                             {copiedId === finding.id ? (
                               <>
-                                <Check className="w-3 h-3 text-emerald-400" />
-                                <span className="text-emerald-400">Copied!</span>
+                                <Check className="w-3 h-3 text-emerald-700" />
+                                <span>Copied!</span>
                               </>
                             ) : (
                               <>
@@ -387,7 +405,7 @@ export const RbacAuditor: React.FC<RbacAuditorProps> = ({
                             )}
                           </button>
                         </div>
-                        <div className="bg-slate-900 p-2.5 rounded-lg border border-slate-800 text-purple-300 font-mono text-xs overflow-x-auto whitespace-pre">
+                        <div className="bg-[#081420] p-3 rounded-lg border border-[#3E6E86]/40 text-[#5FD3BF] font-mono text-xs overflow-x-auto whitespace-pre">
                           {finding.remediation.cliCommand}
                         </div>
                       </div>

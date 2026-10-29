@@ -13,14 +13,11 @@ import {
   Server,
   Users,
   Unlock,
-  KeyRound,
   FileCheck2,
   ArrowUpRight,
-  TrendingDown,
   TrendingUp,
   History,
   Activity,
-  Sparkles,
   CheckCircle2,
   Zap,
 } from 'lucide-react';
@@ -61,7 +58,6 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
   remediationLog = [],
   onClearRemediationLog,
   onNavigateTab,
-  onFilterCategory,
   onSelectFinding,
   onRemediateFinding,
   onHardenAll,
@@ -216,30 +212,30 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
 
   // Posture Score color
   const getScoreColor = (score: number) => {
-    if (score >= 85) return 'text-emerald-400 stroke-emerald-500';
-    if (score >= 70) return 'text-blue-400 stroke-blue-500';
-    if (score >= 55) return 'text-amber-400 stroke-amber-500';
-    return 'text-red-400 stroke-red-500';
+    if (score >= 85) return 'text-emerald-700 stroke-[#2BB5A0]';
+    if (score >= 70) return 'text-slate-800 stroke-[#0E2238]';
+    if (score >= 55) return 'text-amber-700 stroke-[#D79A45]';
+    return 'text-red-600 stroke-red-600';
   };
 
-  const getProgressBarGradient = (score: number) => {
-    if (score >= 85) return 'from-emerald-600 via-emerald-500 to-teal-400';
-    if (score >= 70) return 'from-blue-600 via-cyan-500 to-emerald-400';
-    if (score >= 55) return 'from-amber-600 via-amber-500 to-yellow-400';
-    return 'from-red-600 via-orange-500 to-amber-500';
+  const getProgressBarColor = (score: number) => {
+    if (score >= 85) return 'bg-[#2BB5A0]';
+    if (score >= 70) return 'bg-[#0E2238]';
+    if (score >= 55) return 'bg-[#D79A45]';
+    return 'bg-red-600';
   };
 
   const getRiskGradeBg = (grade: string) => {
     switch (grade) {
       case 'A+':
       case 'A':
-        return 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30';
+        return 'bg-emerald-50 text-emerald-800 border-emerald-200';
       case 'B':
-        return 'bg-blue-500/20 text-blue-400 border-blue-500/30';
+        return 'bg-slate-100 text-slate-800 border-slate-300';
       case 'C':
-        return 'bg-amber-500/20 text-amber-400 border-amber-500/30';
+        return 'bg-amber-50 text-amber-800 border-amber-200';
       default:
-        return 'bg-red-500/20 text-red-400 border-red-500/30';
+        return 'bg-red-50 text-red-700 border-red-200';
     }
   };
 
@@ -393,7 +389,6 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
       };
     });
 
-    // If findings were hardened outside the log array, append a current state sync point
     const lastRecordedScore =
       liveSessionPoints.length > 0
         ? liveSessionPoints[liveSessionPoints.length - 1].postureScore
@@ -446,109 +441,164 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
       name: 'Storage Accounts & Blobs',
       count: activeOpenFindings.filter((f) => f.category === 'storage').length,
       icon: Server,
-      color: 'from-blue-600 to-cyan-500',
+      barColor: 'bg-[#0E2238]',
       tab: 'storage' as const,
     },
     {
       name: 'RBAC & Overprivileged Roles',
       count: activeOpenFindings.filter((f) => f.category === 'rbac').length,
       icon: Users,
-      color: 'from-purple-600 to-indigo-500',
+      barColor: 'bg-[#2BB5A0]',
       tab: 'rbac' as const,
     },
     {
       name: 'Privilege Escalation Risks',
       count: activeOpenFindings.filter((f) => f.category === 'privilege_escalation').length,
       icon: Unlock,
-      color: 'from-rose-600 to-red-500',
+      barColor: 'bg-red-600',
       tab: 'rbac' as const,
     },
     {
       name: 'Network Perimeter & Firewalls',
       count: activeOpenFindings.filter((f) => f.category === 'network').length,
       icon: ShieldAlert,
-      color: 'from-amber-600 to-orange-500',
+      barColor: 'bg-[#D79A45]',
       tab: 'storage' as const,
     },
   ];
 
   return (
     <div className="space-y-6">
-      {/* Top Banner / Summary */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 p-6 border border-slate-700/80 shadow-xl">
-        <div className="absolute top-0 right-0 -mt-10 -mr-10 w-80 h-80 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
+      {/* Top Executive Panel (Postrix .xh-panel signature hero) */}
+      <section className="xh-panel space-y-5">
+        <div className="xh-kicker">
+          <span className="k">
+            Maniq Shield · Continuous Cloud Storage &amp; RBAC Posture Audit
+          </span>
+          <span className="tag">
+            {metrics.totalResources} Azure Assets Evaluated · Grade {dynamicRiskGrade}
+          </span>
+        </div>
 
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 relative z-10">
-          <div>
-            <div className="flex items-center space-x-2 mb-2">
-              <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-500/20 text-blue-300 border border-blue-500/30 flex items-center space-x-1">
-                <Sparkles className="w-3.5 h-3.5" />
-                <span>Maniq Shield • Continuous Cloud Posture Audit</span>
-              </span>
-              <span className="text-xs text-slate-400">
-                • {metrics.totalResources} Azure Assets Evaluated
-              </span>
-            </div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
-              Maniq Shield — Storage & RBAC Security Posture
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+          <div className="space-y-2 max-w-3xl">
+            <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-[#EEF3F1]">
+              Maniq Shield — Storage &amp; RBAC Security Posture
             </h1>
-            <p className="text-sm text-slate-300 max-w-2xl mt-1 leading-relaxed">
+            <p className="text-sm text-[#A9B7BF] leading-relaxed">
               Auditing Azure Storage Accounts for anonymous blob exposure, insecure HTTP transport, deprecated TLS versions, and analyzing Azure Entra ID / RBAC assignments for privilege escalation and excessive credentials.
             </p>
           </div>
 
-          {/* Quick Metrics Badges */}
-          <div className="flex items-center gap-3 flex-wrap">
+          <div className="flex flex-wrap items-center gap-2.5 shrink-0">
             <button
-              onClick={() => onNavigateTab('storage')}
-              className="flex items-center space-x-3 px-4 py-3 rounded-xl bg-slate-950/60 hover:bg-slate-900 border border-slate-700/80 transition-all text-left group"
+              type="button"
+              onClick={() => onNavigateTab('inventory')}
+              className="xh-btn"
             >
-              <div className="p-2.5 rounded-lg bg-blue-500/20 text-blue-400 border border-blue-500/30">
-                <Server className="w-5 h-5" />
-              </div>
-              <div>
-                <div className="text-xs text-slate-400">Exposed Containers</div>
-                <div className="text-lg font-bold text-white group-hover:text-blue-400 transition-colors flex items-center space-x-1">
-                  <span>{metrics.exposedContainerCount || metrics.openBucketCount} Containers</span>
-                  <ArrowUpRight className="w-4 h-4 opacity-50 group-hover:opacity-100" />
-                </div>
-              </div>
+              <span>Inspect Asset Inventory</span>
             </button>
-
             <button
-              onClick={() => onNavigateTab('rbac')}
-              className="flex items-center space-x-3 px-4 py-3 rounded-xl bg-slate-950/60 hover:bg-slate-900 border border-slate-700/80 transition-all text-left group"
+              type="button"
+              onClick={() => onNavigateTab('storage')}
+              className="xh-btn primary"
             >
-              <div className="p-2.5 rounded-lg bg-purple-500/20 text-purple-400 border border-purple-500/30">
-                <Unlock className="w-5 h-5" />
-              </div>
-              <div>
-                <div className="text-xs text-slate-400">Escalation Risks</div>
-                <div className="text-lg font-bold text-white group-hover:text-purple-400 transition-colors flex items-center space-x-1">
-                  <span>{metrics.privilegeEscalationCount} Paths</span>
-                  <ArrowUpRight className="w-4 h-4 opacity-50 group-hover:opacity-100" />
-                </div>
-              </div>
+              <span>Open Topology &amp; Storage Auditor</span>
+              <ArrowUpRight className="w-4 h-4" />
             </button>
           </div>
         </div>
-      </div>
+
+        {/* Postrix .xh-metric 4-column grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 pt-1">
+          <div
+            onClick={() => onNavigateTab('findings')}
+            className="xh-metric cursor-pointer hover:border-[#5FD3BF]/60 transition-colors"
+          >
+            <div className="lbl">
+              <span>POSTURE SCORE</span>
+              <ShieldCheck className="w-4 h-4" />
+            </div>
+            <div className="num hi tabular-nums">
+              {realtimePostureScore}%
+              <span className="text-xs font-normal text-[#A9B7BF] ml-2">
+                (Grade {dynamicRiskGrade})
+              </span>
+            </div>
+            <p>
+              {hardenedFindingsCount} of {totalFindingsCount} evaluated security controls hardened
+            </p>
+          </div>
+
+          <div
+            onClick={() => onNavigateTab('storage')}
+            className="xh-metric cursor-pointer hover:border-[#5FD3BF]/60 transition-colors"
+          >
+            <div className="lbl">
+              <span>EXPOSED CONTAINERS</span>
+              <Server className="w-4 h-4" />
+            </div>
+            <div className="num tabular-nums">
+              {metrics.exposedContainerCount || metrics.openBucketCount}
+              <span className="text-xs font-normal text-[#A9B7BF] ml-2">
+                Containers
+              </span>
+            </div>
+            <p>Anonymous public blob or container read/list exposure</p>
+          </div>
+
+          <div
+            onClick={() => onNavigateTab('rbac')}
+            className="xh-metric cursor-pointer hover:border-[#5FD3BF]/60 transition-colors"
+          >
+            <div className="lbl">
+              <span>ESCALATION PATHS</span>
+              <Unlock className="w-4 h-4" />
+            </div>
+            <div className="num tabular-nums">
+              {metrics.privilegeEscalationCount}
+              <span className="text-xs font-normal text-[#A9B7BF] ml-2">
+                Vectors
+              </span>
+            </div>
+            <p>Wildcard or roleAssignments/write elevation risks</p>
+          </div>
+
+          <div
+            onClick={() => onNavigateTab('remediation_log')}
+            className="xh-metric cursor-pointer hover:border-[#5FD3BF]/60 transition-colors"
+          >
+            <div className="lbl">
+              <span>SESSION REMEDIATIONS</span>
+              <History className="w-4 h-4" />
+            </div>
+            <div className="num hi tabular-nums">
+              {effectiveRemediationLog.length}
+              <span className="text-xs font-normal text-[#A9B7BF] ml-2">
+                Logged
+              </span>
+            </div>
+            <p>{openFindingsCount} open loopholes awaiting remediation</p>
+          </div>
+        </div>
+      </section>
 
       {/* Main Grid: Posture Meter & Severity Matrix */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Posture Meter Card */}
-        <div className="lg:col-span-4 bg-slate-900 rounded-2xl p-6 border border-slate-800 shadow-lg flex flex-col justify-between">
-          <div className="flex items-center justify-between mb-2">
+        <div className="lg:col-span-4 bg-white rounded-xl p-6 border border-slate-200 shadow-xs flex flex-col justify-between">
+          <div className="flex items-start justify-between mb-2">
             <div>
-              <h3 className="font-bold text-slate-100 text-sm tracking-wide">
-                SECURITY POSTURE SCORE
+              <span className="rm-kicker">Posture Ratio</span>
+              <h3 className="font-serif font-semibold text-slate-900 text-base">
+                Security Posture Score
               </h3>
-              <p className="text-[11px] text-slate-400">
+              <p className="text-xs text-slate-500">
                 Real-time Hardened vs. Total Findings Ratio
               </p>
             </div>
             <span
-              className={`text-xs px-2.5 py-0.5 rounded-full font-bold border ${getRiskGradeBg(
+              className={`text-xs px-2.5 py-0.5 rounded font-mono font-semibold border ${getRiskGradeBg(
                 dynamicRiskGrade
               )}`}
             >
@@ -560,15 +610,13 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
           <div className="flex flex-col items-center justify-center my-3">
             <div className="relative w-36 h-36 flex items-center justify-center">
               <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
-                {/* Background Track */}
                 <circle
                   cx="50"
                   cy="50"
                   r="42"
-                  className="stroke-slate-800 fill-none"
+                  className="stroke-slate-200 fill-none"
                   strokeWidth="8"
                 />
-                {/* Animated Value Arc */}
                 <circle
                   cx="50"
                   cy="50"
@@ -583,16 +631,16 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
                 />
               </svg>
               <div className="absolute flex flex-col items-center justify-center text-center">
-                <span className="text-3xl font-extrabold text-white tracking-tighter">
+                <span className="text-3xl font-bold font-mono text-slate-900 tracking-tighter tabular-nums">
                   {realtimePostureScore}%
                 </span>
-                <span className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">
+                <span className="text-[10px] text-slate-500 font-mono uppercase tracking-wider">
                   {hardenedFindingsCount}/{totalFindingsCount} Hardened
                 </span>
               </div>
             </div>
 
-            <p className="text-xs text-center text-slate-400 mt-2 max-w-xs">
+            <p className="text-xs text-center text-slate-600 mt-2 max-w-xs">
               {realtimePostureScore >= 85
                 ? 'Hardened posture. Low attack surface across Azure Storage and RBAC.'
                 : realtimePostureScore >= 60
@@ -602,41 +650,39 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
           </div>
 
           {/* Real-Time Hardened Findings Ratio Progress Bar */}
-          <div className="my-3 p-3.5 rounded-xl bg-slate-950/70 border border-slate-800/90 space-y-2.5">
+          <div className="my-3 p-3.5 rounded-lg bg-slate-50 border border-slate-200 space-y-2.5">
             <div className="flex items-center justify-between text-xs">
-              <span className="font-semibold text-slate-300 flex items-center space-x-1.5">
-                <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+              <span className="font-semibold text-slate-800 flex items-center space-x-1.5">
+                <ShieldCheck className="w-3.5 h-3.5 text-emerald-700" />
                 <span>Hardening Progress</span>
               </span>
-              <span className="font-mono font-bold text-slate-200">
+              <span className="font-mono font-semibold text-slate-900 tabular-nums">
                 {hardenedFindingsCount} / {totalFindingsCount} ({realtimePostureScore}%)
               </span>
             </div>
 
-            {/* Progress Bar Track */}
             <div
               role="progressbar"
               aria-label="Security Posture Score"
               aria-valuenow={realtimePostureScore}
               aria-valuemin={0}
               aria-valuemax={100}
-              className="relative w-full bg-slate-900 h-3 rounded-full overflow-hidden border border-slate-800"
+              className="relative w-full bg-slate-200 h-2.5 rounded-full overflow-hidden"
             >
               <div
-                className={`h-full bg-gradient-to-r ${getProgressBarGradient(
+                className={`h-full ${getProgressBarColor(
                   realtimePostureScore
                 )} rounded-full transition-all duration-700 ease-out`}
                 style={{ width: `${realtimePostureScore}%` }}
               />
             </div>
 
-            {/* Ratio Breakdown Pills */}
-            <div className="flex items-center justify-between text-[11px] text-slate-400 pt-0.5">
-              <span className="flex items-center space-x-1 text-emerald-400 font-medium">
+            <div className="flex items-center justify-between text-[11px] text-slate-600 font-mono pt-0.5">
+              <span className="flex items-center space-x-1 text-emerald-700 font-semibold">
                 <CheckCircle2 className="w-3 h-3" />
                 <span>{hardenedFindingsCount} Hardened</span>
               </span>
-              <span className="text-amber-400 font-medium">
+              <span className="text-amber-700 font-semibold">
                 {openFindingsCount} Open
               </span>
               <span>{totalFindingsCount} Total</span>
@@ -644,26 +690,27 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
 
             {openFindingsCount > 0 && (
               <button
+                type="button"
                 onClick={handleQuickHardenAll}
-                className="w-full mt-1 py-1.5 px-3 rounded-lg text-xs font-semibold bg-emerald-600/20 hover:bg-emerald-600 text-emerald-300 hover:text-white border border-emerald-500/30 transition-all flex items-center justify-center space-x-1.5"
+                className="w-full mt-1 py-2 px-3 rounded-lg text-xs font-semibold bg-[#0E2238] hover:bg-[#081420] text-[#EEF3F1] transition-all flex items-center justify-center space-x-1.5 cursor-pointer"
               >
-                <Zap className="w-3.5 h-3.5" />
+                <Zap className="w-3.5 h-3.5 text-[#5FD3BF]" />
                 <span>Harden All Remaining ({openFindingsCount})</span>
               </button>
             )}
           </div>
 
           {/* Quick Metrics Footer */}
-          <div className="pt-3 border-t border-slate-800 grid grid-cols-2 gap-3 text-center">
-            <div className="p-2.5 rounded-xl bg-slate-950/60 border border-slate-800/80">
-              <div className="text-xs text-slate-400">Open Loopholes</div>
-              <div className="text-xl font-bold text-white">
+          <div className="pt-3 border-t border-slate-200 grid grid-cols-2 gap-3 text-center">
+            <div className="p-2.5 rounded-lg bg-slate-50 border border-slate-200">
+              <div className="text-xs text-slate-500">Open Loopholes</div>
+              <div className="text-xl font-bold font-mono text-slate-900 tabular-nums">
                 {openFindingsCount}
               </div>
             </div>
-            <div className="p-2.5 rounded-xl bg-slate-950/60 border border-slate-800/80">
-              <div className="text-xs text-slate-400">Hardened Findings</div>
-              <div className="text-xl font-bold text-emerald-400">
+            <div className="p-2.5 rounded-lg bg-slate-50 border border-slate-200">
+              <div className="text-xs text-slate-500">Hardened Findings</div>
+              <div className="text-xl font-bold font-mono text-emerald-700 tabular-nums">
                 {hardenedFindingsCount}
               </div>
             </div>
@@ -673,92 +720,95 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
         {/* Severity Matrix & Visual Analytics */}
         <div className="lg:col-span-8 space-y-6">
           {/* Severity Counters Bar */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5">
             <div
               onClick={() => onNavigateTab('findings')}
-              className="p-4 rounded-2xl bg-red-950/30 border border-red-500/30 hover:border-red-500/50 cursor-pointer transition-all shadow-sm group"
+              className="p-4 rounded-xl bg-white border border-slate-200 hover:border-red-400 cursor-pointer transition-all shadow-xs group"
             >
-              <div className="flex items-center justify-between text-red-400 mb-1">
-                <span className="text-xs font-bold tracking-wider uppercase">
+              <div className="flex items-center justify-between text-red-700 mb-1">
+                <span className="text-xs font-mono font-semibold tracking-wider uppercase">
                   Critical
                 </span>
                 <AlertOctagon className="w-4 h-4" />
               </div>
-              <div className="text-2xl font-black text-white group-hover:text-red-400 transition-colors">
+              <div className="text-2xl font-bold font-mono text-slate-900 group-hover:text-red-700 transition-colors tabular-nums">
                 {metrics.criticalCount}
               </div>
-              <div className="text-[11px] text-slate-400 mt-1">
+              <div className="text-[11px] text-slate-500 mt-1">
                 Zero-barrier exploits
               </div>
             </div>
 
             <div
               onClick={() => onNavigateTab('findings')}
-              className="p-4 rounded-2xl bg-orange-950/30 border border-orange-500/30 hover:border-orange-500/50 cursor-pointer transition-all shadow-sm group"
+              className="p-4 rounded-xl bg-white border border-slate-200 hover:border-orange-400 cursor-pointer transition-all shadow-xs group"
             >
-              <div className="flex items-center justify-between text-orange-400 mb-1">
-                <span className="text-xs font-bold tracking-wider uppercase">
+              <div className="flex items-center justify-between text-orange-700 mb-1">
+                <span className="text-xs font-mono font-semibold tracking-wider uppercase">
                   High
                 </span>
                 <AlertTriangle className="w-4 h-4" />
               </div>
-              <div className="text-2xl font-black text-white group-hover:text-orange-400 transition-colors">
+              <div className="text-2xl font-bold font-mono text-slate-900 group-hover:text-orange-700 transition-colors tabular-nums">
                 {metrics.highCount}
               </div>
-              <div className="text-[11px] text-slate-400 mt-1">
-                Perimeter & token risks
+              <div className="text-[11px] text-slate-500 mt-1">
+                Perimeter &amp; token risks
               </div>
             </div>
 
             <div
               onClick={() => onNavigateTab('findings')}
-              className="p-4 rounded-2xl bg-amber-950/30 border border-amber-500/30 hover:border-amber-500/50 cursor-pointer transition-all shadow-sm group"
+              className="p-4 rounded-xl bg-white border border-slate-200 hover:border-amber-400 cursor-pointer transition-all shadow-xs group"
             >
-              <div className="flex items-center justify-between text-amber-400 mb-1">
-                <span className="text-xs font-bold tracking-wider uppercase">
+              <div className="flex items-center justify-between text-amber-700 mb-1">
+                <span className="text-xs font-mono font-semibold tracking-wider uppercase">
                   Medium
                 </span>
                 <Info className="w-4 h-4" />
               </div>
-              <div className="text-2xl font-black text-white group-hover:text-amber-400 transition-colors">
+              <div className="text-2xl font-bold font-mono text-slate-900 group-hover:text-amber-700 transition-colors tabular-nums">
                 {metrics.mediumCount}
               </div>
-              <div className="text-[11px] text-slate-400 mt-1">
-                Governance & logging gaps
+              <div className="text-[11px] text-slate-500 mt-1">
+                Governance &amp; logging gaps
               </div>
             </div>
 
             <div
               onClick={() => onNavigateTab('findings')}
-              className="p-4 rounded-2xl bg-blue-950/30 border border-blue-500/30 hover:border-blue-500/50 cursor-pointer transition-all shadow-sm group"
+              className="p-4 rounded-xl bg-white border border-slate-200 hover:border-emerald-500 cursor-pointer transition-all shadow-xs group"
             >
-              <div className="flex items-center justify-between text-blue-400 mb-1">
-                <span className="text-xs font-bold tracking-wider uppercase">
+              <div className="flex items-center justify-between text-emerald-700 mb-1">
+                <span className="text-xs font-mono font-semibold tracking-wider uppercase">
                   Low
                 </span>
                 <ShieldCheck className="w-4 h-4" />
               </div>
-              <div className="text-2xl font-black text-white group-hover:text-blue-400 transition-colors">
+              <div className="text-2xl font-bold font-mono text-slate-900 group-hover:text-emerald-700 transition-colors tabular-nums">
                 {metrics.lowCount}
               </div>
-              <div className="text-[11px] text-slate-400 mt-1">
+              <div className="text-[11px] text-slate-500 mt-1">
                 Hardening recommendations
               </div>
             </div>
           </div>
 
           {/* Visual Aids: Frequency by Category */}
-          <div className="bg-slate-900 rounded-2xl p-6 border border-slate-800 shadow-lg">
+          <div className="bg-white rounded-xl p-6 border border-slate-200 shadow-xs">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="font-bold text-slate-100 text-sm tracking-wide">
-                MISCONFIGURATION FREQUENCY BY DOMAIN
-              </h3>
-              <span className="text-xs text-slate-400">
+              <div>
+                <span className="rm-kicker">Domain Distribution</span>
+                <h3 className="font-serif font-semibold text-slate-900 text-base">
+                  Misconfiguration Frequency by Domain
+                </h3>
+              </div>
+              <span className="text-xs font-mono text-slate-500">
                 Visual Analytics (Included in PDF)
               </span>
             </div>
 
-            <div className="space-y-3.5">
+            <div className="space-y-4">
               {categoryBreakdown.map((item) => {
                 const max = Math.max(1, metrics.totalFindings);
                 const percent = Math.round((item.count / max) * 100);
@@ -771,23 +821,22 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
                     className="group cursor-pointer"
                   >
                     <div className="flex items-center justify-between text-xs mb-1.5">
-                      <div className="flex items-center space-x-2 text-slate-300 group-hover:text-white font-medium transition-colors">
-                        <Icon className="w-4 h-4 text-slate-400 group-hover:text-blue-400 transition-colors" />
+                      <div className="flex items-center space-x-2 text-slate-700 group-hover:text-slate-900 font-medium transition-colors">
+                        <Icon className="w-4 h-4 text-slate-500 group-hover:text-emerald-700 transition-colors" />
                         <span>{item.name}</span>
                       </div>
-                      <div className="flex items-center space-x-2">
-                        <span className="font-mono text-slate-400">
+                      <div className="flex items-center space-x-2 font-mono tabular-nums">
+                        <span className="text-slate-600">
                           {item.count} issues
                         </span>
-                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 font-bold">
+                        <span className="text-[11px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-800 border border-slate-200 font-semibold">
                           {percent}%
                         </span>
                       </div>
                     </div>
-                    {/* Track */}
-                    <div className="w-full bg-slate-950 h-2.5 rounded-full overflow-hidden border border-slate-800/80">
+                    <div className="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden border border-slate-200">
                       <div
-                        className={`h-full bg-gradient-to-r ${item.color} rounded-full transition-all duration-700`}
+                        className={`h-full ${item.barColor} rounded-full transition-all duration-700`}
                         style={{ width: `${Math.max(4, percent)}%` }}
                       />
                     </div>
@@ -801,81 +850,81 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
 
       {/* Compliance Framework Scorecards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="p-5 rounded-2xl bg-slate-900 border border-slate-800 shadow-lg flex flex-col justify-between">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-bold text-slate-400 tracking-wider uppercase">
+        <div className="p-5 rounded-xl bg-white border border-slate-200 shadow-xs flex flex-col justify-between">
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-xs font-mono font-semibold text-slate-600 uppercase tracking-wider">
               CIS Azure Foundations 2.0
             </span>
-            <FileCheck2 className="w-4 h-4 text-blue-400" />
+            <FileCheck2 className="w-4 h-4 text-emerald-700" />
           </div>
           <div className="my-2">
-            <div className="text-2xl font-black text-white">
+            <div className="text-2xl font-bold font-mono text-slate-900 tabular-nums">
               {metrics.complianceScores.cisAzure}%
             </div>
-            <div className="text-xs text-slate-400 mt-0.5">
+            <div className="text-xs text-slate-500 mt-0.5">
               Passing benchmark controls
             </div>
           </div>
-          <div className="w-full bg-slate-950 h-2 rounded-full overflow-hidden border border-slate-800">
+          <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden border border-slate-200">
             <div
               className={`h-full ${
                 metrics.complianceScores.cisAzure >= 80
-                  ? 'bg-emerald-500'
-                  : 'bg-amber-500'
+                  ? 'bg-[#2BB5A0]'
+                  : 'bg-[#D79A45]'
               }`}
               style={{ width: `${metrics.complianceScores.cisAzure}%` }}
             />
           </div>
         </div>
 
-        <div className="p-5 rounded-2xl bg-slate-900 border border-slate-800 shadow-lg flex flex-col justify-between">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-bold text-slate-400 tracking-wider uppercase">
+        <div className="p-5 rounded-xl bg-white border border-slate-200 shadow-xs flex flex-col justify-between">
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-xs font-mono font-semibold text-slate-600 uppercase tracking-wider">
               Microsoft Cloud Security (MCSB)
             </span>
-            <FileCheck2 className="w-4 h-4 text-purple-400" />
+            <FileCheck2 className="w-4 h-4 text-slate-700" />
           </div>
           <div className="my-2">
-            <div className="text-2xl font-black text-white">
+            <div className="text-2xl font-bold font-mono text-slate-900 tabular-nums">
               {metrics.complianceScores.mcsb}%
             </div>
-            <div className="text-xs text-slate-400 mt-0.5">
-              Data protection & identity baseline
+            <div className="text-xs text-slate-500 mt-0.5">
+              Data protection &amp; identity baseline
             </div>
           </div>
-          <div className="w-full bg-slate-950 h-2 rounded-full overflow-hidden border border-slate-800">
+          <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden border border-slate-200">
             <div
               className={`h-full ${
                 metrics.complianceScores.mcsb >= 80
-                  ? 'bg-emerald-500'
-                  : 'bg-amber-500'
+                  ? 'bg-[#2BB5A0]'
+                  : 'bg-[#D79A45]'
               }`}
               style={{ width: `${metrics.complianceScores.mcsb}%` }}
             />
           </div>
         </div>
 
-        <div className="p-5 rounded-2xl bg-slate-900 border border-slate-800 shadow-lg flex flex-col justify-between">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-bold text-slate-400 tracking-wider uppercase">
+        <div className="p-5 rounded-xl bg-white border border-slate-200 shadow-xs flex flex-col justify-between">
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-xs font-mono font-semibold text-slate-600 uppercase tracking-wider">
               NIST SP 800-53 Rev. 5
             </span>
-            <FileCheck2 className="w-4 h-4 text-emerald-400" />
+            <FileCheck2 className="w-4 h-4 text-amber-700" />
           </div>
           <div className="my-2">
-            <div className="text-2xl font-black text-white">
+            <div className="text-2xl font-bold font-mono text-slate-900 tabular-nums">
               {metrics.complianceScores.nist}%
             </div>
-            <div className="text-xs text-slate-400 mt-0.5">
-              Access control (AC) & encryption (SC)
+            <div className="text-xs text-slate-500 mt-0.5">
+              Access control (AC) &amp; encryption (SC)
             </div>
           </div>
-          <div className="w-full bg-slate-950 h-2 rounded-full overflow-hidden border border-slate-800">
+          <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden border border-slate-200">
             <div
               className={`h-full ${
                 metrics.complianceScores.nist >= 80
-                  ? 'bg-emerald-500'
-                  : 'bg-amber-500'
+                  ? 'bg-[#2BB5A0]'
+                  : 'bg-[#D79A45]'
               }`}
               style={{ width: `${metrics.complianceScores.nist}%` }}
             />
@@ -883,58 +932,57 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
         </div>
       </div>
 
-      {/* Compliance Timeline Section (Recharts LineChart) */}
-      <div className="bg-slate-900 rounded-2xl p-6 border border-slate-800 shadow-lg">
+      {/* Compliance Timeline Section (Recharts LineChart in Postrix Light Skin) */}
+      <section className="bg-white rounded-xl p-6 border border-slate-200 shadow-xs">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-6">
           <div className="space-y-1">
-            <div className="flex items-center space-x-2.5">
-              <div className="p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-400">
-                <TrendingUp className="w-4 h-4" />
-              </div>
-              <h3 className="font-bold text-slate-100 text-sm tracking-wide uppercase">
-                Compliance Timeline & Posture Trajectory
+            <span className="rm-kicker">Historical Trend &amp; Telemetry</span>
+            <div className="flex items-center flex-wrap gap-2.5">
+              <h3 className="font-serif font-semibold text-slate-900 text-lg">
+                Compliance Timeline &amp; Posture Trajectory
               </h3>
-              <span className="px-2 py-0.5 text-[11px] font-mono font-semibold rounded bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 tabular-nums whitespace-nowrap shrink-0">
+              <span className="px-2 py-0.5 text-[11px] font-mono font-semibold rounded bg-emerald-50 text-emerald-800 border border-emerald-200 tabular-nums whitespace-nowrap shrink-0">
                 +{totalScoreGain}% Posture Gain
               </span>
             </div>
-            <p className="text-xs text-slate-400">
-              Historical security posture score progression and real-time impact of remediation actions across CIS Azure & NIST controls
+            <p className="text-xs text-slate-600">
+              Historical security posture score progression and real-time impact of remediation actions across CIS Azure &amp; NIST controls
             </p>
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            {/* Benchmark Overlay Toggle */}
             <button
+              type="button"
               onClick={() => setShowBenchmarks((prev) => !prev)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-all flex items-center space-x-1.5 whitespace-nowrap shrink-0 ${
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-all flex items-center space-x-1.5 whitespace-nowrap shrink-0 cursor-pointer ${
                 showBenchmarks
-                  ? 'bg-blue-500/15 text-blue-300 border-blue-500/30'
-                  : 'bg-slate-950 text-slate-400 border-slate-800 hover:text-slate-200'
+                  ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
+                  : 'bg-slate-50 text-slate-600 border-slate-200 hover:text-slate-900'
               }`}
             >
               <Activity className="w-3.5 h-3.5" />
-              <span>CIS & NIST Overlay</span>
+              <span>CIS &amp; NIST Overlay</span>
             </button>
 
-            {/* Timeframe Scope Toggle */}
-            <div className="inline-flex rounded-lg bg-slate-950 p-1 border border-slate-800">
+            <div className="inline-flex rounded-lg bg-slate-100 p-1 border border-slate-200">
               <button
+                type="button"
                 onClick={() => setTimelineScope('all')}
-                className={`px-2.5 py-1 rounded-md text-xs font-semibold transition-all whitespace-nowrap shrink-0 ${
+                className={`px-2.5 py-1 rounded-md text-xs font-semibold transition-all whitespace-nowrap shrink-0 cursor-pointer ${
                   timelineScope === 'all'
-                    ? 'bg-slate-800 text-white shadow-sm'
-                    : 'text-slate-400 hover:text-slate-200'
+                    ? 'bg-white text-slate-900 shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
                 30d + Live Session
               </button>
               <button
+                type="button"
                 onClick={() => setTimelineScope('session')}
-                className={`px-2.5 py-1 rounded-md text-xs font-semibold transition-all whitespace-nowrap shrink-0 ${
+                className={`px-2.5 py-1 rounded-md text-xs font-semibold transition-all whitespace-nowrap shrink-0 cursor-pointer ${
                   timelineScope === 'session'
-                    ? 'bg-slate-800 text-white shadow-sm'
-                    : 'text-slate-400 hover:text-slate-200'
+                    ? 'bg-white text-slate-900 shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
                 Session Only ({effectiveRemediationLog.length})
@@ -943,11 +991,12 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
 
             {activeOpenFindings.length > 0 && (
               <button
+                type="button"
                 onClick={() => handleQuickHarden(activeOpenFindings[0].id)}
-                className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-600/20 hover:bg-emerald-600 text-emerald-300 hover:text-white border border-emerald-500/30 transition-all flex items-center space-x-1.5 whitespace-nowrap shrink-0"
+                className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-[#0E2238] hover:bg-[#081420] text-[#EEF3F1] transition-all flex items-center space-x-1.5 whitespace-nowrap shrink-0 cursor-pointer"
                 title={`Remediate: ${activeOpenFindings[0].title}`}
               >
-                <Zap className="w-3.5 h-3.5" />
+                <Zap className="w-3.5 h-3.5 text-[#5FD3BF]" />
                 <span>Harden Next Finding</span>
               </button>
             )}
@@ -956,11 +1005,11 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
 
         {/* Summary KPI Strip */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
-          <div className="p-3.5 rounded-xl bg-slate-950/70 border border-slate-800/80">
-            <div className="text-[11px] font-medium text-slate-400 uppercase tracking-wider">
+          <div className="p-3.5 rounded-lg bg-slate-50 border border-slate-200">
+            <div className="text-[11px] font-mono font-medium text-slate-500 uppercase tracking-wider">
               {timelineScope === 'session' ? 'Session Start Score' : '30-Day Starting Score'}
             </div>
-            <div className="text-xl font-black text-slate-200 font-mono tabular-nums mt-1">
+            <div className="text-xl font-bold text-slate-900 font-mono tabular-nums mt-1">
               {timelineScope === 'session' ? initialSessionScore : historicalStartScore}%
             </div>
             <div className="text-[11px] text-slate-500 mt-0.5">
@@ -968,11 +1017,11 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
             </div>
           </div>
 
-          <div className="p-3.5 rounded-xl bg-slate-950/70 border border-slate-800/80">
-            <div className="text-[11px] font-medium text-slate-400 uppercase tracking-wider">
+          <div className="p-3.5 rounded-lg bg-slate-50 border border-slate-200">
+            <div className="text-[11px] font-mono font-medium text-slate-500 uppercase tracking-wider">
               Current Posture Score
             </div>
-            <div className="text-xl font-black text-emerald-400 font-mono tabular-nums mt-1">
+            <div className="text-xl font-bold text-emerald-700 font-mono tabular-nums mt-1">
               {realtimePostureScore}%
             </div>
             <div className="text-[11px] text-slate-500 mt-0.5">
@@ -980,11 +1029,11 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
             </div>
           </div>
 
-          <div className="p-3.5 rounded-xl bg-slate-950/70 border border-slate-800/80">
-            <div className="text-[11px] font-medium text-slate-400 uppercase tracking-wider">
+          <div className="p-3.5 rounded-lg bg-slate-50 border border-slate-200">
+            <div className="text-[11px] font-mono font-medium text-slate-500 uppercase tracking-wider">
               Net Posture Improvement
             </div>
-            <div className="text-xl font-black text-cyan-400 font-mono tabular-nums mt-1">
+            <div className="text-xl font-bold text-[#0E2238] font-mono tabular-nums mt-1">
               +{totalScoreGain}%
             </div>
             <div className="text-[11px] text-slate-500 mt-0.5">
@@ -992,11 +1041,11 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
             </div>
           </div>
 
-          <div className="p-3.5 rounded-xl bg-slate-950/70 border border-slate-800/80">
-            <div className="text-[11px] font-medium text-slate-400 uppercase tracking-wider">
+          <div className="p-3.5 rounded-lg bg-slate-50 border border-slate-200">
+            <div className="text-[11px] font-mono font-medium text-slate-500 uppercase tracking-wider">
               Session Remediations
             </div>
-            <div className="text-xl font-black text-blue-400 font-mono tabular-nums mt-1">
+            <div className="text-xl font-bold text-amber-700 font-mono tabular-nums mt-1">
               {effectiveRemediationLog.length}
             </div>
             <div className="text-[11px] text-slate-500 mt-0.5">
@@ -1006,7 +1055,7 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
         </div>
 
         {/* Recharts LineChart Container */}
-        <div className="h-72 w-full bg-slate-950/50 rounded-xl border border-slate-800/80 p-4">
+        <div className="h-72 w-full bg-[#F3F5F1] rounded-xl border border-slate-200 p-4">
           <ResponsiveContainer width="100%" height="100%">
             <LineChart
               data={complianceTimelineData}
@@ -1014,23 +1063,23 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
             >
               <CartesianGrid
                 strokeDasharray="3 3"
-                stroke="#1e293b"
+                stroke="#d9ddd3"
                 vertical={false}
               />
               <XAxis
                 dataKey="label"
-                stroke="#64748b"
-                tick={{ fill: '#94a3b8', fontSize: 11 }}
-                tickLine={{ stroke: '#334155' }}
-                axisLine={{ stroke: '#334155' }}
+                stroke="#4b5a66"
+                tick={{ fill: '#394a56', fontSize: 11, fontFamily: 'IBM Plex Mono' }}
+                tickLine={{ stroke: '#c7cdc0' }}
+                axisLine={{ stroke: '#c7cdc0' }}
               />
               <YAxis
                 domain={[0, 100]}
                 tickFormatter={(val) => `${val}%`}
-                stroke="#64748b"
-                tick={{ fill: '#94a3b8', fontSize: 11 }}
-                tickLine={{ stroke: '#334155' }}
-                axisLine={{ stroke: '#334155' }}
+                stroke="#4b5a66"
+                tick={{ fill: '#394a56', fontSize: 11, fontFamily: 'IBM Plex Mono' }}
+                tickLine={{ stroke: '#c7cdc0' }}
+                axisLine={{ stroke: '#c7cdc0' }}
                 width={44}
               />
               <Tooltip
@@ -1038,16 +1087,16 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
                   if (!active || !payload || !payload.length) return null;
                   const point = payload[0].payload;
                   return (
-                    <div className="bg-slate-950/95 border border-slate-700 rounded-xl p-3.5 shadow-2xl max-w-xs space-y-2 backdrop-blur-md">
-                      <div className="flex items-center justify-between gap-3 border-b border-slate-800 pb-2">
-                        <span className="text-[11px] font-mono text-slate-400">
+                    <div className="bg-[#081420] text-[#EEF3F1] border border-[#3E6E86] rounded-xl p-3.5 shadow-xl max-w-xs space-y-2">
+                      <div className="flex items-center justify-between gap-3 border-b border-[#3E6E86]/40 pb-2">
+                        <span className="text-[11px] font-mono text-[#A9B7BF]">
                           {point.fullTimestamp}
                         </span>
                         <span
-                          className={`text-[10px] font-bold px-1.5 py-0.5 rounded uppercase ${
+                          className={`text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded uppercase ${
                             point.isLiveSession
-                              ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
-                              : 'bg-slate-800 text-slate-300 border border-slate-700'
+                              ? 'bg-[#2BB5A0]/20 text-[#5FD3BF] border border-[#5FD3BF]/30'
+                              : 'bg-[#102236] text-[#A9B7BF] border border-[#3E6E86]/40'
                           }`}
                         >
                           {point.isLiveSession ? 'Live Session' : 'Historical'}
@@ -1055,36 +1104,33 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
                       </div>
 
                       <div>
-                        <div className="text-xs font-bold text-white leading-snug">
+                        <div className="text-xs font-semibold text-white">
                           {point.eventTitle}
                         </div>
-                        <div className="text-[11px] font-mono text-slate-400 mt-0.5">
-                          Resource: {point.resourceName} · {point.method}
+                        <div className="text-[11px] font-mono text-[#A9B7BF] mt-0.5">
+                          Target: {point.resourceName} · {point.method}
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-3 gap-2 pt-1 border-t border-slate-800/80 text-center">
-                        <div className="bg-slate-900/90 rounded-lg p-1.5 border border-slate-800">
-                          <div className="text-[10px] text-slate-400">Posture</div>
-                          <div className="text-xs font-bold font-mono text-emerald-400 tabular-nums">
+                      <div className="grid grid-cols-3 gap-2 pt-1 border-t border-[#3E6E86]/40 text-center font-mono">
+                        <div>
+                          <div className="text-[10px] text-[#A9B7BF]">Posture</div>
+                          <div className="text-xs font-bold text-[#5FD3BF] tabular-nums">
                             {point.postureScore}%
-                            {point.scoreDelta > 0 && (
-                              <span className="text-[10px] text-emerald-300 ml-1">
-                                (+{point.scoreDelta}%)
-                              </span>
-                            )}
                           </div>
                         </div>
-                        <div className="bg-slate-900/90 rounded-lg p-1.5 border border-slate-800">
-                          <div className="text-[10px] text-slate-400">CIS v2.0</div>
-                          <div className="text-xs font-bold font-mono text-blue-400 tabular-nums">
+                        <div>
+                          <div className="text-[10px] text-[#A9B7BF]">Delta</div>
+                          <div className="text-xs font-bold text-[#EBC385] tabular-nums">
+                            {point.scoreDelta >= 0
+                              ? `+${point.scoreDelta}%`
+                              : `${point.scoreDelta}%`}
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-[10px] text-[#A9B7BF]">CIS v2.0</div>
+                          <div className="text-xs font-bold text-white tabular-nums">
                             {point.cisScore}%
-                          </div>
-                        </div>
-                        <div className="bg-slate-900/90 rounded-lg p-1.5 border border-slate-800">
-                          <div className="text-[10px] text-slate-400">NIST 800-53</div>
-                          <div className="text-xs font-bold font-mono text-purple-400 tabular-nums">
-                            {point.nistScore}%
                           </div>
                         </div>
                       </div>
@@ -1094,14 +1140,15 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
               />
               <ReferenceLine
                 y={85}
-                stroke="#10b981"
+                stroke="#246a65"
                 strokeDasharray="4 4"
-                strokeOpacity={0.6}
+                strokeOpacity={0.7}
                 label={{
-                  value: '85% Hardened Target',
+                  value: 'Target 85% (Grade A)',
                   position: 'insideTopRight',
-                  fill: '#34d399',
+                  fill: '#246a65',
                   fontSize: 10,
+                  fontFamily: 'IBM Plex Mono',
                 }}
               />
               {showBenchmarks && (
@@ -1110,21 +1157,21 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
                     type="monotone"
                     dataKey="cisScore"
                     name="CIS Azure v2.0"
-                    stroke="#3b82f6"
+                    stroke="#0e2238"
                     strokeWidth={1.75}
                     strokeDasharray="4 4"
-                    dot={{ r: 3, fill: '#3b82f6', strokeWidth: 0 }}
-                    activeDot={{ r: 5, fill: '#60a5fa' }}
+                    dot={{ r: 3, fill: '#0e2238', strokeWidth: 0 }}
+                    activeDot={{ r: 5, fill: '#0e2238' }}
                   />
                   <Line
                     type="monotone"
                     dataKey="nistScore"
                     name="NIST SP 800-53"
-                    stroke="#a855f7"
+                    stroke="#d79a45"
                     strokeWidth={1.75}
                     strokeDasharray="2 3"
-                    dot={{ r: 3, fill: '#a855f7', strokeWidth: 0 }}
-                    activeDot={{ r: 5, fill: '#c084fc' }}
+                    dot={{ r: 3, fill: '#d79a45', strokeWidth: 0 }}
+                    activeDot={{ r: 5, fill: '#ebc385' }}
                   />
                 </>
               )}
@@ -1132,18 +1179,18 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
                 type="monotone"
                 dataKey="postureScore"
                 name="Security Posture Score"
-                stroke="#10b981"
+                stroke="#246a65"
                 strokeWidth={3}
                 dot={{
                   r: 4,
-                  fill: '#059669',
-                  stroke: '#34d399',
-                  strokeWidth: 2,
+                  fill: '#2bb5a0',
+                  stroke: '#16232f',
+                  strokeWidth: 1.5,
                 }}
                 activeDot={{
                   r: 6,
-                  fill: '#10b981',
-                  stroke: '#ecfdf5',
+                  fill: '#2bb5a0',
+                  stroke: '#081420',
                   strokeWidth: 2,
                 }}
               />
@@ -1152,57 +1199,60 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
         </div>
 
         {/* Chart Legend & Live Event Feed Footer */}
-        <div className="mt-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-3 border-t border-slate-800/80 text-xs">
+        <div className="mt-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-3 border-t border-slate-200 text-xs">
           <div className="flex flex-wrap items-center gap-4">
             <div className="flex items-center space-x-2">
-              <span className="w-3 h-1 rounded-full bg-emerald-500 inline-block" />
-              <span className="text-slate-300 font-medium">
+              <span className="w-3 h-1 rounded-full bg-[#246a65] inline-block" />
+              <span className="text-slate-800 font-medium">
                 Overall Security Posture Score
               </span>
             </div>
             {showBenchmarks && (
               <>
                 <div className="flex items-center space-x-2">
-                  <span className="w-3 h-0.5 bg-blue-500 inline-block" />
-                  <span className="text-slate-400">CIS Azure v2.0 Benchmark</span>
+                  <span className="w-3 h-0.5 bg-[#0e2238] inline-block" />
+                  <span className="text-slate-600">CIS Azure v2.0 Benchmark</span>
                 </div>
                 <div className="flex items-center space-x-2">
-                  <span className="w-3 h-0.5 bg-purple-500 inline-block" />
-                  <span className="text-slate-400">NIST SP 800-53 Rev. 5</span>
+                  <span className="w-3 h-0.5 bg-[#d79a45] inline-block" />
+                  <span className="text-slate-600">NIST SP 800-53 Rev. 5</span>
                 </div>
               </>
             )}
             <div className="flex items-center space-x-2">
-              <span className="w-3 h-0.5 border-b border-dashed border-emerald-400 inline-block" />
-              <span className="text-slate-400">85% Target Threshold</span>
+              <span className="w-3 h-0.5 border-b border-dashed border-emerald-700 inline-block" />
+              <span className="text-slate-600">85% Target Threshold</span>
             </div>
           </div>
 
           <button
+            type="button"
             onClick={() => onNavigateTab('remediation_log')}
-            className="text-xs font-semibold text-emerald-400 hover:text-emerald-300 flex items-center space-x-1 self-start sm:self-auto whitespace-nowrap shrink-0"
+            className="text-xs font-semibold text-emerald-700 hover:text-emerald-900 flex items-center space-x-1 self-start sm:self-auto whitespace-nowrap shrink-0 cursor-pointer"
           >
             <History className="w-3.5 h-3.5" />
             <span>Inspect Full Remediation Audit Trail</span>
             <ArrowUpRight className="w-3.5 h-3.5" />
           </button>
         </div>
-      </div>
+      </section>
 
       {/* Critical Action Items List */}
-      <div className="bg-slate-900 rounded-2xl p-6 border border-slate-800 shadow-lg">
+      <section className="bg-white rounded-xl p-6 border border-slate-200 shadow-xs">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h3 className="font-bold text-slate-100 text-sm tracking-wide">
-              IMMEDIATE ACTION ITEMS (PRIORITY REMEDIATION)
+            <span className="rm-kicker">Priority Queue</span>
+            <h3 className="font-serif font-semibold text-slate-900 text-lg">
+              Immediate Action Items (Priority Remediation)
             </h3>
-            <p className="text-xs text-slate-400">
+            <p className="text-xs text-slate-600">
               Harden vulnerabilities directly to improve your real-time Security Posture Score
             </p>
           </div>
           <button
+            type="button"
             onClick={() => onNavigateTab('findings')}
-            className="text-xs font-semibold text-blue-400 hover:text-blue-300 flex items-center space-x-1"
+            className="text-xs font-semibold text-emerald-700 hover:underline flex items-center space-x-1 cursor-pointer"
           >
             <span>View All ({activeOpenFindings.length})</span>
             <ArrowUpRight className="w-3.5 h-3.5" />
@@ -1210,67 +1260,69 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
         </div>
 
         {activeOpenFindings.length === 0 ? (
-          <div className="p-6 rounded-xl bg-emerald-950/20 border border-emerald-500/30 text-center space-y-2">
-            <ShieldCheck className="w-8 h-8 text-emerald-400 mx-auto" />
-            <div className="text-sm font-bold text-emerald-300">
+          <div className="p-6 rounded-xl bg-emerald-50 border border-emerald-200 text-center space-y-2">
+            <ShieldCheck className="w-8 h-8 text-emerald-700 mx-auto" />
+            <div className="text-sm font-bold text-emerald-900">
               100% Hardened Security Posture Achieved
             </div>
-            <p className="text-xs text-slate-400 max-w-md mx-auto">
+            <p className="text-xs text-slate-600 max-w-md mx-auto">
               All {totalFindingsCount} evaluated security findings across Azure Storage Accounts, Blob Containers, and RBAC assignments are hardened.
             </p>
           </div>
         ) : (
           <div className="space-y-3">
-            {activeOpenFindings
-              .slice(0, 4)
-              .map((finding) => (
-                <div
-                  key={finding.id}
-                  onClick={() => onSelectFinding(finding.id)}
-                  className="p-3.5 rounded-xl bg-slate-950/70 border border-slate-800 hover:border-red-500/40 cursor-pointer transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 group"
-                >
-                  <div className="flex items-start space-x-3">
-                    <div className="p-2 rounded-lg bg-red-500/20 text-red-400 border border-red-500/30 flex-shrink-0 mt-0.5">
-                      <AlertOctagon className="w-4 h-4" />
-                    </div>
-                    <div>
-                      <div className="flex items-center space-x-2">
-                        <span className="text-xs font-bold text-white group-hover:text-red-300 transition-colors">
-                          {finding.title}
-                        </span>
-                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 font-mono">
-                          {finding.category.toUpperCase()}
-                        </span>
-                      </div>
-                      <p className="text-xs text-slate-400 line-clamp-1 mt-0.5">
-                        {finding.description}
-                      </p>
-                    </div>
+            {activeOpenFindings.slice(0, 4).map((finding) => (
+              <div
+                key={finding.id}
+                onClick={() => onSelectFinding(finding.id)}
+                className="p-4 rounded-xl bg-slate-50 border border-slate-200 hover:border-slate-400 cursor-pointer transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 group"
+              >
+                <div className="flex items-start space-x-3">
+                  <div className="p-2 rounded-lg bg-red-50 text-red-700 border border-red-200 flex-shrink-0 mt-0.5">
+                    <AlertOctagon className="w-4 h-4" />
                   </div>
-
-                  <div className="flex items-center space-x-2 self-end sm:self-center flex-shrink-0">
-                    <span className="text-xs font-mono text-slate-400 hidden md:inline">
-                      {finding.resourceName}
-                    </span>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleQuickHarden(finding.id);
-                      }}
-                      className="px-3 py-1 rounded-lg text-xs font-semibold bg-emerald-600/20 text-emerald-300 border border-emerald-500/30 hover:bg-emerald-600 hover:text-white transition-all flex items-center space-x-1"
-                    >
-                      <CheckCircle2 className="w-3.5 h-3.5" />
-                      <span>Harden</span>
-                    </button>
-                    <button className="px-3 py-1 rounded-lg text-xs font-semibold bg-red-600/20 text-red-300 border border-red-500/30 group-hover:bg-red-600 group-hover:text-white transition-all">
-                      Runbook
-                    </button>
+                  <div>
+                    <div className="flex items-center space-x-2">
+                      <span className="text-xs font-bold text-slate-900 group-hover:text-red-700 transition-colors">
+                        {finding.title}
+                      </span>
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-white border border-slate-200 text-slate-700 font-mono">
+                        {finding.category.toUpperCase()}
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-600 line-clamp-1 mt-0.5">
+                      {finding.description}
+                    </p>
                   </div>
                 </div>
-              ))}
+
+                <div className="flex items-center space-x-2 self-end sm:self-center flex-shrink-0">
+                  <span className="text-xs font-mono text-slate-500 hidden md:inline">
+                    {finding.resourceName}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleQuickHarden(finding.id);
+                    }}
+                    className="px-3 py-1.5 rounded-md text-xs font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200 hover:bg-[#2BB5A0] hover:text-[#04211B] transition-all flex items-center space-x-1 cursor-pointer"
+                  >
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                    <span>Harden</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="px-3 py-1.5 rounded-md text-xs font-semibold bg-[#0E2238] text-[#EEF3F1] hover:bg-[#081420] transition-all cursor-pointer"
+                  >
+                    Runbook
+                  </button>
+                </div>
+              </div>
+            ))}
           </div>
         )}
-      </div>
+      </section>
 
       {/* Live Session Remediation Log Panel */}
       <RemediationLog

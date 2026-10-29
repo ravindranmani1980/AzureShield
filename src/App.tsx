@@ -787,7 +787,7 @@ export default function App() {
   );
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 font-sans antialiased selection:bg-blue-600 selection:text-white">
+    <div className="min-h-screen flex flex-col bg-[#F3F5F1] text-[#16232F] font-sans antialiased selection:bg-[#0E2238] selection:text-[#F3F5F1]">
       {/* Top Navbar */}
       <Navbar
         activeDataset={activeDataset}
@@ -814,39 +814,46 @@ export default function App() {
       />
 
       {/* Main Container */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+      <main className="max-w-[1440px] w-full mx-auto px-6 py-7 space-y-6 flex-1">
         {/* Live Azure Connection Status & Exact Resource Count Banner */}
         {isLiveConnected && (
-          <div className="p-4 rounded-2xl bg-slate-900/90 border border-slate-800 space-y-3">
+          <div className="p-4 rounded-xl bg-white border border-slate-200 shadow-xs space-y-3">
             <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
               <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
-                <span className="inline-flex items-center space-x-1.5 font-bold text-emerald-400">
-                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+                <span className="inline-flex items-center space-x-1.5 font-mono font-semibold text-emerald-700">
+                  <span className="w-2 h-2 rounded-full bg-emerald-600 animate-ping" />
                   <span>LIVE AZURE ARM CONNECTION ACTIVE</span>
                 </span>
                 {liveJwtInfo && (
-                  <span className="text-slate-300 font-mono">
-                    Principal: <strong className="text-white">{liveJwtInfo.principalName}</strong>
+                  <span className="text-slate-600 font-mono">
+                    Principal:{' '}
+                    <strong className="text-slate-900">
+                      {liveJwtInfo.principalName}
+                    </strong>
                   </span>
                 )}
-                <span className="text-slate-400 font-mono">
-                  Tenant: <span className="text-slate-200">{DEFAULT_AZURE_TENANT_ID}</span>
+                <span className="text-slate-500 font-mono">
+                  Tenant:{' '}
+                  <span className="text-slate-800">{DEFAULT_AZURE_TENANT_ID}</span>
                 </span>
-                <span className="text-slate-400 font-mono">
-                  Subscription: <span className="text-cyan-300">{liveSubscriptionId}</span>
+                <span className="text-slate-500 font-mono">
+                  Subscription:{' '}
+                  <span className="text-emerald-700 font-semibold">
+                    {liveSubscriptionId}
+                  </span>
                 </span>
               </div>
 
               <div className="flex flex-wrap items-center gap-3 text-xs">
-                <span className="font-mono text-slate-200 bg-slate-950 px-3 py-1 rounded-lg border border-slate-800">
-                  Live Counts: <strong>{storageAccounts.length}</strong> Storage Accounts ·{' '}
-                  <strong>{totalLiveContainersCount}</strong> Containers ·{' '}
-                  <strong>{roleAssignments.length}</strong> RBAC Assignments
+                <span className="font-mono text-slate-700 bg-slate-100 px-3 py-1 rounded-md border border-slate-200 tabular-nums">
+                  Live Counts: <strong className="text-slate-900">{storageAccounts.length}</strong> Storage Accounts ·{' '}
+                  <strong className="text-slate-900">{totalLiveContainersCount}</strong> Containers ·{' '}
+                  <strong className="text-slate-900">{roleAssignments.length}</strong> RBAC Assignments
                 </span>
                 <button
                   type="button"
                   onClick={() => setIsLiveSyncModalOpen(true)}
-                  className="px-3 py-1 rounded-lg bg-blue-600/20 hover:bg-blue-600/30 text-blue-300 border border-blue-500/30 font-semibold transition-colors"
+                  className="px-3 py-1 rounded-md bg-[#0E2238] hover:bg-[#081420] text-[#EEF3F1] border border-[#3E6E86]/40 font-medium transition-colors cursor-pointer"
                 >
                   Connection Details
                 </button>
@@ -854,24 +861,32 @@ export default function App() {
             </div>
 
             {liveWarnings.length > 0 && (
-              <div className="p-3 rounded-xl bg-amber-950/30 border border-amber-500/30 text-xs text-amber-200 space-y-1.5">
-                <div className="font-bold text-amber-300">
+              <div className="p-3.5 rounded-lg bg-amber-50 border border-amber-200 text-xs text-amber-900 space-y-1.5">
+                <div className="font-semibold text-amber-900">
                   Azure Resource Manager (management.azure.com) Live Response Notice:
                 </div>
                 {liveWarnings.map((w, idx) => (
-                  <div key={idx} className="font-mono text-[11px] text-amber-100/90 break-words">
+                  <div
+                    key={idx}
+                    className="font-mono text-[11px] text-amber-800 break-words"
+                  >
                     • {w}
                   </div>
                 ))}
-                <div className="text-[11px] text-slate-300 pt-1">
+                <div className="text-[11px] text-slate-700 pt-1 leading-relaxed">
                   <strong>Why Storage Accounts / Containers show 0:</strong> Your Bearer Token is valid and authenticated as{' '}
-                  <code className="text-cyan-300 font-mono">
+                  <code className="text-emerald-800 font-mono font-semibold">
                     {liveJwtInfo?.principalName || 'ravindran.mani@live.com'}
                   </code>
-                  , but Azure ARM requires an explicit subscription RBAC role (<code className="text-emerald-300 font-mono">Reader</code>) on{' '}
-                  <code className="text-cyan-300 font-mono">/subscriptions/{liveSubscriptionId}</code> (or Entra ID{' '}
-                  <em>"Access management for Azure resources"</em> toggled ON for Global Admins) to read Storage Accounts. Once granted, refresh your token with{' '}
-                  <code className="bg-slate-950 px-1.5 py-0.5 rounded text-cyan-300 font-mono">
+                  , but Azure ARM requires an explicit subscription RBAC role (
+                  <code className="text-emerald-800 font-mono font-semibold">Reader</code>
+                  ) on{' '}
+                  <code className="text-slate-900 font-mono">
+                    /subscriptions/{liveSubscriptionId}
+                  </code>{' '}
+                  (or Entra ID{' '}
+                  <em>&quot;Access management for Azure resources&quot;</em> toggled ON for Global Admins) to read Storage Accounts. Once granted, refresh your token with{' '}
+                  <code className="bg-white border border-amber-200 px-1.5 py-0.5 rounded text-slate-900 font-mono">
                     az account get-access-token --resource https://management.azure.com/
                   </code>{' '}
                   in Live Azure Sync.
@@ -986,23 +1001,30 @@ export default function App() {
         onTriggerDriftAlert={handleInjectMisconfiguration}
       />
 
-      {/* Author & Reference Footer */}
-      <footer className="mt-16 border-t border-slate-800/80 bg-slate-950/80 py-6 text-xs text-slate-400">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-3">
-          <div className="flex items-center space-x-2">
-            <span className="font-semibold text-slate-300">Maniq Shield CSPM</span>
-            <span>•</span>
-            <span>Storage & RBAC Security Loophole Auditor</span>
+      {/* Author & Reference Footer (Postrix Style) */}
+      <footer className="bg-[#081420] text-[#B9C4CC] border-t border-[#3E6E86]/35 px-6 py-6 mt-auto no-print">
+        <div className="max-w-[1440px] mx-auto flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
+          <div className="flex items-center gap-2.5">
+            <span className="rm-mono-mark !w-6 !h-6 !text-[11px]" aria-hidden="true">
+              RM
+            </span>
+            <span>
+              <strong className="font-serif text-sm font-semibold text-[#F3F5F1]">
+                Maniq <span className="text-[#D79A45]">Shield</span>
+              </strong>{' '}
+              — Cloud Storage &amp; RBAC Security Posture Management Platform
+            </span>
           </div>
-          <div className="flex items-center space-x-2">
-            <span>Author: <strong className="text-slate-200">Mani Ravindran</strong></span>
-            <span>•</span>
-            <span>Reference:</span>
+          <div className="flex items-center space-x-2 font-mono text-[11px] text-[#A9B7BF]">
+            <span>
+              Author: <strong className="text-[#F3F5F1]">Mani Ravindran</strong>
+            </span>
+            <span>·</span>
             <a
               href="https://ravindran.in"
               target="_blank"
               rel="noopener noreferrer"
-              className="text-blue-400 hover:text-blue-300 underline font-medium"
+              className="text-[#5FD3BF] hover:text-[#EBC385] underline font-medium transition-colors"
             >
               ravindran.in
             </a>

@@ -15,8 +15,6 @@ import {
   AlertTriangle,
   FileCheck2,
   Lock,
-  ArrowRight,
-  ExternalLink,
 } from 'lucide-react';
 import { Finding } from '../types/security';
 
@@ -46,12 +44,12 @@ export const FindingDetailModal: React.FC<FindingDetailModalProps> = ({
   const isHigh = finding.severity === 'HIGH';
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-in fade-in duration-150">
-      <div className="relative w-full max-w-3xl max-h-[90vh] overflow-y-auto bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl p-6 text-slate-100 space-y-5">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#081420]/75 backdrop-blur-sm animate-in fade-in duration-150">
+      <div className="relative w-full max-w-3xl max-h-[90vh] overflow-y-auto bg-white border border-slate-200 rounded-2xl shadow-2xl p-6 text-[#16232F] space-y-5">
         {/* Close Button */}
         <button
           onClick={onClose}
-          className="absolute top-5 right-5 p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+          className="absolute top-5 right-5 p-2 rounded-lg text-[#546471] hover:text-[#16232F] hover:bg-slate-100 transition-colors"
           aria-label="Close dialog"
         >
           <X className="w-5 h-5" />
@@ -60,21 +58,21 @@ export const FindingDetailModal: React.FC<FindingDetailModalProps> = ({
         {/* Modal Header */}
         <div className="flex items-start space-x-3.5 pr-10">
           <div
-            className={`p-3 rounded-2xl flex-shrink-0 ${
+            className={`p-3 rounded-xl flex-shrink-0 border ${
               isCritical
-                ? 'bg-red-500/20 text-red-400 border border-red-500/30'
+                ? 'bg-red-50 text-red-600 border-red-200'
                 : isHigh
-                ? 'bg-orange-500/20 text-orange-400 border border-orange-500/30'
-                : 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
+                ? 'bg-orange-50 text-orange-600 border-orange-200'
+                : 'bg-amber-50 text-amber-700 border-amber-200'
             }`}
           >
             <ShieldAlert className="w-7 h-7" />
           </div>
 
           <div>
-            <div className="flex items-center space-x-2 flex-wrap gap-y-1 mb-1">
+            <div className="flex items-center space-x-2 flex-wrap gap-y-1 mb-1 font-mono text-xs">
               <span
-                className={`text-xs font-black uppercase tracking-wider px-2.5 py-0.5 rounded-full ${
+                className={`font-bold uppercase tracking-wider px-2 py-0.5 rounded ${
                   isCritical
                     ? 'bg-red-600 text-white'
                     : isHigh
@@ -84,49 +82,48 @@ export const FindingDetailModal: React.FC<FindingDetailModalProps> = ({
               >
                 {finding.severity}
               </span>
-              <span className="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-300 font-mono">
+              <span className="text-[#546471]">
                 {finding.category.toUpperCase().replace('_', ' ')}
               </span>
-              <span className="text-xs text-slate-400 font-mono">
-                ID: {finding.id}
-              </span>
+              <span className="text-slate-300">·</span>
+              <span className="text-[#546471]">ID: {finding.id}</span>
             </div>
 
-            <h2 className="text-lg sm:text-xl font-extrabold text-white">
+            <h2 className="font-serif text-lg sm:text-xl font-bold text-[#16232F]">
               {finding.title}
             </h2>
-            <div className="text-xs text-slate-400 mt-1 font-mono">
-              Target: <span className="text-blue-400 font-semibold">{finding.resourceName}</span> ({finding.resourceType})
+            <div className="text-xs text-[#546471] mt-1 font-mono">
+              Target: <span className="text-[#1F8A79] font-semibold">{finding.resourceName}</span> ({finding.resourceType})
             </div>
           </div>
         </div>
 
         {/* Description & Threat Mechanics */}
-        <div className="space-y-3 bg-slate-950/70 p-4 rounded-2xl border border-slate-800">
+        <div className="space-y-3 bg-slate-50 p-4 rounded-xl border border-slate-200">
           <div>
-            <h4 className="text-xs font-bold text-slate-300 uppercase tracking-wider mb-1">
-              Vulnerability Overview:
+            <h4 className="rm-kicker mb-1">
+              Vulnerability Overview
             </h4>
-            <p className="text-xs text-slate-300 leading-relaxed">
+            <p className="text-xs text-[#16232F] leading-relaxed">
               {finding.description}
             </p>
           </div>
 
           <div>
-            <h4 className="text-xs font-bold text-red-400 uppercase tracking-wider mb-1">
-              Adversary Exploit Scenario:
+            <h4 className="text-[11px] font-mono font-bold text-red-700 uppercase tracking-wider mb-1">
+              Adversary Exploit Scenario
             </h4>
-            <p className="text-xs text-slate-300 leading-relaxed">
+            <p className="text-xs text-[#546471] leading-relaxed">
               {finding.exploitScenario}
             </p>
           </div>
 
           {finding.privilegeEscalationPath && (
-            <div className="pt-2 border-t border-slate-800">
-              <h4 className="text-xs font-bold text-purple-400 uppercase tracking-wider mb-1">
-                Privilege Escalation Path:
+            <div className="pt-2 border-t border-slate-200">
+              <h4 className="text-[11px] font-mono font-bold text-purple-800 uppercase tracking-wider mb-1">
+                Privilege Escalation Path
               </h4>
-              <div className="p-2.5 rounded-xl bg-purple-950/40 border border-purple-500/30 font-mono text-xs text-purple-200">
+              <div className="p-2.5 rounded-lg bg-purple-50 border border-purple-200 font-mono text-xs text-purple-900">
                 {finding.privilegeEscalationPath}
               </div>
             </div>
@@ -135,20 +132,20 @@ export const FindingDetailModal: React.FC<FindingDetailModalProps> = ({
 
         {/* Actionable Remediation Runbook */}
         <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <h3 className="text-sm font-bold text-white tracking-wide flex items-center space-x-2">
-              <Lock className="w-4 h-4 text-emerald-400" />
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h3 className="font-serif text-sm font-bold text-[#16232F] flex items-center space-x-2">
+              <Lock className="w-4 h-4 text-[#1F8A79]" />
               <span>Actionable Remediation Runbook</span>
             </h3>
 
             {/* Tab switchers */}
-            <div className="flex items-center space-x-1 bg-slate-950 p-1 rounded-xl border border-slate-800 text-xs">
+            <div className="flex items-center space-x-1 bg-slate-100 p-1 rounded-lg border border-slate-200 text-xs">
               <button
                 onClick={() => setActiveTab('cli')}
-                className={`flex items-center space-x-1.5 px-3 py-1 rounded-lg font-semibold transition-all ${
+                className={`flex items-center space-x-1.5 px-3 py-1 rounded-md font-semibold transition-all ${
                   activeTab === 'cli'
-                    ? 'bg-blue-600 text-white'
-                    : 'text-slate-400 hover:text-white'
+                    ? 'bg-[#0E2238] text-white'
+                    : 'text-[#546471] hover:text-[#16232F]'
                 }`}
               >
                 <Terminal className="w-3.5 h-3.5" />
@@ -156,10 +153,10 @@ export const FindingDetailModal: React.FC<FindingDetailModalProps> = ({
               </button>
               <button
                 onClick={() => setActiveTab('portal')}
-                className={`flex items-center space-x-1.5 px-3 py-1 rounded-lg font-semibold transition-all ${
+                className={`flex items-center space-x-1.5 px-3 py-1 rounded-md font-semibold transition-all ${
                   activeTab === 'portal'
-                    ? 'bg-blue-600 text-white'
-                    : 'text-slate-400 hover:text-white'
+                    ? 'bg-[#0E2238] text-white'
+                    : 'text-[#546471] hover:text-[#16232F]'
                 }`}
               >
                 <Globe className="w-3.5 h-3.5" />
@@ -167,10 +164,10 @@ export const FindingDetailModal: React.FC<FindingDetailModalProps> = ({
               </button>
               <button
                 onClick={() => setActiveTab('terraform')}
-                className={`flex items-center space-x-1.5 px-3 py-1 rounded-lg font-semibold transition-all ${
+                className={`flex items-center space-x-1.5 px-3 py-1 rounded-md font-semibold transition-all ${
                   activeTab === 'terraform'
-                    ? 'bg-blue-600 text-white'
-                    : 'text-slate-400 hover:text-white'
+                    ? 'bg-[#0E2238] text-white'
+                    : 'text-[#546471] hover:text-[#16232F]'
                 }`}
               >
                 <Code2 className="w-3.5 h-3.5" />
@@ -182,16 +179,16 @@ export const FindingDetailModal: React.FC<FindingDetailModalProps> = ({
           {/* Active Tab View */}
           {activeTab === 'cli' && (
             <div className="space-y-2">
-              <div className="flex items-center justify-between text-xs text-slate-400">
+              <div className="flex items-center justify-between text-xs text-[#546471]">
                 <span>Run this command via Azure Cloud Shell or Bash:</span>
                 <button
                   onClick={() => copyToClipboard(finding.remediation.cliCommand)}
-                  className="flex items-center space-x-1 text-blue-400 hover:text-blue-300 font-medium"
+                  className="flex items-center space-x-1 text-[#1F8A79] hover:text-[#15695B] font-semibold"
                 >
                   {copied ? (
                     <>
-                      <Check className="w-3.5 h-3.5 text-emerald-400" />
-                      <span className="text-emerald-400">Copied!</span>
+                      <Check className="w-3.5 h-3.5 text-[#1F8A79]" />
+                      <span>Copied!</span>
                     </>
                   ) : (
                     <>
@@ -201,20 +198,20 @@ export const FindingDetailModal: React.FC<FindingDetailModalProps> = ({
                   )}
                 </button>
               </div>
-              <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 text-cyan-300 font-mono text-xs overflow-x-auto whitespace-pre leading-relaxed">
+              <div className="bg-[#081420] p-4 rounded-xl border border-slate-800 text-[#5FD3BF] font-mono text-xs overflow-x-auto whitespace-pre leading-relaxed">
                 {finding.remediation.cliCommand}
               </div>
             </div>
           )}
 
           {activeTab === 'portal' && (
-            <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-2.5">
-              <div className="text-xs font-semibold text-slate-300 mb-2">
+            <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-2.5">
+              <div className="text-xs font-semibold text-[#16232F] mb-2">
                 Click-by-click instructions in Azure Management Portal:
               </div>
               {finding.remediation.portalSteps.map((step, idx) => (
-                <div key={idx} className="flex items-start space-x-2.5 text-xs text-slate-300">
-                  <span className="w-5 h-5 rounded-full bg-blue-600/30 text-blue-400 border border-blue-500/40 flex items-center justify-center font-bold text-[10px] flex-shrink-0 mt-0.5">
+                <div key={idx} className="flex items-start space-x-2.5 text-xs text-[#16232F]">
+                  <span className="w-5 h-5 rounded-full bg-[#0E2238] text-[#5FD3BF] flex items-center justify-center font-mono font-bold text-[10px] flex-shrink-0 mt-0.5">
                     {idx + 1}
                   </span>
                   <span className="leading-relaxed">{step}</span>
@@ -225,16 +222,16 @@ export const FindingDetailModal: React.FC<FindingDetailModalProps> = ({
 
           {activeTab === 'terraform' && (
             <div className="space-y-2">
-              <div className="flex items-center justify-between text-xs text-slate-400">
+              <div className="flex items-center justify-between text-xs text-[#546471]">
                 <span>Infrastructure as Code (Terraform azurerm provider):</span>
                 <button
                   onClick={() => copyToClipboard(finding.remediation.terraformSnippet)}
-                  className="flex items-center space-x-1 text-blue-400 hover:text-blue-300 font-medium"
+                  className="flex items-center space-x-1 text-[#1F8A79] hover:text-[#15695B] font-semibold"
                 >
                   {copied ? (
                     <>
-                      <Check className="w-3.5 h-3.5 text-emerald-400" />
-                      <span className="text-emerald-400">Copied!</span>
+                      <Check className="w-3.5 h-3.5 text-[#1F8A79]" />
+                      <span>Copied!</span>
                     </>
                   ) : (
                     <>
@@ -244,15 +241,15 @@ export const FindingDetailModal: React.FC<FindingDetailModalProps> = ({
                   )}
                 </button>
               </div>
-              <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 text-purple-300 font-mono text-xs overflow-x-auto whitespace-pre leading-relaxed">
+              <div className="bg-[#081420] p-4 rounded-xl border border-slate-800 text-[#EBC385] font-mono text-xs overflow-x-auto whitespace-pre leading-relaxed">
                 {finding.remediation.terraformSnippet}
               </div>
             </div>
           )}
 
           {/* Operational Impact Banner */}
-          <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-300 text-xs flex items-center space-x-2.5">
-            <AlertTriangle className="w-4 h-4 flex-shrink-0 text-amber-400" />
+          <div className="p-3 rounded-lg bg-amber-50 border border-amber-200 text-amber-900 text-xs flex items-center space-x-2.5">
+            <AlertTriangle className="w-4 h-4 flex-shrink-0 text-amber-600" />
             <span>
               <strong>Operational Consideration: </strong>
               {finding.remediation.impactNotice}
@@ -261,24 +258,24 @@ export const FindingDetailModal: React.FC<FindingDetailModalProps> = ({
         </div>
 
         {/* Compliance Mappings */}
-        <div className="pt-2 border-t border-slate-800 flex items-center justify-between flex-wrap gap-2 text-xs">
-          <div className="flex items-center space-x-2 text-slate-400">
-            <FileCheck2 className="w-4 h-4 text-blue-400" />
-            <span>Benchmark Mappings:</span>
+        <div className="pt-3 border-t border-slate-200 flex items-center justify-between flex-wrap gap-2 text-xs">
+          <div className="flex items-center space-x-2 text-[#546471] font-mono">
+            <FileCheck2 className="w-4 h-4 text-[#1F8A79]" />
+            <span>Benchmarks:</span>
             {finding.compliance.cisAzure && (
-              <span className="px-2 py-0.5 rounded bg-slate-800 text-slate-300 font-mono">
-                CIS Azure {finding.compliance.cisAzure}
-              </span>
+              <span>CIS Azure {finding.compliance.cisAzure}</span>
             )}
             {finding.compliance.mcsb && (
-              <span className="px-2 py-0.5 rounded bg-slate-800 text-slate-300 font-mono">
-                {finding.compliance.mcsb}
-              </span>
+              <>
+                <span className="text-slate-300">·</span>
+                <span>{finding.compliance.mcsb}</span>
+              </>
             )}
             {finding.compliance.nist && (
-              <span className="px-2 py-0.5 rounded bg-slate-800 text-slate-300 font-mono">
-                NIST {finding.compliance.nist}
-              </span>
+              <>
+                <span className="text-slate-300">·</span>
+                <span>NIST {finding.compliance.nist}</span>
+              </>
             )}
           </div>
 
@@ -287,7 +284,7 @@ export const FindingDetailModal: React.FC<FindingDetailModalProps> = ({
               if (onRemediate) onRemediate(finding.id);
               onClose();
             }}
-            className="px-4 py-2 rounded-xl text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white shadow-md shadow-emerald-600/20 transition-all ml-auto"
+            className="px-4 py-2 rounded-lg text-xs font-semibold bg-[#0E2238] hover:bg-[#15314E] text-white transition-all ml-auto"
           >
             Acknowledge & Mark Remediated
           </button>
