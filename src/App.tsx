@@ -21,6 +21,7 @@ import { generateAzureSecurityPdfReport } from './utils/pdfGenerator';
 import { Navbar } from './components/Navbar';
 import { AlertNotificationBanner } from './components/AlertNotificationBanner';
 import { OverviewDashboard } from './components/OverviewDashboard';
+import { StorageInventory } from './components/StorageInventory';
 import { StorageAuditor } from './components/StorageAuditor';
 import { RbacAuditor } from './components/RbacAuditor';
 import { FindingsList } from './components/FindingsList';
@@ -48,7 +49,12 @@ export default function App() {
     DEFAULT_AZURE_ACCESS_TOKEN ? [] : SAMPLE_HIGH_RISK_DATASET.roleAssignments
   );
   const [activeTab, setActiveTab] = useState<
-    'overview' | 'storage' | 'rbac' | 'findings' | 'remediation_log'
+    | 'overview'
+    | 'inventory'
+    | 'storage'
+    | 'rbac'
+    | 'findings'
+    | 'remediation_log'
   >('overview');
   const [remediationLog, setRemediationLog] = useState<RemediationLogEntry[]>([]);
   
@@ -885,6 +891,16 @@ export default function App() {
             onSelectFinding={(id) => setSelectedFindingId(id)}
             onRemediateFinding={handleRemediateFinding}
             onHardenAll={handleHardenAllFindings}
+          />
+        )}
+
+        {activeTab === 'inventory' && (
+          <StorageInventory
+            storageAccounts={storageAccounts}
+            findings={findings}
+            onSelectFinding={(id) => setSelectedFindingId(id)}
+            onNavigateToAuditor={() => setActiveTab('storage')}
+            onSelectDataset={handleSelectDataset}
           />
         )}
 

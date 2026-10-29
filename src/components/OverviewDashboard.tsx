@@ -31,7 +31,9 @@ interface OverviewDashboardProps {
   totalEvaluatedFindingsCount?: number;
   remediationLog?: RemediationLogEntry[];
   onClearRemediationLog?: () => void;
-  onNavigateTab: (tab: 'storage' | 'rbac' | 'findings' | 'remediation_log') => void;
+  onNavigateTab: (
+    tab: 'inventory' | 'storage' | 'rbac' | 'findings' | 'remediation_log'
+  ) => void;
   onFilterCategory?: (category: string) => void;
   onSelectFinding: (findingId: string) => void;
   onRemediateFinding?: (findingId: string) => void;

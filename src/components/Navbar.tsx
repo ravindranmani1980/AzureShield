@@ -33,8 +33,22 @@ interface NavbarProps {
   onMarkAllAlertsRead: () => void;
   isContinuousMonitoring: boolean;
   onToggleContinuousMonitoring: () => void;
-  activeTab: 'overview' | 'storage' | 'rbac' | 'findings' | 'remediation_log';
-  setActiveTab: (tab: 'overview' | 'storage' | 'rbac' | 'findings' | 'remediation_log') => void;
+  activeTab:
+    | 'overview'
+    | 'inventory'
+    | 'storage'
+    | 'rbac'
+    | 'findings'
+    | 'remediation_log';
+  setActiveTab: (
+    tab:
+      | 'overview'
+      | 'inventory'
+      | 'storage'
+      | 'rbac'
+      | 'findings'
+      | 'remediation_log'
+  ) => void;
   remediationLogCount?: number;
 }
 
@@ -300,7 +314,7 @@ export const Navbar: React.FC<NavbarProps> = ({
         >
           <button
             onClick={() => setActiveTab('overview')}
-            className={`px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap ${
+            className={`px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap shrink-0 ${
               activeTab === 'overview'
                 ? 'bg-blue-600 text-white shadow-sm'
                 : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
@@ -309,8 +323,18 @@ export const Navbar: React.FC<NavbarProps> = ({
             Overview & Analytics
           </button>
           <button
+            onClick={() => setActiveTab('inventory')}
+            className={`px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap shrink-0 ${
+              activeTab === 'inventory'
+                ? 'bg-blue-600 text-white shadow-sm'
+                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+            }`}
+          >
+            Inventory
+          </button>
+          <button
             onClick={() => setActiveTab('storage')}
-            className={`px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap ${
+            className={`px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap shrink-0 ${
               activeTab === 'storage'
                 ? 'bg-blue-600 text-white shadow-sm'
                 : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
