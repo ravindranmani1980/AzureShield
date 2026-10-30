@@ -5,129 +5,154 @@
 
 import React, { useState } from 'react';
 import {
-  ShieldAlert,
+  FileWarning,
   Search,
-  Download,
   Terminal,
   Globe,
   Code2,
+  CheckCircle2,
+  Download,
   AlertTriangle,
-  ChevronDown,
-  ChevronUp,
-  Copy,
-  Check,
 } from 'lucide-react';
-import {
-  Finding,
-  RemediationLogEntry,
-  Severity,
-  VulnerabilityCategory,
-} from '../types/security';
-import { RemediationLog } from './RemediationLog';
+import { Finding, Severity } from '../types/security';
 
 interface FindingsListProps {
   findings: Finding[];
-  onSelectFinding: (findingId: string) => void;
+  onSelectFinding: (finding: Finding) => void;
   onRemediateFinding?: (findingId: string) => void;
-  remediationLog?: RemediationLogEntry[];
-  onClearRemediationLog?: () => void;
+}
+
+/**
+ * Generates an operator-safe Bash remediation script (Recommendation #14):
+ * - Defaults to DRY_RUN=true unless --apply-live-changes is explicitly passed
+ * - Requires interactive confirmation before modifying live Azure resources
+ * - Prints pre-check and rollback commands for every finding
+ */
+function downloadSafeRemediationBashScript(findings: Finding[]) {
+  const lines: string[] = [
+    '#!/usr/bin/env bash',
+    '# ============================================================================',
+    '# MANIQ SHIELD — AZURE STORAGE & RBAC REMEDIATION RUNBOOK SCRIPT (SAFE MODE)',
+    `# Generated: ${new Date().toISOString()}`,
+    `# Total Findings Included: ${findings.length}`,
+    '# Tool Author: Mani Ravindran (https://ravindran.in)',
+    '# ============================================================================',
+    '# SAFETY GUARDRAILS (RECOMMENDATION #14):',
+    '# 1. By default, this script runs in DRY_RUN=true mode and makes ZERO changes.',
+    '# 2. Validate all commands in a non-production/staging subscription first.',
+    '# 3. To execute live changes, pass "--apply-live-changes" and confirm interactively.',
+    '# ============================================================================',
+    'set -euo pipefail',
+    '',
+    'DRY_RUN=true',
+    'if [[ "${1:-}" == "--apply-live-changes" ]]; then',
+    '  DRY_RUN=false',
+    '  echo "WARNING: You have requested LIVE changes against Azure ARM resources."',
+    '  read -r -p "Have you validated these changes in staging and backed up current state? (yes/NO): " CONFIRM',
+    '  if [[ "$CONFIRM" != "yes" ]]; then',
+    '    echo "Aborted by operator. Re-running in safe DRY_RUN mode."',
+    '    DRY_RUN=true',
+    '  fi',
+    'else',
+    '  echo "INFO: Running in safe DRY_RUN mode (no Azure resources will be modified)."',
+    '  echo "      Pass --apply-live-changes after reviewing pre-checks and rollback steps."',
+    'fi',
+    '',
+    'run_cmd() {',
+    '  if [[ "$DRY_RUN" == "true" ]]; then',
+    '    echo "[DRY-RUN] Would execute: $*"',
+    '  else',
+    '    echo "[LIVE-EXEC] Executing: $*"',
+    '    eval "$*"',
+    '  fi',
+    '}',
+    '',
+  ];
+
+  findings.forEach((f, idx) => {
+    lines.push(
+      `# ----------------------------------------------------------------------------`
+    );
+    lines.push(`# [${idx + 1}] [${f.severity}] ${f.title}`);
+    lines.push(`# Target Resource: ${f.resourceName} (${f.resourceType})`);
+    lines.push(`# Operational Impact: ${f.remediation.impactNotice}`);
+    if (f.remediation.preCheckCommand) {
+      lines.push(`# Pre-Check (Read-Only): ${f.remediation.preCheckCommand.replace(/\n/g, ' ')}`);
+    }
+    if (f.remediation.rollbackCommand) {
+      lines.push(`# Rollback Command: ${f.remediation.rollbackCommand.replace(/\n/g, ' ')}`);
+    }
+    lines.push(
+      `# ----------------------------------------------------------------------------`
+    );
+    lines.push(`echo ">>> [${idx + 1}/${findings.length}] ${f.title} (${f.resourceName})..."`);
+    lines.push(`run_cmd ${JSON.stringify(f.remediation.cliCommand.replace(/\\\n/g, ' '))}`);
+    lines.push('');
+  });
+
+  lines.push('echo "Runbook complete (DRY_RUN=$DRY_RUN)."');
+
+  const blob = new Blob([lines.join('\n')], { type: 'text/x-sh' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `maniq-shield-remediation-dryrun-${new Date()
+    .toISOString()
+    .slice(0, 10)}.sh`;
+  a.click();
+  URL.revokeObjectURL(url);
 }
 
 export const FindingsList: React.FC<FindingsListProps> = ({
   findings,
   onSelectFinding,
   onRemediateFinding,
-  remediationLog = [],
-  onClearRemediationLog,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedSeverity, setSelectedSeverity] = useState<Severity | 'ALL'>('ALL');
-  const [selectedCategory, setSelectedCategory] = useState<VulnerabilityCategory | 'ALL'>('ALL');
-  const [expandedFindingId, setExpandedFindingId] = useState<string | null>(null);
-  const [activeRemediationTab, setActiveRemediationTab] = useState<'cli' | 'portal' | 'terraform'>('cli');
-  const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [severityFilter, setSeverityFilter] = useState<Severity | 'ALL'>('ALL');
+  const [categoryFilter, setCategoryFilter] = useState<
+    'ALL' | 'storage' | 'rbac' | 'privilege_escalation'
+  >('ALL');
 
-  const copyToClipboard = (text: string, id: string) => {
-    navigator.clipboard.writeText(text);
-    setCopiedId(id);
-    setTimeout(() => setCopiedId(null), 2000);
-  };
-
-  const filteredFindings = findings.filter((finding) => {
-    const matchesSearch =
-      finding.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      finding.resourceName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      finding.description.toLowerCase().includes(searchQuery.toLowerCase());
-
+  const filteredFindings = findings.filter((f) => {
     const matchesSeverity =
-      selectedSeverity === 'ALL' || finding.severity === selectedSeverity;
+      severityFilter === 'ALL' || f.severity === severityFilter;
     const matchesCategory =
-      selectedCategory === 'ALL' || finding.category === selectedCategory;
-
-    return matchesSearch && matchesSeverity && matchesCategory;
+      categoryFilter === 'ALL' || f.category === categoryFilter;
+    const matchesSearch =
+      f.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      f.resourceName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      f.description.toLowerCase().includes(searchQuery.toLowerCase());
+    return matchesSeverity && matchesCategory && matchesSearch;
   });
 
-  const generateRemediationBashScript = () => {
-    const header = `#!/usr/bin/env bash\n# =========================================================\n# Maniq Shield Automated Remediation Script\n# Generated: ${new Date().toISOString()}\n# Total Issues Addressed: ${findings.length}\n# =========================================================\nset -euo pipefail\n\necho "[+] Starting Azure Cloud Hardening..."\n\n`;
-    const commands = findings
-      .map((f, i) => `# [${f.severity}] #${i + 1}: ${f.title}\n${f.remediation.cliCommand}\n`)
-      .join('\n');
-    const footer = `\necho "[+] All Azure remediation commands applied successfully."\n`;
-
-    const blob = new Blob([header + commands + footer], { type: 'text/x-shellscript' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `maniq_shield_remediation_${Date.now()}.sh`;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
-
   return (
-    <div className="space-y-6">
-      {/* Top Header (.xh-panel) */}
-      <section className="xh-panel space-y-4">
-        <div className="xh-kicker">
-          <span className="k">Remediation Register &amp; Action Runbooks</span>
-          <span className="tag">{findings.length} Security Loopholes Cataloged</span>
+    <div className="space-y-5">
+      {/* Filter & Search Bar */}
+      <div className="p-4 rounded-xl border border-slate-200/90 bg-white flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-4 shadow-xs">
+        {/* Search Input */}
+        <div className="relative flex-1">
+          <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+          <input
+            type="text"
+            placeholder="Search findings by resource name, loophole title, or CVE/CIS control..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full bg-slate-50 border border-slate-300 text-xs text-[#16232F] rounded-lg pl-10 pr-4 py-2 focus:outline-none focus:border-[#2BB5A0]"
+          />
         </div>
 
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div>
-            <h2 className="text-xl sm:text-2xl font-semibold text-[#EEF3F1] tracking-tight">
-              Maniq Shield — Remediation Register &amp; Action Runbooks
-            </h2>
-            <p className="text-xs text-[#A9B7BF] mt-1">
-              Complete catalog of detected storage loopholes, unauthorized RBAC access, and step-by-step remediation commands.
-            </p>
-          </div>
-
-          <button
-            type="button"
-            onClick={generateRemediationBashScript}
-            className="xh-btn primary self-start sm:self-center whitespace-nowrap shrink-0"
-            title="Download unified Bash script with all Azure CLI remediation commands"
-          >
-            <Download className="w-4 h-4" />
-            <span>Export maniq_shield_remediation.sh</span>
-          </button>
-        </div>
-      </section>
-
-      {/* Filter Controls */}
-      <div className="p-4 rounded-xl bg-white border border-slate-200 shadow-xs flex flex-col lg:flex-row lg:items-center justify-between gap-3">
-        <div className="flex items-center space-x-2 overflow-x-auto pb-1 lg:pb-0">
-          {/* Severity Filter */}
+        {/* Severity Filter Pills */}
+        <div className="flex flex-wrap items-center gap-2">
           <div className="flex items-center space-x-1 bg-slate-100 p-1 rounded-lg border border-slate-200 text-xs">
-            {(['ALL', 'CRITICAL', 'HIGH', 'MEDIUM', 'LOW'] as const).map((sev) => (
+            {(['ALL', 'CRITICAL', 'HIGH', 'MEDIUM'] as const).map((sev) => (
               <button
                 key={sev}
-                type="button"
-                onClick={() => setSelectedSeverity(sev)}
-                className={`px-2.5 py-1 rounded-md font-semibold transition-all cursor-pointer ${
-                  selectedSeverity === sev
-                    ? 'bg-[#0E2238] text-[#EEF3F1]'
-                    : 'text-slate-600 hover:text-slate-900'
+                onClick={() => setSeverityFilter(sev)}
+                className={`px-2.5 py-1 rounded-md font-mono font-bold transition-all ${
+                  severityFilter === sev
+                    ? 'bg-[#0E2238] text-white'
+                    : 'text-[#546471] hover:text-[#16232F]'
                 }`}
               >
                 {sev}
@@ -137,292 +162,153 @@ export const FindingsList: React.FC<FindingsListProps> = ({
 
           {/* Category Filter */}
           <select
-            value={selectedCategory}
-            onChange={(e) => setSelectedCategory(e.target.value as any)}
-            className="bg-slate-50 border border-slate-200 text-slate-800 text-xs rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-[#0E2238] cursor-pointer font-mono"
+            aria-label="Category Filter"
+            value={categoryFilter}
+            onChange={(e) => setCategoryFilter(e.target.value as any)}
+            className="bg-slate-50 border border-slate-300 text-xs text-[#16232F] rounded-lg px-3 py-2 focus:outline-none focus:border-[#2BB5A0] font-medium"
           >
-            <option value="ALL">All Categories</option>
-            <option value="storage">Storage &amp; Containers</option>
-            <option value="rbac">RBAC &amp; IAM</option>
+            <option value="ALL">All Domains ({findings.length})</option>
+            <option value="storage">Storage Loopholes</option>
+            <option value="rbac">RBAC Over-Privilege</option>
             <option value="privilege_escalation">Privilege Escalation</option>
-            <option value="network">Network Perimeter</option>
-            <option value="encryption">Encryption &amp; TLS</option>
           </select>
-        </div>
 
-        {/* Search Box */}
-        <div className="relative w-full lg:w-72">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
-          <input
-            type="text"
-            placeholder="Search findings, resources, CVEs..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full bg-slate-50 border border-slate-200 focus:border-[#0E2238] focus:bg-white text-slate-900 text-xs rounded-lg pl-9 pr-3 py-1.5 focus:outline-none"
-          />
+          {/* Export Safe Dry-Run Remediation Bash Script (Rec #14) */}
+          {findings.length > 0 && (
+            <button
+              onClick={() => downloadSafeRemediationBashScript(filteredFindings)}
+              className="flex items-center space-x-1.5 px-3 py-2 rounded-lg text-xs font-semibold bg-[#0E2238] hover:bg-[#15314E] text-white transition-all"
+              title="Downloads a safe DRY_RUN=true Bash script with pre-checks and rollback steps"
+            >
+              <Download className="w-3.5 h-3.5 text-[#5FD3BF]" />
+              <span>Export Dry-Run .sh Script</span>
+            </button>
+          )}
         </div>
       </div>
 
-      {/* Findings Count Summary */}
-      <div className="flex items-center justify-between text-xs text-slate-600 font-mono px-1">
+      {/* Safe Remediation Script Disclosure (Rec #14) */}
+      <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-950 text-xs flex items-center space-x-2">
+        <AlertTriangle className="w-4 h-4 text-amber-700 flex-shrink-0" />
         <span>
-          Showing <strong className="text-slate-900">{filteredFindings.length}</strong> of{' '}
-          <strong className="text-slate-900">{findings.length}</strong> security loophole(s)
+          <strong>Remediation Safety Guardrails (Rec #14):</strong> Every finding runbook includes read-only <em>Pre-Checks</em> and <em>Emergency Rollback</em> commands. Exported <code>.sh</code> scripts default to <code>DRY_RUN=true</code> and require <code>--apply-live-changes</code> plus interactive confirmation after staging validation.
         </span>
       </div>
 
-      {/* Findings Accordion / Card Register */}
+      {/* Findings List */}
       <div className="space-y-3">
-        {filteredFindings.map((finding) => {
-          const isExpanded = expandedFindingId === finding.id;
-
-          return (
+        {filteredFindings.length === 0 ? (
+          <div className="p-10 text-center rounded-xl border border-slate-200 bg-white text-[#546471] text-sm">
+            No security findings match the current filter criteria.
+          </div>
+        ) : (
+          filteredFindings.map((finding) => (
             <div
               key={finding.id}
-              className={`rounded-xl bg-white border transition-all shadow-xs ${
-                finding.severity === 'CRITICAL'
-                  ? 'border-red-300 hover:border-red-400'
-                  : finding.severity === 'HIGH'
-                  ? 'border-orange-300 hover:border-orange-400'
-                  : 'border-slate-200 hover:border-slate-300'
-              }`}
+              onClick={() => onSelectFinding(finding)}
+              className="p-4 rounded-xl border border-slate-200/90 bg-white hover:border-[#2BB5A0] transition-all cursor-pointer group shadow-xs"
             >
-              {/* Card Header */}
-              <div
-                onClick={() =>
-                  setExpandedFindingId(isExpanded ? null : finding.id)
-                }
-                className="p-4 sm:p-5 cursor-pointer flex items-start justify-between gap-3"
-              >
-                <div className="flex items-start space-x-3.5">
-                  <div
-                    className={`p-2 rounded-lg flex-shrink-0 mt-0.5 border ${
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div className="flex items-center space-x-2.5 flex-wrap gap-y-1">
+                  <span
+                    className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase ${
                       finding.severity === 'CRITICAL'
-                        ? 'bg-red-50 text-red-700 border-red-200'
+                        ? 'bg-red-100 text-red-700 border border-red-200'
                         : finding.severity === 'HIGH'
-                        ? 'bg-orange-50 text-orange-700 border-orange-200'
-                        : 'bg-amber-50 text-amber-800 border-amber-200'
+                        ? 'bg-orange-100 text-orange-800 border border-orange-200'
+                        : 'bg-amber-100 text-amber-800 border border-amber-200'
                     }`}
                   >
-                    <ShieldAlert className="w-5 h-5" />
-                  </div>
+                    {finding.severity}
+                  </span>
 
-                  <div>
-                    <div className="flex items-center space-x-2 flex-wrap gap-y-1 mb-1">
-                      <span
-                        className={`text-[10px] font-mono font-bold uppercase px-2 py-0.5 rounded ${
-                          finding.severity === 'CRITICAL'
-                            ? 'bg-red-600 text-white'
-                            : finding.severity === 'HIGH'
-                            ? 'bg-orange-600 text-white'
-                            : 'bg-amber-600 text-white'
-                        }`}
-                      >
-                        {finding.severity}
-                      </span>
-                      <span className="text-[10px] px-2 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200 font-mono">
-                        {finding.category.toUpperCase().replace('_', ' ')}
-                      </span>
-                      {finding.compliance.cisAzure && (
-                        <span className="text-[10px] px-2 py-0.5 rounded bg-slate-50 text-slate-700 border border-slate-200 font-mono">
-                          CIS {finding.compliance.cisAzure}
-                        </span>
-                      )}
-                      {finding.compliance.nist && (
-                        <span className="text-[10px] px-2 py-0.5 rounded bg-emerald-50 text-emerald-800 border border-emerald-200 font-mono">
-                          NIST {finding.compliance.nist}
-                        </span>
-                      )}
-                    </div>
+                  {/* Recommendation #10: Guardrail Gap vs Confirmed Exposure Badge */}
+                  {finding.findingType === 'guardrail_gap' && (
+                    <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-amber-50 text-amber-800 border border-amber-300">
+                      GUARDRAIL GAP (0 PUBLIC CONTAINERS)
+                    </span>
+                  )}
+                  {finding.findingType === 'confirmed_exposure' && (
+                    <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-red-50 text-red-700 border border-red-300">
+                      CONFIRMED ANONYMOUS EXPOSURE
+                    </span>
+                  )}
 
-                    <h3 className="text-sm font-bold text-slate-900">
-                      {finding.title}
-                    </h3>
-
-                    <div className="text-xs text-slate-500 mt-0.5 font-mono">
-                      Resource:{' '}
-                      <span className="text-slate-800 font-semibold">
-                        {finding.resourceName}
-                      </span>{' '}
-                      ({finding.resourceType})
-                    </div>
-                  </div>
+                  <span className="text-xs font-mono text-[#546471]">
+                    [{finding.category.toUpperCase().replace('_', ' ')}]
+                  </span>
+                  <h3 className="font-serif text-sm font-bold text-[#16232F] group-hover:text-[#1F8A79] transition-colors">
+                    {finding.title}
+                  </h3>
                 </div>
 
-                <div className="flex items-center space-x-2">
+                <div className="flex items-center space-x-2 text-[11px] font-mono text-[#546471]">
+                  {finding.compliance.cisAzure && (
+                    <span
+                      className="px-2 py-0.5 rounded bg-slate-100 border border-slate-200 text-[#16232F]"
+                      title="Informational cross-reference to selected control"
+                    >
+                      CIS Ref {finding.compliance.cisAzure}
+                    </span>
+                  )}
+                  {finding.compliance.mcsb && (
+                    <span className="px-2 py-0.5 rounded bg-slate-100 border border-slate-200 text-[#16232F]">
+                      {finding.compliance.mcsb}
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              <p className="text-xs text-[#546471] mt-2 leading-relaxed line-clamp-2">
+                {finding.description}
+              </p>
+
+              <div className="mt-3 pt-3 border-t border-slate-200 flex flex-wrap items-center justify-between gap-2 text-xs">
+                <div className="flex items-center space-x-2 text-[#546471] font-mono">
+                  <FileWarning className="w-3.5 h-3.5 text-[#1F8A79]" />
+                  <span>Resource:</span>
+                  <span className="text-[#16232F] font-semibold">
+                    {finding.resourceName}
+                  </span>
+                  <span className="text-slate-300">|</span>
+                  <span>{finding.resourceType}</span>
+                </div>
+
+                <div className="flex items-center space-x-3">
+                  <span className="inline-flex items-center space-x-1 text-[11px] text-[#546471]">
+                    <Terminal className="w-3 h-3 text-[#1F8A79]" />
+                    <span>Pre-Check + CLI + Rollback</span>
+                  </span>
+                  <span className="inline-flex items-center space-x-1 text-[11px] text-[#546471]">
+                    <Globe className="w-3 h-3 text-[#1F8A79]" />
+                    <span>Portal</span>
+                  </span>
+                  <span className="inline-flex items-center space-x-1 text-[11px] text-[#546471]">
+                    <Code2 className="w-3 h-3 text-[#D79A45]" />
+                    <span>Terraform</span>
+                  </span>
                   {onRemediateFinding && (
                     <button
-                      type="button"
                       onClick={(e) => {
                         e.stopPropagation();
                         onRemediateFinding(finding.id);
                       }}
-                      className="px-3 py-1.5 rounded-md text-xs font-semibold bg-emerald-50 hover:bg-[#2BB5A0] text-emerald-800 hover:text-[#04211B] border border-emerald-200 transition-all cursor-pointer"
+                      className="inline-flex items-center space-x-1 px-2.5 py-1 rounded bg-emerald-50 hover:bg-emerald-100 text-[#1F8A79] border border-emerald-200 text-[11px] font-semibold transition-all"
+                      title="Marks finding acknowledged in session memory (unverified in Azure)"
                     >
-                      Harden
+                      <CheckCircle2 className="w-3 h-3" />
+                      <span>Acknowledge (In-Memory)</span>
                     </button>
                   )}
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onSelectFinding(finding.id);
-                    }}
-                    className="hidden sm:inline-flex px-3 py-1.5 rounded-md text-xs font-semibold bg-[#0E2238] hover:bg-[#081420] text-[#EEF3F1] transition-all cursor-pointer"
-                  >
-                    Deep Dive
-                  </button>
-                  <div className="p-1 rounded-lg text-slate-500 hover:text-slate-900">
-                    {isExpanded ? (
-                      <ChevronUp className="w-5 h-5" />
-                    ) : (
-                      <ChevronDown className="w-5 h-5" />
-                    )}
-                  </div>
+                  <span className="text-[#1F8A79] font-semibold group-hover:translate-x-0.5 transition-transform">
+                    Open Runbook →
+                  </span>
                 </div>
               </div>
-
-              {/* Expanded Remediation Drawer */}
-              {isExpanded && (
-                <div className="px-5 pb-5 pt-3 border-t border-slate-200 space-y-4">
-                  {/* Exploit Scenario & Impact */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs bg-slate-50 p-3.5 rounded-lg border border-slate-200">
-                    <div>
-                      <span className="font-bold text-slate-900 block mb-1">
-                        Threat Mechanics &amp; Exploit Vector:
-                      </span>
-                      <p className="text-slate-600 leading-relaxed">
-                        {finding.exploitScenario}
-                      </p>
-                    </div>
-                    <div>
-                      <span className="font-bold text-slate-900 block mb-1">
-                        Business &amp; Compliance Impact:
-                      </span>
-                      <p className="text-slate-600 leading-relaxed">
-                        {finding.businessImpact}
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Remediation Tabs */}
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-1 bg-slate-100 p-1 rounded-lg border border-slate-200 text-xs">
-                        <button
-                          type="button"
-                          onClick={() => setActiveRemediationTab('cli')}
-                          className={`flex items-center space-x-1.5 px-3 py-1 rounded-md font-semibold transition-all cursor-pointer ${
-                            activeRemediationTab === 'cli'
-                              ? 'bg-[#0E2238] text-[#EEF3F1]'
-                              : 'text-slate-600 hover:text-slate-900'
-                          }`}
-                        >
-                          <Terminal className="w-3.5 h-3.5" />
-                          <span>Azure CLI</span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setActiveRemediationTab('portal')}
-                          className={`flex items-center space-x-1.5 px-3 py-1 rounded-md font-semibold transition-all cursor-pointer ${
-                            activeRemediationTab === 'portal'
-                              ? 'bg-[#0E2238] text-[#EEF3F1]'
-                              : 'text-slate-600 hover:text-slate-900'
-                          }`}
-                        >
-                          <Globe className="w-3.5 h-3.5" />
-                          <span>Azure Portal</span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setActiveRemediationTab('terraform')}
-                          className={`flex items-center space-x-1.5 px-3 py-1 rounded-md font-semibold transition-all cursor-pointer ${
-                            activeRemediationTab === 'terraform'
-                              ? 'bg-[#0E2238] text-[#EEF3F1]'
-                              : 'text-slate-600 hover:text-slate-900'
-                          }`}
-                        >
-                          <Code2 className="w-3.5 h-3.5" />
-                          <span>Terraform IaC</span>
-                        </button>
-                      </div>
-
-                      {activeRemediationTab === 'cli' && (
-                        <button
-                          type="button"
-                          onClick={() =>
-                            copyToClipboard(
-                              finding.remediation.cliCommand,
-                              finding.id
-                            )
-                          }
-                          className="text-xs text-emerald-700 hover:underline font-mono flex items-center space-x-1 cursor-pointer"
-                        >
-                          {copiedId === finding.id ? (
-                            <>
-                              <Check className="w-3.5 h-3.5 text-emerald-700" />
-                              <span>Copied to Clipboard!</span>
-                            </>
-                          ) : (
-                            <>
-                              <Copy className="w-3.5 h-3.5" />
-                              <span>Copy Command</span>
-                            </>
-                          )}
-                        </button>
-                      )}
-                    </div>
-
-                    {/* Tab Contents */}
-                    {activeRemediationTab === 'cli' && (
-                      <div className="bg-[#081420] p-3.5 rounded-lg border border-[#3E6E86]/40 text-[#5FD3BF] font-mono text-xs overflow-x-auto whitespace-pre">
-                        {finding.remediation.cliCommand}
-                      </div>
-                    )}
-
-                    {activeRemediationTab === 'portal' && (
-                      <div className="bg-slate-50 p-3.5 rounded-lg border border-slate-200 space-y-2">
-                        {finding.remediation.portalSteps.map((step, idx) => (
-                          <div
-                            key={idx}
-                            className="flex items-start space-x-2 text-xs text-slate-700"
-                          >
-                            <span className="w-5 h-5 rounded-full bg-[#0E2238] text-[#EEF3F1] flex items-center justify-center font-mono font-bold text-[10px] flex-shrink-0 mt-0.5">
-                              {idx + 1}
-                            </span>
-                            <span className="leading-relaxed">{step}</span>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-
-                    {activeRemediationTab === 'terraform' && (
-                      <div className="bg-[#081420] p-3.5 rounded-lg border border-[#3E6E86]/40 text-[#EBC385] font-mono text-xs overflow-x-auto whitespace-pre">
-                        {finding.remediation.terraformSnippet}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Impact Notice */}
-                  <div className="p-2.5 rounded-lg bg-amber-50 border border-amber-200 text-amber-900 text-xs flex items-center space-x-2">
-                    <AlertTriangle className="w-4 h-4 flex-shrink-0 text-amber-700" />
-                    <span>
-                      <strong>Operational Considerations: </strong>
-                      {finding.remediation.impactNotice}
-                    </span>
-                  </div>
-                </div>
-              )}
             </div>
-          );
-        })}
+          ))
+        )}
       </div>
-
-      {/* Session Remediation Log inside Remediation Register */}
-      <RemediationLog
-        entries={remediationLog}
-        onClearLog={onClearRemediationLog}
-      />
     </div>
   );
 };

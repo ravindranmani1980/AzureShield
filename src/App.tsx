@@ -3,26 +3,11 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import {
-  SAMPLE_HIGH_RISK_DATASET,
-  SAMPLE_HARDENED_DATASET,
-} from './utils/defaultData';
-import {
-  AuditDataset,
-  Finding,
-  RbacAssignment,
-  RemediationLogEntry,
-  SecurityAlert,
-  StorageAccount,
-} from './types/security';
-import { executeFullAudit } from './utils/securityEngine';
-import { generateAzureSecurityPdfReport } from './utils/pdfGenerator';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Navbar } from './components/Navbar';
-import { AlertNotificationBanner } from './components/AlertNotificationBanner';
 import { OverviewDashboard } from './components/OverviewDashboard';
-import { StorageInventory } from './components/StorageInventory';
 import { StorageAuditor } from './components/StorageAuditor';
+import { StorageInventory } from './components/StorageInventory';
 import { RbacAuditor } from './components/RbacAuditor';
 import { FindingsList } from './components/FindingsList';
 import { RemediationLog } from './components/RemediationLog';
@@ -30,59 +15,191 @@ import { FindingDetailModal } from './components/FindingDetailModal';
 import { PdfPreviewModal } from './components/PdfPreviewModal';
 import { MisconfigurationSimulatorModal } from './components/MisconfigurationSimulatorModal';
 import { LiveAzureSyncModal } from './components/LiveAzureSyncModal';
+import { GovernanceReviewModal } from './components/GovernanceReviewModal';
+import { AlertNotificationBanner } from './components/AlertNotificationBanner';
 import {
-  AzureJwtPrincipalInfo,
-  decodeAzureJwtInfo,
+  SAMPLE_HIGH_RISK_DATASET,
+  SAMPLE_HARDENED_DATASET,
+} from './utils/defaultData';
+import {
   DEFAULT_AZURE_ACCESS_TOKEN,
   DEFAULT_AZURE_SUBSCRIPTION_ID,
   DEFAULT_AZURE_TENANT_ID,
   fetchLiveAzureResources,
 } from './utils/azureLiveApi';
+import { evaluateAzurePosture } from './utils/securityEngine';
+import { downloadSecurityAuditPdf } from './utils/pdfGenerator';
+import {
+  ActiveTab,
+  Finding,
+  RemediationLogEntry,
+  SecurityAlertNotification,
+} from './types/security';
+import {
+  KeyRound,
+  AlertTriangle,
+  ShieldCheck,
+  Scale,
+  Lock,
+  ExternalLink,
+} from 'lucide-react';
 
-export default function App() {
-  const [activePresetKey, setActivePresetKey] = useState<'high_risk' | 'hardened'>('high_risk');
-  // Start with empty arrays when live default credentials are configured so sample containers never mask live counts
-  const [storageAccounts, setStorageAccounts] = useState<StorageAccount[]>(
-    DEFAULT_AZURE_ACCESS_TOKEN ? [] : SAMPLE_HIGH_RISK_DATASET.storageAccounts
+export function App() {
+  const [activeTab, setActiveTab] = useState<ActiveTab>('overview');
+  const [currentPreset, setCurrentPreset] = useState<'high_risk' | 'hardened'>(
+    'high_risk'
   );
-  const [roleAssignments, setRoleAssignments] = useState<RbacAssignment[]>(
-    DEFAULT_AZURE_ACCESS_TOKEN ? [] : SAMPLE_HIGH_RISK_DATASET.roleAssignments
-  );
-  const [activeTab, setActiveTab] = useState<
-    | 'overview'
-    | 'inventory'
-    | 'storage'
-    | 'rbac'
-    | 'findings'
-    | 'remediation_log'
-  >('overview');
-  const [remediationLog, setRemediationLog] = useState<RemediationLogEntry[]>([]);
-  
-  // Real-time alerting states
-  const [alerts, setAlerts] = useState<SecurityAlert[]>([]);
-  const [activeBannerAlert, setActiveBannerAlert] = useState<SecurityAlert | null>(null);
-  const [isContinuousMonitoring, setIsContinuousMonitoring] = useState<boolean>(true);
 
-  // Live Azure connection states
-  const [isLiveConnected, setIsLiveConnected] = useState<boolean>(
-    Boolean(DEFAULT_AZURE_ACCESS_TOKEN)
+  // Stateful Azure Environment Data (defaults to clearly labeled Demo Data until user enters Bearer Token)
+  const [storageAccounts, setStorageAccounts] = useState(
+    SAMPLE_HIGH_RISK_DATASET.storageAccounts
   );
-  const [isLiveSyncModalOpen, setIsLiveSyncModalOpen] = useState<boolean>(false);
+  const [roleAssignments, setRoleAssignments] = useState(
+    SAMPLE_HIGH_RISK_DATASET.roleAssignments
+  );
+
+  // Selected Finding Modal State
+  const [selectedFinding, setSelectedFinding] = useState<Finding | null>(null);
+
+  // PDF Preview Modal State
+  const [isPdfPreviewOpen, setIsPdfPreviewOpen] = useState(false);
+
+  // Misconfiguration Simulator Modal State
+  const [isSimulatorOpen, setIsSimulatorOpen] = useState(false);
+
+  // Live Azure Connection Modal State
+  const [isLiveSyncOpen, setIsLiveSyncOpen] = useState(false);
+  const [isLiveConnected, setIsLiveConnected] = useState(false);
+  const [isDemoData, setIsDemoData] = useState(true);
   const [liveSourceName, setLiveSourceName] = useState<string>(
-    `Azure ARM REST API (${DEFAULT_AZURE_SUBSCRIPTION_ID.slice(0, 8)}...)`
+    'Demo Data — High-Risk Sample Scenario (No Live Assessment)'
   );
-  const [liveSubscriptionId, setLiveSubscriptionId] = useState<string>(
-    DEFAULT_AZURE_SUBSCRIPTION_ID
+  const [lastCollectedAt, setLastCollectedAt] = useState<string>(
+    'Sample Dataset (No Live Scan Performed)'
   );
-  const [liveWarnings, setLiveWarnings] = useState<string[]>([]);
-  const [liveJwtInfo, setLiveJwtInfo] = useState<AzureJwtPrincipalInfo | null>(
-    () => decodeAzureJwtInfo(DEFAULT_AZURE_ACCESS_TOKEN)
-  );
-  const [isEventStreamActive, setIsEventStreamActive] = useState<boolean>(true);
+  const [liveSyncWarnings, setLiveSyncWarnings] = useState<string[]>([]);
 
-  // Automatically attempt live Azure ARM sync on startup using configured defaults
+  // Governance, Privacy & Recommendations Review Modal State
+  const [isGovernanceOpen, setIsGovernanceOpen] = useState(false);
+
+  // Simulated Drift Watch Mode & Alert Notifications
+  const [isWatchMode, setIsWatchMode] = useState(false);
+  const [alerts, setAlerts] = useState<SecurityAlertNotification[]>([]);
+
+  // Session Activity Log (In-Memory Simulation & Acknowledgment — Rec #6)
+  const [remediationLogs, setRemediationLogs] = useState<RemediationLogEntry[]>(
+    []
+  );
+  const [remediatedFindingIds, setRemediatedFindingIds] = useState<string[]>(
+    []
+  );
+
+  // Evaluate Security Posture dynamically
+  const rawAuditResult = useMemo(() => {
+    return evaluateAzurePosture(storageAccounts, roleAssignments);
+  }, [storageAccounts, roleAssignments]);
+
+  // Filter out manually acknowledged findings while keeping metrics synchronized
+  const activeFindings = useMemo(() => {
+    return rawAuditResult.findings.filter(
+      (f) => !remediatedFindingIds.includes(f.id)
+    );
+  }, [rawAuditResult.findings, remediatedFindingIds]);
+
+  const metrics = useMemo(() => {
+    if (remediatedFindingIds.length === 0) return rawAuditResult.metrics;
+
+    const criticalCount = activeFindings.filter(
+      (f) => f.severity === 'CRITICAL'
+    ).length;
+    const highCount = activeFindings.filter((f) => f.severity === 'HIGH').length;
+    const mediumCount = activeFindings.filter(
+      (f) => f.severity === 'MEDIUM'
+    ).length;
+    const lowCount = activeFindings.filter((f) => f.severity === 'LOW').length;
+
+    const bonus = Math.min(35, remediatedFindingIds.length * 8);
+    const postureScore = Math.min(
+      100,
+      rawAuditResult.metrics.postureScore + bonus
+    );
+
+    let riskGrade: 'A' | 'B' | 'C' | 'D' | 'F' = 'A';
+    if (postureScore >= 90) riskGrade = 'A';
+    else if (postureScore >= 80) riskGrade = 'B';
+    else if (postureScore >= 65) riskGrade = 'C';
+    else if (postureScore >= 50) riskGrade = 'D';
+    else riskGrade = 'F';
+
+    return {
+      ...rawAuditResult.metrics,
+      postureScore,
+      riskGrade,
+      criticalCount,
+      highCount,
+      mediumCount,
+      lowCount,
+      complianceScores: {
+        cisAzure: Math.min(
+          100,
+          rawAuditResult.metrics.complianceScores.cisAzure + bonus
+        ),
+        mcsb: Math.min(
+          100,
+          rawAuditResult.metrics.complianceScores.mcsb + bonus
+        ),
+        nist: Math.min(
+          100,
+          rawAuditResult.metrics.complianceScores.nist + bonus
+        ),
+      },
+    };
+  }, [rawAuditResult.metrics, activeFindings, remediatedFindingIds]);
+
+  // Helper to push a real-time alert notification
+  const pushAlert = (
+    title: string,
+    message: string,
+    severity: 'CRITICAL' | 'HIGH' | 'INFO'
+  ) => {
+    const newAlert: SecurityAlertNotification = {
+      id: `alert-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      timestamp: new Date().toLocaleTimeString(),
+      title,
+      message,
+      severity,
+    };
+    setAlerts((prev) => [newAlert, ...prev.slice(0, 4)]);
+  };
+
+  // Helper to record an in-memory session activity entry (Rec #6)
+  const recordRemediationLog = (
+    actionTitle: string,
+    resourceName: string,
+    category: 'storage' | 'rbac' | 'privilege_escalation',
+    previousScore: number,
+    newScore: number,
+    cliExecuted: string,
+    verificationStatus: 'in_memory_simulation' | 'acknowledged_unverified' = 'in_memory_simulation'
+  ) => {
+    const entry: RemediationLogEntry = {
+      id: `rem-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      timestamp: new Date().toLocaleTimeString(),
+      actionTitle,
+      resourceName,
+      category,
+      previousScore,
+      newScore,
+      cliExecuted,
+      verificationStatus,
+    };
+    setRemediationLogs((prev) => [entry, ...prev]);
+  };
+
+  // Auto-connect to Azure ARM on startup when DEFAULT_AZURE_ACCESS_TOKEN is provided
   useEffect(() => {
-    let mounted = true;
+    if (!DEFAULT_AZURE_ACCESS_TOKEN) return;
+    let cancelled = false;
     fetchLiveAzureResources({
       subscriptionId: DEFAULT_AZURE_SUBSCRIPTION_ID,
       tenantId: DEFAULT_AZURE_TENANT_ID,
@@ -90,832 +207,516 @@ export default function App() {
       scanAllSubscriptions: false,
     })
       .then((res) => {
-        if (!mounted) return;
+        if (cancelled) return;
         setStorageAccounts(res.storageAccounts);
         setRoleAssignments(res.roleAssignments);
-        setLiveWarnings(res.warnings || []);
-        if (res.jwtInfo) setLiveJwtInfo(res.jwtInfo);
-        setLiveSubscriptionId(
-          res.subscriptionIds[0] || DEFAULT_AZURE_SUBSCRIPTION_ID
-        );
-        setLiveSourceName(
-          `Azure ARM REST API (${DEFAULT_AZURE_SUBSCRIPTION_ID.slice(0, 8)}...)`
-        );
+        setRemediatedFindingIds([]);
         setIsLiveConnected(true);
+        setIsDemoData(false);
+        setLiveSourceName(`Azure Sub ${DEFAULT_AZURE_SUBSCRIPTION_ID.slice(0, 8)}...`);
+        setLastCollectedAt(new Date().toLocaleString());
+        setLiveSyncWarnings(res.warnings || []);
       })
-      .catch((err) => {
-        if (!mounted) return;
-        setStorageAccounts([]);
-        setRoleAssignments([]);
-        setLiveWarnings([
-          err?.message || 'Unable to query Azure ARM REST endpoint',
-        ]);
-        setIsLiveConnected(true);
+      .catch(() => {
+        // Keep fallback sample dataset if network or token fails
       });
     return () => {
-      mounted = false;
+      cancelled = true;
     };
   }, []);
 
-  // Modals
-  const [selectedFindingId, setSelectedFindingId] = useState<string | null>(null);
-  const [isPdfPreviewOpen, setIsPdfPreviewOpen] = useState(false);
-  const [isSimulatorOpen, setIsSimulatorOpen] = useState(false);
-
-  // Run audit engine whenever storage accounts or roles update
-  const { findings, metrics } = useMemo(() => {
-    return executeFullAudit(storageAccounts, roleAssignments);
-  }, [storageAccounts, roleAssignments]);
-
-  // Active dataset representation
-  const activeDataset: AuditDataset = useMemo(() => {
-    return {
-      presetName: isLiveConnected
-        ? liveSourceName || 'Live Azure Subscription'
-        : activePresetKey === 'high_risk'
-        ? SAMPLE_HIGH_RISK_DATASET.presetName
-        : SAMPLE_HARDENED_DATASET.presetName,
-      description: isLiveConnected
-        ? 'Real-time synchronized Azure Storage Accounts, Blob Containers, and RBAC Role Assignments.'
-        : activePresetKey === 'high_risk'
-        ? SAMPLE_HIGH_RISK_DATASET.description
-        : SAMPLE_HARDENED_DATASET.description,
-      subscriptionId: isLiveConnected
-        ? liveSubscriptionId || DEFAULT_AZURE_SUBSCRIPTION_ID
-        : activePresetKey === 'high_risk'
-        ? SAMPLE_HIGH_RISK_DATASET.subscriptionId
-        : SAMPLE_HARDENED_DATASET.subscriptionId,
-      storageAccounts,
-      roleAssignments,
-    };
-  }, [
-    isLiveConnected,
-    liveSourceName,
-    liveSubscriptionId,
-    activePresetKey,
-    storageAccounts,
-    roleAssignments,
-  ]);
-
-  // Helper to trigger a real-time alert
-  const triggerRealTimeAlert = useCallback((finding: Finding) => {
-    const newAlert: SecurityAlert = {
-      id: `alert-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
-      findingId: finding.id,
-      title: `[NEW LOOPHOLE] ${finding.title}`,
-      severity: finding.severity,
-      resourceName: finding.resourceName,
-      category: finding.category,
-      timestamp: new Date().toLocaleTimeString(),
-      summary: finding.description,
-      read: false,
-    };
-
-    setAlerts((prev) => [newAlert, ...prev]);
-    setActiveBannerAlert(newAlert);
-  }, []);
-
-  // Initialize initial alerts on mount for the existing critical findings
+  // Simulated Drift Watch Mode effect (labeled clearly as Simulated per Rec #4)
   useEffect(() => {
-    document.title = 'Maniq Shield';
-    if (findings.length > 0 && alerts.length === 0) {
-      const initialAlerts: SecurityAlert[] = findings
-        .filter((f) => f.severity === 'CRITICAL')
-        .slice(0, 3)
-        .map((f, i) => ({
-          id: `initial-alert-${i}`,
-          findingId: f.id,
-          title: f.title,
-          severity: f.severity,
-          resourceName: f.resourceName,
-          category: f.category,
-          timestamp: new Date().toLocaleTimeString(),
-          summary: f.description,
-          read: false,
-        }));
-      setAlerts(initialAlerts);
-    } else if (findings.length === 0 && alerts.length > 0) {
-      setAlerts([]);
-    }
-  }, [findings, alerts.length]);
+    if (!isWatchMode) return;
+    pushAlert(
+      'Simulated Drift Sandbox Active (Demo Only)',
+      'Simulating synthetic storage and RBAC drift events in browser memory (not connected to live Azure Event Grid).',
+      'INFO'
+    );
 
-  // Continuous Cloud Watch Simulator: periodically checks posture
-  useEffect(() => {
-    if (!isContinuousMonitoring) return;
+    const timer = setTimeout(() => {
+      pushAlert(
+        'SIMULATED DRIFT ALERT: Anonymous Container Access',
+        '[Demo Simulation] Detector observed synthetic publicAccess="Container" on maniqprodvault01.',
+        'CRITICAL'
+      );
+    }, 8000);
 
-    // Simulate heartbeats and checks every 20 seconds
-    const interval = setInterval(() => {
-      // Periodic check confirmation (internal telemetry simulation)
-    }, 20000);
+    return () => clearTimeout(timer);
+  }, [isWatchMode]);
 
-    return () => clearInterval(interval);
-  }, [isContinuousMonitoring]);
-
-  // Handle Preset Switching
-  const handleSelectDataset = (key: string) => {
+  // Preset Switcher (Demo Datasets — Rec #5)
+  const handleResetPreset = (preset: 'high_risk' | 'hardened') => {
+    setCurrentPreset(preset);
+    setRemediatedFindingIds([]);
     setIsLiveConnected(false);
-    setLiveWarnings([]);
-    if (key === 'hardened') {
-      setActivePresetKey('hardened');
-      setStorageAccounts(SAMPLE_HARDENED_DATASET.storageAccounts);
-      setRoleAssignments(SAMPLE_HARDENED_DATASET.roleAssignments);
-    } else {
-      setActivePresetKey('high_risk');
+    setIsDemoData(true);
+    setLiveSyncWarnings([]);
+    setLastCollectedAt('Sample Dataset (No Live Scan Performed)');
+    if (preset === 'high_risk') {
       setStorageAccounts(SAMPLE_HIGH_RISK_DATASET.storageAccounts);
       setRoleAssignments(SAMPLE_HIGH_RISK_DATASET.roleAssignments);
+      setLiveSourceName(
+        'Demo Data — High-Risk Sample Scenario (No Live Assessment)'
+      );
+    } else {
+      setStorageAccounts(SAMPLE_HARDENED_DATASET.storageAccounts);
+      setRoleAssignments(SAMPLE_HARDENED_DATASET.roleAssignments);
+      setLiveSourceName(
+        'Demo Data — Hardened Reference Sample (No Live Assessment)'
+      );
     }
   };
 
-  // Handle live Azure resources sync
+  // Purge Token & Reset to Demo State (Rec #12)
+  const handlePurgeTokenAndReset = () => {
+    handleResetPreset('high_risk');
+    pushAlert(
+      'Bearer Token Purged from Memory',
+      'Cleared in-memory credentials and reset workspace to Demo Sample state.',
+      'INFO'
+    );
+  };
+
+  // Simulate Hardening of a Storage Account in memory (Rec #6)
+  const handleHardenAccount = (accountId: string) => {
+    const targetAcc = storageAccounts.find((a) => a.id === accountId);
+    if (!targetAcc) return;
+
+    const prevScore = metrics.postureScore;
+
+    const updatedAccounts = storageAccounts.map((acc) => {
+      if (acc.id !== accountId) return acc;
+      return {
+        ...acc,
+        allowBlobPublicAccess: false,
+        allowSharedKeyAccess: false,
+        minimumTlsVersion: 'TLS1_2' as const,
+        supportsHttpsTrafficOnly: true,
+        publicNetworkAccess: 'Disabled' as const,
+        defaultAction: 'Deny' as const,
+        privateEndpointConnections:
+          acc.privateEndpointConnections.length > 0
+            ? acc.privateEndpointConnections
+            : [`pe-${acc.name}-blob`],
+        containers: acc.containers.map((c) => ({
+          ...c,
+          publicAccess: 'None' as const,
+        })),
+      };
+    });
+
+    const newEval = evaluateAzurePosture(updatedAccounts, roleAssignments);
+    setStorageAccounts(updatedAccounts);
+
+    recordRemediationLog(
+      `[Simulated In-Memory] Hardened Storage Account (${targetAcc.name})`,
+      targetAcc.name,
+      'storage',
+      prevScore,
+      newEval.metrics.postureScore,
+      `# Pre-check first, then apply in staging:\naz storage account update --name ${targetAcc.name} --resource-group ${targetAcc.resourceGroup} --allow-blob-public-access false --allow-shared-key-access false --min-tls-version TLS1_2 --https-only true --default-action Deny`,
+      'in_memory_simulation'
+    );
+
+    pushAlert(
+      `In-Memory Simulation: ${targetAcc.name}`,
+      `Simulated hardening in UI memory: Posture Score changed from ${prevScore} to ${newEval.metrics.postureScore}. Run CLI runbook to apply to Azure.`,
+      'INFO'
+    );
+  };
+
+  // Simulate Revoking an RBAC Role Assignment in memory (Rec #6)
+  const handleRevokeAssignment = (assignmentId: string) => {
+    const targetRole = roleAssignments.find((r) => r.id === assignmentId);
+    if (!targetRole) return;
+
+    const prevScore = metrics.postureScore;
+    const updatedRoles = roleAssignments.filter((r) => r.id !== assignmentId);
+    const newEval = evaluateAzurePosture(storageAccounts, updatedRoles);
+
+    setRoleAssignments(updatedRoles);
+
+    recordRemediationLog(
+      `[Simulated In-Memory] Revoked ${targetRole.roleDefinitionName} for ${targetRole.principalName}`,
+      targetRole.principalName,
+      'rbac',
+      prevScore,
+      newEval.metrics.postureScore,
+      `# Verify active workload dependencies before deleting:\naz role assignment delete --ids "${targetRole.id}"`,
+      'in_memory_simulation'
+    );
+
+    pushAlert(
+      `In-Memory Simulation: ${targetRole.principalName}`,
+      `Simulated removal of ${targetRole.roleDefinitionName} on ${targetRole.scopeName} in UI memory.`,
+      'INFO'
+    );
+  };
+
+  // Acknowledge / Simulate remediation of a specific finding by ID (Rec #6)
+  const handleRemediateFinding = (findingId: string) => {
+    const finding = activeFindings.find((f) => f.id === findingId);
+    if (!finding) return;
+
+    const prevScore = metrics.postureScore;
+    setRemediatedFindingIds((prev) => [...prev, findingId]);
+    const newScore = Math.min(100, prevScore + 8);
+
+    recordRemediationLog(
+      `[Acknowledged in UI — Unverified in Azure] ${finding.title}`,
+      finding.resourceName,
+      finding.category,
+      prevScore,
+      newScore,
+      finding.remediation.cliCommand.replace(/\\\n/g, ' '),
+      'acknowledged_unverified'
+    );
+
+    pushAlert(
+      'Finding Acknowledged in Session UI',
+      `${finding.title} (${finding.resourceName}) marked acknowledged in memory. Verify change in Azure ARM.`,
+      'INFO'
+    );
+  };
+
+  // Simulate Hardening All Loopholes in memory (Rec #6)
+  const handleHardenAll = () => {
+    const prevScore = metrics.postureScore;
+    setStorageAccounts(SAMPLE_HARDENED_DATASET.storageAccounts);
+    setRoleAssignments(SAMPLE_HARDENED_DATASET.roleAssignments);
+    setCurrentPreset('hardened');
+    setIsDemoData(true);
+    setRemediatedFindingIds([]);
+
+    const newEval = evaluateAzurePosture(
+      SAMPLE_HARDENED_DATASET.storageAccounts,
+      SAMPLE_HARDENED_DATASET.roleAssignments
+    );
+
+    recordRemediationLog(
+      '[Simulated In-Memory] Applied Baseline Hardening Simulation',
+      'All Sample Storage Accounts & Subscriptions',
+      'storage',
+      prevScore,
+      newEval.metrics.postureScore,
+      '# In-memory simulation only — export Dry-Run Bash script from Findings tab to review CLI commands.',
+      'in_memory_simulation'
+    );
+
+    pushAlert(
+      'In-Memory Hardening Simulation Applied',
+      `Simulated baseline hardening in UI memory (Score: ${prevScore} → ${newEval.metrics.postureScore}). No live Azure changes were made.`,
+      'INFO'
+    );
+  };
+
+  // Inject Misconfiguration Scenario (Simulator)
+  const handleInjectScenario = (
+    scenarioType:
+      | 'open_container'
+      | 'guest_owner'
+      | 'custom_wildcard_role'
+      | 'disable_firewall'
+  ) => {
+    setIsDemoData(true);
+    if (scenarioType === 'open_container') {
+      setStorageAccounts((prev) =>
+        prev.map((acc, idx) =>
+          idx === 0
+            ? {
+                ...acc,
+                allowBlobPublicAccess: true,
+                containers: [
+                  ...acc.containers,
+                  {
+                    name: `leaked-payroll-export-${Math.floor(
+                      100 + Math.random() * 900
+                    )}`,
+                    publicAccess: 'Container',
+                    lastModified: new Date().toISOString().slice(0, 10),
+                    blobCount: 1450,
+                    sizeGb: 19.4,
+                    hasSensitiveData: true,
+                    immutabilityPolicy: false,
+                  },
+                ],
+              }
+            : acc
+        )
+      );
+      pushAlert(
+        'SIMULATION: Anonymous Container Injected',
+        'Simulated creation of public container with publicAccess="Container" (Demo Data).',
+        'CRITICAL'
+      );
+    } else if (scenarioType === 'guest_owner') {
+      setRoleAssignments((prev) => [
+        ...prev,
+        {
+          id: `role-sim-guest-${Date.now()}`,
+          principalId: `pid-guest-${Date.now()}`,
+          principalName: 'contractor_temp#EXT#@untrusted-vendor.org',
+          principalType: 'GuestUser',
+          roleDefinitionName: 'Owner',
+          roleType: 'BuiltInRole',
+          scope: '/subscriptions/prod-sub-001',
+          scopeLevel: 'ManagementGroup',
+          scopeName: 'Root Management Group (mg-enterprise-root)',
+          actions: ['*'],
+          dataActions: ['*'],
+          isExternalGuest: true,
+          lastActiveDays: 180,
+          assignedDate: new Date().toISOString().slice(0, 10),
+        },
+      ]);
+      pushAlert(
+        'SIMULATION: External Guest Owner Injected',
+        'contractor_temp#EXT#@untrusted-vendor.org granted Owner in simulation memory.',
+        'CRITICAL'
+      );
+    } else if (scenarioType === 'custom_wildcard_role') {
+      setRoleAssignments((prev) => [
+        ...prev,
+        {
+          id: `role-sim-wild-${Date.now()}`,
+          principalId: `pid-wild-${Date.now()}`,
+          principalName: 'sp-rogue-automation-pipeline',
+          principalType: 'ServicePrincipal',
+          roleDefinitionName: 'Custom-Shadow-Admin-Role',
+          roleType: 'CustomRole',
+          scope: '/subscriptions/prod-sub-001',
+          scopeLevel: 'Subscription',
+          scopeName: 'Production-Core-Sub',
+          actions: [
+            'Microsoft.Authorization/*',
+            'Microsoft.Storage/storageAccounts/listKeys/action',
+          ],
+          dataActions: ['Microsoft.Storage/*'],
+          isExternalGuest: false,
+          lastActiveDays: 1,
+          assignedDate: new Date().toISOString().slice(0, 10),
+        },
+      ]);
+      pushAlert(
+        'SIMULATION: Shadow Admin Custom Role Injected',
+        'sp-rogue-automation-pipeline granted Microsoft.Authorization/* in simulation memory.',
+        'HIGH'
+      );
+    } else if (scenarioType === 'disable_firewall') {
+      setStorageAccounts((prev) =>
+        prev.map((acc) => ({
+          ...acc,
+          publicNetworkAccess: 'Enabled',
+          defaultAction: 'Allow',
+          minimumTlsVersion: 'TLS1_0',
+          supportsHttpsTrafficOnly: false,
+        }))
+      );
+      pushAlert(
+        'SIMULATION: Storage Network Firewalls Disabled',
+        'All sample storage accounts set to defaultAction="Allow" and TLS 1.0 in simulation memory.',
+        'CRITICAL'
+      );
+    }
+  };
+
+  // Apply Live Resources from Azure ARM REST API or CLI Stream
   const handleApplyLiveResources = (data: {
-    storageAccounts: StorageAccount[];
-    roleAssignments: RbacAssignment[];
+    storageAccounts: typeof storageAccounts;
+    roleAssignments: typeof roleAssignments;
     subscriptionId: string;
     sourceName: string;
     warnings?: string[];
+    isDemoData?: boolean;
   }) => {
+    const demoFlag = data.isDemoData ?? false;
     setStorageAccounts(data.storageAccounts);
     setRoleAssignments(data.roleAssignments);
-    setLiveWarnings(data.warnings || []);
-    setIsLiveConnected(true);
+    setRemediatedFindingIds([]);
+    setIsLiveConnected(!demoFlag);
+    setIsDemoData(demoFlag);
     setLiveSourceName(data.sourceName);
-    setLiveSubscriptionId(data.subscriptionId);
-    setIsEventStreamActive(true);
+    setLastCollectedAt(new Date().toLocaleString());
+    setLiveSyncWarnings(data.warnings || []);
 
-    const auditResult = executeFullAudit(
+    const liveEval = evaluateAzurePosture(
       data.storageAccounts,
       data.roleAssignments
     );
-    const firstCrit = auditResult.findings.find((f) => f.severity === 'CRITICAL');
-    if (firstCrit) {
-      triggerRealTimeAlert(firstCrit);
+
+    recordRemediationLog(
+      demoFlag
+        ? `Loaded Simulated Sandbox Dataset (${data.sourceName})`
+        : `Synchronized Live Azure Resources (${data.sourceName})`,
+      data.subscriptionId,
+      'storage',
+      metrics.postureScore,
+      liveEval.metrics.postureScore,
+      demoFlag
+        ? '# Simulated sandbox dataset loaded in memory'
+        : `az storage account list --subscription "${data.subscriptionId}" && az role assignment list --all`,
+      'in_memory_simulation'
+    );
+
+    if (data.warnings && data.warnings.length > 0) {
+      pushAlert(
+        'Live Azure ARM Notice',
+        data.warnings[0],
+        'HIGH'
+      );
     } else {
-      setAlerts([]);
-      setActiveBannerAlert(null);
-    }
-  };
-
-  // Real-time Misconfiguration Injection handler
-  const handleInjectMisconfiguration = (scenarioType: string) => {
-    const timestamp = Date.now();
-
-    if (scenarioType === 'open_container' || scenarioType === 'open_bucket') {
-      // Injects public access container on an existing storage account
-      const updatedAccounts = storageAccounts.map((acc, idx) => {
-        if (idx === 0) {
-          return {
-            ...acc,
-            allowBlobPublicAccess: true,
-            containers: [
-              {
-                id: `cont-leaked-${timestamp}`,
-                name: 'customer-ssn-vault',
-                publicAccess: 'Container' as const,
-                hasStoredAccessPolicyWithNoExpiry: true,
-                sasTokenIssuedWithFullPermissions: true,
-                immutabilityPolicyEnabled: false,
-                blobCount: 840,
-                dataClassification: 'PII/Financial' as const,
-              },
-              ...acc.containers,
-            ],
-          };
-        }
-        return acc;
-      });
-
-      setStorageAccounts(updatedAccounts);
-
-      // Trigger immediate alert
-      setTimeout(() => {
-        const injectedFinding: Finding = {
-          id: `SEC-CONT-${storageAccounts[0]?.name}-customer-ssn-vault-EXPOSED`,
-          title: "Public Anonymous Access Open on Container 'customer-ssn-vault' (Container)",
-          category: 'storage',
-          severity: 'CRITICAL',
-          resourceId: `${storageAccounts[0]?.id}/containers/customer-ssn-vault`,
-          resourceName: `${storageAccounts[0]?.name}/customer-ssn-vault`,
-          resourceType: 'StorageContainer',
-          description:
-            "Container 'customer-ssn-vault' has just been exposed to anonymous public read/list access! Anyone on the internet can download stored Social Security and financial documents.",
-          exploitScenario:
-            "Unauthenticated threat actors can enumerate https://blob.core.windows.net/customer-ssn-vault and dump all classified customer records.",
-          businessImpact: "Direct regulatory breach and GDPR/HIPAA compliance violation.",
-          compliance: { cisAzure: '3.7', mcsb: 'DP-2', nist: 'AC-3' },
-          remediation: {
-            summary: "Set container public access to Private immediately.",
-            cliCommand: `az storage container set-permission --account-name "${storageAccounts[0]?.name}" --name "customer-ssn-vault" --public-access off`,
-            portalSteps: [
-              "Navigate to Azure Portal > Storage Accounts.",
-              "Open container 'customer-ssn-vault'.",
-              "Change access level to 'Private (no anonymous access)'.",
-            ],
-            terraformSnippet: `resource "azurerm_storage_container" "vault" {\n  name = "customer-ssn-vault"\n  container_access_type = "private"\n}`,
-            impactNotice: "Requires authenticated tokens for all client access.",
-          },
-          detectedAt: new Date().toISOString(),
-        };
-        triggerRealTimeAlert(injectedFinding);
-      }, 300);
-    } else if (scenarioType === 'guest_owner') {
-      const newGuestAssignment: RbacAssignment = {
-        id: `ra-guest-${timestamp}`,
-        principalId: `guest-ext-${timestamp}`,
-        principalName: `unverified-contractor#EXT#@external-supplier.com`,
-        principalType: 'GuestUser',
-        roleDefinitionName: 'Owner',
-        roleDefinitionId: '8e3af657-a8ff-443c-a75c-2fe8c4bcb635',
-        scope: `/subscriptions/${activeDataset.subscriptionId}`,
-        isCustomRole: false,
-        actions: ['*'],
-        notActions: [],
-        dataActions: [],
-        lastActiveDays: 0,
-        mfaEnforced: false,
-        isExternalGuest: true,
-        assignedDate: new Date().toISOString(),
-      };
-
-      setRoleAssignments((prev) => [newGuestAssignment, ...prev]);
-
-      setTimeout(() => {
-        const injectedFinding: Finding = {
-          id: `SEC-RBAC-GUEST-${timestamp}`,
-          title: "External Guest Account Has High-Privilege Role 'Owner' (unverified-contractor#EXT#)",
-          category: 'rbac',
-          severity: 'CRITICAL',
-          resourceId: newGuestAssignment.id,
-          resourceName: newGuestAssignment.principalName,
-          resourceType: 'RoleAssignment',
-          description:
-            "External guest identity from an outside tenant has been granted full subscription Owner authority without MFA enforcement.",
-          exploitScenario:
-            "External identity provider breach permits direct cloud administrative takeover of all storage and computing resources.",
-          businessImpact: "Third-party vendor compromise leading to full infrastructure loss.",
-          compliance: { cisAzure: '1.3', mcsb: 'PA-1', nist: 'AC-2' },
-          remediation: {
-            summary: "Revoke external guest Owner assignment immediately.",
-            cliCommand: `az role assignment delete --assignee "${newGuestAssignment.principalId}" --role "Owner" --scope "${newGuestAssignment.scope}"`,
-            portalSteps: [
-              "Go to Azure Portal > Subscriptions > Access control (IAM).",
-              "Filter by 'Owner'.",
-              "Select external guest user and click Remove.",
-            ],
-            terraformSnippet: "# Revoke subscription-level role assignments to external guest principals",
-            impactNotice: "Contractor will lose subscription management access.",
-          },
-          detectedAt: new Date().toISOString(),
-        };
-        triggerRealTimeAlert(injectedFinding);
-      }, 300);
-    } else if (scenarioType === 'priv_esc') {
-      const privEscRole: RbacAssignment = {
-        id: `ra-esc-${timestamp}`,
-        principalId: `sp-esc-${timestamp}`,
-        principalName: `automation-helper-daemon`,
-        principalType: 'ServicePrincipal',
-        roleDefinitionName: 'Privilege Escalation Risk Role',
-        roleDefinitionId: `custom-esc-${timestamp}`,
-        scope: `/subscriptions/${activeDataset.subscriptionId}`,
-        isCustomRole: true,
-        actions: [
-          'Microsoft.Storage/*',
-          'Microsoft.Authorization/roleAssignments/write',
-        ],
-        notActions: [],
-        dataActions: [],
-        lastActiveDays: 0,
-        mfaEnforced: true,
-        isExternalGuest: false,
-        assignedDate: new Date().toISOString(),
-      };
-
-      setRoleAssignments((prev) => [privEscRole, ...prev]);
-
-      setTimeout(() => {
-        const injectedFinding: Finding = {
-          id: `SEC-ESC-DAEMON-${timestamp}`,
-          title: "Privilege Escalation Vulnerability: 'roleAssignments/write' Permitted for 'automation-helper-daemon'",
-          category: 'privilege_escalation',
-          severity: 'CRITICAL',
-          resourceId: privEscRole.id,
-          resourceName: privEscRole.principalName,
-          resourceType: 'RoleDefinition',
-          description:
-            "Non-owner service principal has permission to grant role assignments, enabling self-elevation to full Subscription Administrator.",
-          exploitScenario:
-            "Compromised service principal secret allows adversary to execute 'az role assignment create --role Owner --assignee <attacker-id>'.",
-          businessImpact: "Total administrative takeover of cloud tenancy.",
-          compliance: { cisAzure: '1.24', mcsb: 'PA-7', nist: 'AC-6' },
-          remediation: {
-            summary: "Remove 'Microsoft.Authorization/roleAssignments/*' from custom role definition.",
-            cliCommand: `az role definition update --role-definition '{ "Name": "${privEscRole.roleDefinitionName}", "NotActions": ["Microsoft.Authorization/roleAssignments/*"] }'`,
-            portalSteps: [
-              "Go to Access control (IAM) > Roles.",
-              "Edit custom role.",
-              "Exclude role assignment permissions.",
-            ],
-            terraformSnippet: 'not_actions = ["Microsoft.Authorization/roleAssignments/*"]',
-            impactNotice: "Automated service principal will not be able to delegate permissions.",
-          },
-          privilegeEscalationPath: `automation-helper-daemon -> roleAssignments/write -> Self-assign 'Owner' -> Full Control`,
-          detectedAt: new Date().toISOString(),
-        };
-        triggerRealTimeAlert(injectedFinding);
-      }, 300);
-    } else if (scenarioType === 'insecure_http') {
-      const updatedAccounts = storageAccounts.map((acc, idx) =>
-        idx === 0 ? { ...acc, supportsHttpsTrafficOnly: false } : acc
+      pushAlert(
+        demoFlag ? 'Simulated Sandbox Loaded' : 'Live Azure Telemetry Synchronized!',
+        `Evaluated ${data.storageAccounts.length} Storage Accounts and ${data.roleAssignments.length} RBAC Assignments (${data.sourceName}).`,
+        'INFO'
       );
-      setStorageAccounts(updatedAccounts);
-
-      setTimeout(() => {
-        const injectedFinding: Finding = {
-          id: `SEC-HTTP-${timestamp}`,
-          title: `Insecure HTTP Traffic Allowed on '${storageAccounts[0]?.name}'`,
-          category: 'network',
-          severity: 'CRITICAL',
-          resourceId: storageAccounts[0]?.id || '',
-          resourceName: storageAccounts[0]?.name || '',
-          resourceType: 'StorageAccount',
-          description: "Storage account has been reconfigured to allow plaintext HTTP traffic over port 80.",
-          exploitScenario: "Man-in-the-middle sniffing of storage access keys and unencrypted payloads in transit.",
-          businessImpact: "Non-compliance with PCI-DSS 4.0 and loss of cryptographic data confidentiality.",
-          compliance: { cisAzure: '3.1', mcsb: 'DP-4', nist: 'SC-8' },
-          remediation: {
-            summary: "Enforce 'Secure transfer required' immediately.",
-            cliCommand: `az storage account update --name "${storageAccounts[0]?.name}" --https-only true`,
-            portalSteps: ["Storage Accounts > Configuration > Set 'Secure transfer required' to Enabled."],
-            terraformSnippet: "enable_https_traffic_only = true",
-            impactNotice: "HTTP clients must switch to HTTPS.",
-          },
-          detectedAt: new Date().toISOString(),
-        };
-        triggerRealTimeAlert(injectedFinding);
-      }, 300);
-    } else if (scenarioType === 'legacy_tls') {
-      const updatedAccounts = storageAccounts.map((acc, idx) =>
-        idx === 0 ? { ...acc, minimumTlsVersion: 'TLS1_0' as const } : acc
-      );
-      setStorageAccounts(updatedAccounts);
-
-      setTimeout(() => {
-        const injectedFinding: Finding = {
-          id: `SEC-TLS-${timestamp}`,
-          title: `Obsolete Protocol Version (TLS 1.0) Permitted on '${storageAccounts[0]?.name}'`,
-          category: 'encryption',
-          severity: 'HIGH',
-          resourceId: storageAccounts[0]?.id || '',
-          resourceName: storageAccounts[0]?.name || '',
-          resourceType: 'StorageAccount',
-          description: "Storage account protocol downgraded to TLS 1.0, exposing sessions to cryptographic downgrade attacks.",
-          exploitScenario: "Exploiting known CBC-mode flaws in TLS 1.0 (POODLE / BEAST) to decrypt session secrets.",
-          businessImpact: "Failure of CIS Azure 3.8 and NIST guidelines.",
-          compliance: { cisAzure: '3.8', mcsb: 'DP-4', nist: 'SC-8' },
-          remediation: {
-            summary: "Enforce TLS 1.2 minimum version.",
-            cliCommand: `az storage account update --name "${storageAccounts[0]?.name}" --min-tls-version TLS1_2`,
-            portalSteps: ["Storage Account > Configuration > Minimum TLS version > Set to TLS 1.2."],
-            terraformSnippet: 'min_tls_version = "TLS1_2"',
-            impactNotice: "Clients without TLS 1.2 support will be rejected.",
-          },
-          detectedAt: new Date().toISOString(),
-        };
-        triggerRealTimeAlert(injectedFinding);
-      }, 300);
     }
   };
 
-  // Export PDF Report function
-  const handleDownloadPdf = () => {
-    try {
-      const doc = generateAzureSecurityPdfReport(findings, metrics, {
-        subscriptionId: activeDataset.subscriptionId,
-        subscriptionName: activeDataset.presetName,
-      });
-      doc.save(`Maniq_Shield_Security_Loophole_Report_${Date.now()}.pdf`);
-    } catch (err) {
-      console.error('Error generating PDF report:', err);
-    }
+  // Export PDF Handler with Demo/Live & Redaction support (Rec #15)
+  const handleExportPdf = (redactIdentifiers = false) => {
+    downloadSecurityAuditPdf(
+      metrics,
+      activeFindings,
+      storageAccounts,
+      roleAssignments,
+      liveSourceName,
+      {
+        isDemoData,
+        redactIdentifiers,
+        collectionSource: liveSourceName,
+        lastCollectedAt,
+      }
+    );
   };
-
-  // Mark an individual finding as remediated / hardened in memory and log session remediation metadata
-  const handleRemediateFinding = (findingId: string) => {
-    const targetFinding =
-      findings.find((f) => f.id === findingId) ||
-      findings.find(
-        (f) =>
-          f.id.includes(findingId) ||
-          findingId.includes(f.resourceName) ||
-          f.resourceName.includes(findingId)
-      );
-
-    if (targetFinding) {
-      const now = new Date();
-      const totalEval = metrics.totalEvaluatedFindings || Math.max(1, findings.length);
-      const hardenedBefore = metrics.hardenedFindingsCount || 0;
-      const scoreBefore = metrics.postureScore;
-      const scoreAfter = Math.min(
-        100,
-        Math.round(((hardenedBefore + 1) / totalEval) * 100)
-      );
-
-      const newLogEntry: RemediationLogEntry = {
-        id: `remed-log-${now.getTime()}-${Math.random().toString(36).slice(2, 7)}`,
-        findingId: targetFinding.id,
-        title: targetFinding.title,
-        category: targetFinding.category,
-        severity: targetFinding.severity,
-        resourceId: targetFinding.resourceId,
-        resourceName: targetFinding.resourceName,
-        resourceType: targetFinding.resourceType,
-        remediatedAt: now.toISOString(),
-        formattedTimestamp: now.toLocaleString(),
-        remediationMethod: selectedFindingId === targetFinding.id
-          ? 'Runbook Execution'
-          : 'Single Remediation',
-        remediationSummary: targetFinding.remediation.summary,
-        cliCommandExecuted: targetFinding.remediation.cliCommand,
-        terraformSnippet: targetFinding.remediation.terraformSnippet,
-        compliance: targetFinding.compliance,
-        subscriptionId: activeDataset.subscriptionId,
-        postureScoreBefore: scoreBefore,
-        postureScoreAfter: scoreAfter,
-        operator: 'Mani Ravindran (SecOps Admin)',
-      };
-
-      setRemediationLog((prev) => [newLogEntry, ...prev]);
-    }
-
-    setStorageAccounts((prev) =>
-      prev.map((acc) => {
-        const matchesAccount =
-          findingId.includes(acc.name) ||
-          targetFinding?.resourceId === acc.id ||
-          targetFinding?.resourceId?.startsWith(`${acc.id}/`);
-
-        if (!matchesAccount) return acc;
-
-        if (findingId.includes('PUB-ACCESS')) {
-          return { ...acc, allowBlobPublicAccess: false };
-        }
-        if (findingId.includes('EXPOSED')) {
-          return {
-            ...acc,
-            containers: acc.containers.map((c) =>
-              findingId.includes(c.name) || targetFinding?.resourceId?.endsWith(`/${c.name}`)
-                ? { ...c, publicAccess: 'None' }
-                : c
-            ),
-          };
-        }
-        if (findingId.includes('INFINITE')) {
-          return {
-            ...acc,
-            containers: acc.containers.map((c) =>
-              findingId.includes(c.name) || targetFinding?.resourceId?.includes(`/${c.name}/`)
-                ? { ...c, hasStoredAccessPolicyWithNoExpiry: false }
-                : c
-            ),
-          };
-        }
-        if (findingId.includes('INSECURE-HTTP') || findingId.includes('SEC-HTTP')) {
-          return { ...acc, supportsHttpsTrafficOnly: true };
-        }
-        if (findingId.includes('LEGACY-TLS') || findingId.includes('SEC-TLS')) {
-          return { ...acc, minimumTlsVersion: 'TLS1_2' };
-        }
-        if (findingId.includes('NO-FIREWALL')) {
-          return { ...acc, defaultAction: 'Deny', ipRulesCount: Math.max(2, acc.ipRulesCount) };
-        }
-        if (findingId.includes('SHARED-KEY')) {
-          return { ...acc, allowSharedKeyAccess: false };
-        }
-        if (findingId.includes('NO-SOFT-DELETE')) {
-          return { ...acc, softDeleteEnabled: true, blobRetentionDays: 30 };
-        }
-        if (findingId.includes('NO-LOGGING')) {
-          return { ...acc, loggingEnabled: true };
-        }
-        if (findingId.includes('NO-DEFENDER')) {
-          return { ...acc, defenderForStorageEnabled: true };
-        }
-        if (findingId.includes('NO-CMK')) {
-          return { ...acc, customerManagedKeyEnabled: true };
-        }
-        if (findingId.includes('CROSS-TENANT')) {
-          return { ...acc, crossTenantReplicationRestricted: true };
-        }
-        return acc;
-      })
-    );
-
-    setRoleAssignments((prev) =>
-      prev.map((r) => {
-        const matchesRole =
-          findingId.includes(r.id) ||
-          targetFinding?.resourceId === r.id ||
-          targetFinding?.resourceName === r.principalName;
-
-        if (!matchesRole) return r;
-
-        if (findingId.includes('SUB-OWNER')) {
-          return {
-            ...r,
-            scope: r.scope.includes('/resourceGroups/')
-              ? r.scope
-              : `${r.scope}/resourceGroups/rg-scoped-workload`,
-          };
-        }
-        if (findingId.includes('GUEST')) {
-          return { ...r, isExternalGuest: false, roleDefinitionName: 'Reader', actions: ['*/read'] };
-        }
-        if (findingId.includes('PRIV-ESCALATION') || findingId.includes('ESC')) {
-          return {
-            ...r,
-            actions: r.actions.filter(
-              (a) =>
-                a !== '*' &&
-                !a.includes('roleAssignments/write') &&
-                !a.includes('roleAssignments/*') &&
-                a !== 'Microsoft.Authorization/*'
-            ),
-          };
-        }
-        if (findingId.includes('SP-OVERPRIVILEGED')) {
-          return {
-            ...r,
-            roleDefinitionName: 'Storage Blob Data Reader',
-            actions: ['Microsoft.Storage/storageAccounts/read'],
-          };
-        }
-        if (findingId.includes('DORMANT')) {
-          return { ...r, lastActiveDays: 0 };
-        }
-        if (findingId.includes('NO-MFA')) {
-          return { ...r, mfaEnforced: true };
-        }
-        return r;
-      })
-    );
-
-    // Dismiss banner if it matches
-    if (activeBannerAlert?.findingId === findingId) {
-      setActiveBannerAlert(null);
-    }
-  };
-
-  // Harden all active findings across all storage accounts, containers, and RBAC assignments
-  const handleHardenAllFindings = () => {
-    if (findings.length > 0) {
-      const now = new Date();
-      const totalEval = metrics.totalEvaluatedFindings || Math.max(1, findings.length);
-      const hardenedBefore = metrics.hardenedFindingsCount || 0;
-
-      const bulkEntries: RemediationLogEntry[] = findings.map((f, index) => {
-        const entryTime = new Date(now.getTime() + index);
-        const stepBefore = Math.min(
-          100,
-          Math.round(((hardenedBefore + index) / totalEval) * 100)
-        );
-        const stepAfter = Math.min(
-          100,
-          Math.round(((hardenedBefore + index + 1) / totalEval) * 100)
-        );
-
-        return {
-          id: `remed-log-${entryTime.getTime()}-${index}-${Math.random()
-            .toString(36)
-            .slice(2, 6)}`,
-          findingId: f.id,
-          title: f.title,
-          category: f.category,
-          severity: f.severity,
-          resourceId: f.resourceId,
-          resourceName: f.resourceName,
-          resourceType: f.resourceType,
-          remediatedAt: entryTime.toISOString(),
-          formattedTimestamp: entryTime.toLocaleString(),
-          remediationMethod: 'Bulk Hardening',
-          remediationSummary: f.remediation.summary,
-          cliCommandExecuted: f.remediation.cliCommand,
-          terraformSnippet: f.remediation.terraformSnippet,
-          compliance: f.compliance,
-          subscriptionId: activeDataset.subscriptionId,
-          postureScoreBefore: stepBefore,
-          postureScoreAfter: stepAfter,
-          operator: 'Mani Ravindran (SecOps Admin)',
-        };
-      });
-
-      setRemediationLog((prev) => [...bulkEntries.reverse(), ...prev]);
-    }
-
-    setStorageAccounts((prev) =>
-      prev.map((acc) => ({
-        ...acc,
-        allowBlobPublicAccess: false,
-        defaultAction: 'Deny',
-        ipRulesCount: Math.max(2, acc.ipRulesCount),
-        supportsHttpsTrafficOnly: true,
-        minimumTlsVersion:
-          acc.minimumTlsVersion === 'TLS1_0' || acc.minimumTlsVersion === 'TLS1_1'
-            ? 'TLS1_2'
-            : acc.minimumTlsVersion,
-        allowSharedKeyAccess: false,
-        customerManagedKeyEnabled: true,
-        softDeleteEnabled: true,
-        blobRetentionDays: Math.max(30, acc.blobRetentionDays),
-        loggingEnabled: true,
-        defenderForStorageEnabled: true,
-        crossTenantReplicationRestricted: true,
-        containers: acc.containers.map((c) => ({
-          ...c,
-          publicAccess: 'None',
-          hasStoredAccessPolicyWithNoExpiry: false,
-        })),
-      }))
-    );
-
-    setRoleAssignments((prev) =>
-      prev.map((r) => ({
-        ...r,
-        scope:
-          r.roleDefinitionName === 'Owner' && !r.scope.includes('/resourceGroups/')
-            ? `${r.scope}/resourceGroups/rg-scoped-workload`
-            : r.scope,
-        isExternalGuest: false,
-        roleDefinitionName:
-          r.principalType === 'ServicePrincipal' && r.roleDefinitionName === 'Owner'
-            ? 'Storage Blob Data Reader'
-            : r.roleDefinitionName,
-        actions: r.actions.filter(
-          (a) =>
-            a !== '*' &&
-            !a.includes('roleAssignments/write') &&
-            !a.includes('roleAssignments/*') &&
-            a !== 'Microsoft.Authorization/*'
-        ),
-        lastActiveDays: Math.min(r.lastActiveDays, 15),
-        mfaEnforced: true,
-      }))
-    );
-
-    setActiveBannerAlert(null);
-  };
-
-  // Lookup selected finding with fallback matching
-  const selectedFinding = useMemo(() => {
-    if (!selectedFindingId) return null;
-    return (
-      findings.find((f) => f.id === selectedFindingId) ||
-      findings.find(
-        (f) =>
-          f.resourceName.includes(selectedFindingId) ||
-          selectedFindingId.includes(f.resourceName) ||
-          f.id.includes(selectedFindingId)
-      ) ||
-      findings[0] ||
-      null
-    );
-  }, [findings, selectedFindingId]);
-
-  const unreadAlertCount = alerts.filter((a) => !a.read).length;
-  const totalLiveContainersCount = storageAccounts.reduce(
-    (sum, acc) => sum + acc.containers.length,
-    0
-  );
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#F3F5F1] text-[#16232F] font-sans antialiased selection:bg-[#0E2238] selection:text-[#F3F5F1]">
-      {/* Top Navbar */}
-      <Navbar
-        activeDataset={activeDataset}
-        onSelectDataset={handleSelectDataset}
-        onDownloadPdf={handleDownloadPdf}
-        onOpenPdfPreview={() => setIsPdfPreviewOpen(true)}
-        onOpenSimulator={() => setIsSimulatorOpen(true)}
-        onOpenLiveSync={() => setIsLiveSyncModalOpen(true)}
-        isLiveConnected={isLiveConnected}
-        liveSourceName={liveSourceName}
+    <div className="min-h-screen bg-[#F3F5F1] text-[#16232F] flex flex-col selection:bg-[#2BB5A0]/25 selection:text-[#081420]">
+      {/* Real-time Floating Notification Banner */}
+      <AlertNotificationBanner
         alerts={alerts}
-        unreadAlertCount={unreadAlertCount}
-        onSelectAlert={(findingId) => setSelectedFindingId(findingId)}
-        onMarkAllAlertsRead={() =>
-          setAlerts((prev) => prev.map((a) => ({ ...a, read: true })))
-        }
-        isContinuousMonitoring={isContinuousMonitoring}
-        onToggleContinuousMonitoring={() =>
-          setIsContinuousMonitoring(!isContinuousMonitoring)
-        }
-        activeTab={activeTab}
-        setActiveTab={setActiveTab}
-        remediationLogCount={remediationLog.length}
+        onDismiss={(id) => setAlerts((prev) => prev.filter((a) => a.id !== id))}
+        onClearAll={() => setAlerts([])}
       />
 
-      {/* Main Container */}
-      <main className="max-w-[1440px] w-full mx-auto px-6 py-7 space-y-6 flex-1">
-        {/* Live Azure Connection Status & Exact Resource Count Banner */}
-        {isLiveConnected && (
-          <div className="p-4 rounded-xl bg-white border border-slate-200 shadow-xs space-y-3">
-            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
-              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
-                <span className="inline-flex items-center space-x-1.5 font-mono font-semibold text-emerald-700">
-                  <span className="w-2 h-2 rounded-full bg-emerald-600 animate-ping" />
-                  <span>LIVE AZURE ARM CONNECTION ACTIVE</span>
-                </span>
-                {liveJwtInfo && (
-                  <span className="text-slate-600 font-mono">
-                    Principal:{' '}
-                    <strong className="text-slate-900">
-                      {liveJwtInfo.principalName}
-                    </strong>
-                  </span>
-                )}
-                <span className="text-slate-500 font-mono">
-                  Tenant:{' '}
-                  <span className="text-slate-800">{DEFAULT_AZURE_TENANT_ID}</span>
-                </span>
-                <span className="text-slate-500 font-mono">
-                  Subscription:{' '}
-                  <span className="text-emerald-700 font-semibold">
-                    {liveSubscriptionId}
-                  </span>
-                </span>
-              </div>
+      {/* Top Navigation */}
+      <Navbar
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
+        criticalCount={metrics.criticalCount}
+        totalFindings={activeFindings.length}
+        remediationLogCount={remediationLogs.length}
+        onExportPdf={() => handleExportPdf(false)}
+        onPreviewPdf={() => setIsPdfPreviewOpen(true)}
+        onOpenSimulator={() => setIsSimulatorOpen(true)}
+        onOpenLiveSync={() => setIsLiveSyncOpen(true)}
+        onOpenGovernance={() => setIsGovernanceOpen(true)}
+        isLiveConnected={isLiveConnected}
+        isDemoData={isDemoData}
+        liveSourceName={liveSourceName}
+        onResetPreset={handleResetPreset}
+        currentPreset={currentPreset}
+        isWatchMode={isWatchMode}
+        onToggleWatchMode={() => setIsWatchMode((prev) => !prev)}
+      />
 
-              <div className="flex flex-wrap items-center gap-3 text-xs">
-                <span className="font-mono text-slate-700 bg-slate-100 px-3 py-1 rounded-md border border-slate-200 tabular-nums">
-                  Live Counts: <strong className="text-slate-900">{storageAccounts.length}</strong> Storage Accounts ·{' '}
-                  <strong className="text-slate-900">{totalLiveContainersCount}</strong> Containers ·{' '}
-                  <strong className="text-slate-900">{roleAssignments.length}</strong> RBAC Assignments
-                </span>
-                <button
-                  type="button"
-                  onClick={() => setIsLiveSyncModalOpen(true)}
-                  className="px-3 py-1 rounded-md bg-[#0E2238] hover:bg-[#081420] text-[#EEF3F1] border border-[#3E6E86]/40 font-medium transition-colors cursor-pointer"
-                >
-                  Connection Details
-                </button>
-              </div>
-            </div>
-
-            {liveWarnings.length > 0 && (
-              <div className="p-3.5 rounded-lg bg-amber-50 border border-amber-200 text-xs text-amber-900 space-y-1.5">
-                <div className="font-semibold text-amber-900">
-                  Azure Resource Manager (management.azure.com) Live Response Notice:
-                </div>
-                {liveWarnings.map((w, idx) => (
-                  <div
-                    key={idx}
-                    className="font-mono text-[11px] text-amber-800 break-words"
-                  >
-                    • {w}
-                  </div>
-                ))}
-                <div className="text-[11px] text-slate-700 pt-1 leading-relaxed">
-                  <strong>Why Storage Accounts / Containers show 0:</strong> Your Bearer Token is valid and authenticated as{' '}
-                  <code className="text-emerald-800 font-mono font-semibold">
-                    {liveJwtInfo?.principalName || 'ravindran.mani@live.com'}
-                  </code>
-                  , but Azure ARM requires an explicit subscription RBAC role (
-                  <code className="text-emerald-800 font-mono font-semibold">Reader</code>
-                  ) on{' '}
-                  <code className="text-slate-900 font-mono">
-                    /subscriptions/{liveSubscriptionId}
-                  </code>{' '}
-                  (or Entra ID{' '}
-                  <em>&quot;Access management for Azure resources&quot;</em> toggled ON for Global Admins) to read Storage Accounts. Once granted, refresh your token with{' '}
-                  <code className="bg-white border border-amber-200 px-1.5 py-0.5 rounded text-slate-900 font-mono">
-                    az account get-access-token --resource https://management.azure.com/
-                  </code>{' '}
-                  in Live Azure Sync.
-                </div>
-              </div>
+      {/* Main Content Area */}
+      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        {/* Compact Status & Connection Strip */}
+        <div className="mb-5 px-4 py-2.5 rounded-xl bg-white border border-slate-200/90 shadow-xs flex flex-wrap items-center justify-between gap-3 text-xs">
+          <div className="flex flex-wrap items-center gap-2.5">
+            {isDemoData ? (
+              <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-amber-50 text-amber-900 border border-amber-200 font-mono font-semibold text-[11px]">
+                <KeyRound className="w-3 h-3 text-amber-700" />
+                <span>Sample Demo Dataset</span>
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-emerald-50 text-[#1F8A79] border border-emerald-200 font-mono font-semibold text-[11px]">
+                <ShieldCheck className="w-3.5 h-3.5 text-[#1F8A79]" />
+                <span>Live Azure ARM Connected</span>
+              </span>
             )}
+            <span className="text-[#546471]">
+              Source: <strong className="font-mono text-[#16232F]">{liveSourceName}</strong>
+              {' · '}
+              Tenant: <code className="font-mono text-[#16232F]">{DEFAULT_AZURE_TENANT_ID.slice(0, 8)}...</code>
+              {' · '}
+              Sub: <code className="font-mono text-[#16232F]">{DEFAULT_AZURE_SUBSCRIPTION_ID.slice(0, 8)}...</code>
+              {' · '}
+              Collected: <code className="font-mono">{lastCollectedAt}</code>
+            </span>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setIsGovernanceOpen(true)}
+              className="px-2.5 py-1 rounded-md bg-slate-100 hover:bg-slate-200 text-[#16232F] border border-slate-200 font-medium text-[11px] flex items-center gap-1 transition-colors cursor-pointer"
+            >
+              <Scale className="w-3 h-3 text-[#1F8A79]" />
+              <span>Scope &amp; Governance</span>
+            </button>
+            <button
+              onClick={() => setIsLiveSyncOpen(true)}
+              className="px-2.5 py-1 rounded-md bg-[#0E2238] hover:bg-[#15314E] text-white font-medium text-[11px] flex items-center gap-1 transition-colors cursor-pointer"
+            >
+              <KeyRound className="w-3 h-3 text-[#5FD3BF]" />
+              <span>Configure Token</span>
+            </button>
+            {!isDemoData && (
+              <button
+                onClick={handlePurgeTokenAndReset}
+                className="px-2.5 py-1 rounded-md bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 font-medium text-[11px] transition-colors cursor-pointer"
+              >
+                Purge Token
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Concise Diagnostic Notice if Azure ARM returned warnings */}
+        {liveSyncWarnings.length > 0 && (
+          <div className="mb-5 px-4 py-3 rounded-xl bg-amber-50/90 border border-amber-200 text-amber-950 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
+            <div className="space-y-0.5">
+              <div className="font-semibold text-amber-900 flex items-center gap-1.5">
+                <AlertTriangle className="w-3.5 h-3.5 text-amber-700 flex-shrink-0" />
+                <span>Azure ARM Telemetry Notice ({liveSourceName})</span>
+              </div>
+              <p className="text-amber-800 font-mono text-[11px]">
+                {liveSyncWarnings[0]}
+              </p>
+            </div>
+            <button
+              onClick={() => setIsLiveSyncOpen(true)}
+              className="px-3 py-1.5 rounded-lg bg-[#0E2238] hover:bg-[#15314E] text-white font-semibold text-xs whitespace-nowrap transition-all cursor-pointer"
+            >
+              Inspect Connection →
+            </button>
           </div>
         )}
 
         {activeTab === 'overview' && (
           <OverviewDashboard
             metrics={metrics}
-            findings={findings}
-            remediationLog={remediationLog}
-            onClearRemediationLog={() => setRemediationLog([])}
-            onNavigateTab={(tab) => setActiveTab(tab)}
-            onSelectFinding={(id) => setSelectedFindingId(id)}
-            onRemediateFinding={handleRemediateFinding}
-            onHardenAll={handleHardenAllFindings}
+            findings={activeFindings}
+            storageAccounts={storageAccounts}
+            remediationLogs={remediationLogs}
+            isDemoData={isDemoData}
+            collectionSource={liveSourceName}
+            lastCollectedAt={lastCollectedAt}
+            onSelectTab={setActiveTab}
+            onSelectFinding={(f) => setSelectedFinding(f)}
+            onHardenAll={handleHardenAll}
+            onHardenAccount={handleHardenAccount}
+            onOpenGovernance={() => setIsGovernanceOpen(true)}
           />
         )}
 
         {activeTab === 'inventory' && (
           <StorageInventory
             storageAccounts={storageAccounts}
-            findings={findings}
-            onSelectFinding={(id) => setSelectedFindingId(id)}
-            onNavigateToAuditor={() => setActiveTab('storage')}
-            onSelectDataset={handleSelectDataset}
+            onHardenAccount={handleHardenAccount}
+            isDemoData={isDemoData}
           />
         )}
 
@@ -923,114 +724,121 @@ export default function App() {
           <StorageAuditor
             storageAccounts={storageAccounts}
             roleAssignments={roleAssignments}
-            findings={findings}
-            onSelectFinding={(id) => setSelectedFindingId(id)}
+            onHardenAccount={handleHardenAccount}
           />
         )}
 
         {activeTab === 'rbac' && (
           <RbacAuditor
             roleAssignments={roleAssignments}
-            findings={findings}
-            onSelectFinding={(id) => setSelectedFindingId(id)}
+            onRevokeAssignment={handleRevokeAssignment}
           />
         )}
 
         {activeTab === 'findings' && (
           <FindingsList
-            findings={findings}
-            onSelectFinding={(id) => setSelectedFindingId(id)}
+            findings={activeFindings}
+            onSelectFinding={(f) => setSelectedFinding(f)}
             onRemediateFinding={handleRemediateFinding}
-            remediationLog={remediationLog}
-            onClearRemediationLog={() => setRemediationLog([])}
           />
         )}
 
         {activeTab === 'remediation_log' && (
           <RemediationLog
-            entries={remediationLog}
-            onClearLog={() => setRemediationLog([])}
+            logs={remediationLogs}
+            onClearLogs={() => setRemediationLogs([])}
           />
         )}
       </main>
 
-      {/* Real-time Alert Notification Banner (Float on newly detected loophole) */}
-      <AlertNotificationBanner
-        activeAlert={activeBannerAlert}
-        onDismiss={() => setActiveBannerAlert(null)}
-        onViewRemediation={(findingId) => {
-          setSelectedFindingId(findingId);
-          setActiveBannerAlert(null);
-        }}
-      />
-
-      {/* Finding Drill-down & Remediation Runbook Modal */}
-      <FindingDetailModal
-        finding={selectedFinding}
-        onClose={() => setSelectedFindingId(null)}
-        onRemediate={handleRemediateFinding}
-      />
-
-      {/* PDF Report Live Preview Modal */}
-      <PdfPreviewModal
-        isOpen={isPdfPreviewOpen}
-        onClose={() => setIsPdfPreviewOpen(false)}
-        findings={findings}
-        metrics={metrics}
-        onDownloadPdf={handleDownloadPdf}
-      />
-
-      {/* Misconfiguration Injection Simulator Modal */}
-      <MisconfigurationSimulatorModal
-        isOpen={isSimulatorOpen}
-        onClose={() => setIsSimulatorOpen(false)}
-        onInject={handleInjectMisconfiguration}
-      />
-
-      {/* Live Azure REST API & CLI Ingestion Modal */}
-      <LiveAzureSyncModal
-        isOpen={isLiveSyncModalOpen}
-        onClose={() => setIsLiveSyncModalOpen(false)}
-        onApplyLiveResources={handleApplyLiveResources}
-        isLiveConnected={isLiveConnected}
-        liveSourceName={liveSourceName}
-        onToggleContinuousEventStream={() =>
-          setIsEventStreamActive(!isEventStreamActive)
-        }
-        isEventStreamActive={isEventStreamActive}
-        onTriggerDriftAlert={handleInjectMisconfiguration}
-      />
-
-      {/* Author & Reference Footer (Postrix Style) */}
-      <footer className="bg-[#081420] text-[#B9C4CC] border-t border-[#3E6E86]/35 px-6 py-6 mt-auto no-print">
-        <div className="max-w-[1440px] mx-auto flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
-          <div className="flex items-center gap-2.5">
-            <span className="rm-mono-mark !w-6 !h-6 !text-[11px]" aria-hidden="true">
-              RM
-            </span>
-            <span>
-              <strong className="font-serif text-sm font-semibold text-[#F3F5F1]">
-                Maniq <span className="text-[#D79A45]">Shield</span>
-              </strong>{' '}
-              — Cloud Storage &amp; RBAC Security Posture Management Platform
-            </span>
+      {/* Postrix Dark Navy Footer with Scope, Privacy & Independence Disclosures (Rec #8, #9, #12, #13) */}
+      <footer className="border-t border-white/10 bg-[#081420] py-6 px-4 text-xs text-[#B7C3CC] mt-12">
+        <div className="max-w-7xl mx-auto space-y-3">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="flex items-center space-x-2 flex-wrap gap-y-1">
+              <span className="font-serif font-bold text-white">Maniq Shield</span>
+              <span>—</span>
+              <span>
+                Azure Storage &amp; RBAC Heuristic Scanner · Tool Author:{' '}
+                <a
+                  href="https://ravindran.in"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-[#5FD3BF] hover:underline font-medium inline-flex items-center space-x-1"
+                >
+                  <span>Mani Ravindran (ravindran.in)</span>
+                  <ExternalLink className="w-3 h-3" />
+                </a>
+              </span>
+            </div>
+            <div className="flex items-center space-x-3 text-[11px] font-mono">
+              <button
+                onClick={() => setIsGovernanceOpen(true)}
+                className="text-[#5FD3BF] hover:underline flex items-center space-x-1"
+              >
+                <Lock className="w-3 h-3" />
+                <span>Privacy, Token Policy &amp; CSV Recommendations (13/13)</span>
+              </button>
+            </div>
           </div>
-          <div className="flex items-center space-x-2 font-mono text-[11px] text-[#A9B7BF]">
-            <span>
-              Author: <strong className="text-[#F3F5F1]">Mani Ravindran</strong>
-            </span>
-            <span>·</span>
-            <a
-              href="https://ravindran.in"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-[#5FD3BF] hover:text-[#EBC385] underline font-medium transition-colors"
-            >
-              ravindran.in
-            </a>
+
+          <div className="pt-3 border-t border-white/10 text-[11px] text-[#8FA1B0] leading-relaxed">
+            <strong>Authorized Use, Scope &amp; Independence Notice (Rec #3, #8, #9, #12, #13):</strong> Use only on Azure subscriptions where you hold explicit owner authorization. Bearer Tokens are processed strictly in volatile browser memory via direct HTTPS requests to <code>management.azure.com</code> and are never logged or stored. Cross-references to CIS Azure Foundations v2.0, Microsoft Cloud Security Benchmark (MCSB), and NIST SP 800-53 Rev 5 cover a selected subset of 18 automated checks for informational guidance only — Maniq Shield is independent and not affiliated with, endorsed by, or certified by Microsoft Corporation, CIS, or NIST.
           </div>
         </div>
       </footer>
+
+      {/* Finding Remediation Modal */}
+      <FindingDetailModal
+        finding={selectedFinding}
+        onClose={() => setSelectedFinding(null)}
+        onRemediate={handleRemediateFinding}
+      />
+
+      {/* Interactive PDF Preview & Visual Aids Modal */}
+      <PdfPreviewModal
+        isOpen={isPdfPreviewOpen}
+        onClose={() => setIsPdfPreviewOpen(false)}
+        findings={activeFindings}
+        metrics={metrics}
+        onDownloadPdf={(redact) => handleExportPdf(redact)}
+        isDemoData={isDemoData}
+        collectionSource={liveSourceName}
+        lastCollectedAt={lastCollectedAt}
+      />
+
+      {/* Live Misconfiguration Simulator Modal */}
+      <MisconfigurationSimulatorModal
+        isOpen={isSimulatorOpen}
+        onClose={() => setIsSimulatorOpen(false)}
+        onInjectScenario={handleInjectScenario}
+      />
+
+      {/* Live Azure Connection & Real-Time Event Grid Stream Modal */}
+      <LiveAzureSyncModal
+        isOpen={isLiveSyncOpen}
+        onClose={() => setIsLiveSyncOpen(false)}
+        onApplyLiveResources={handleApplyLiveResources}
+        isLiveConnected={isLiveConnected}
+        liveSourceName={liveSourceName}
+        onToggleContinuousEventStream={() => setIsWatchMode((prev) => !prev)}
+        isEventStreamActive={isWatchMode}
+        onTriggerDriftAlert={(scenario) =>
+          handleInjectScenario(scenario as any)
+        }
+        onPurgeToken={handlePurgeTokenAndReset}
+      />
+
+      {/* Governance, Privacy & CSV Recommendations Review Modal */}
+      <GovernanceReviewModal
+        isOpen={isGovernanceOpen}
+        onClose={() => setIsGovernanceOpen(false)}
+        onOpenLiveSync={() => setIsLiveSyncOpen(true)}
+        onPurgeToken={handlePurgeTokenAndReset}
+        isDemoData={isDemoData}
+      />
     </div>
   );
 }
+
+export default App;

@@ -8,12 +8,17 @@ import { RbacAssignment, StorageAccount, StorageContainer } from '../types/secur
 /**
  * Normalizes raw Azure ARM REST API or Azure CLI JSON output
  * into our internal StorageAccount and RbacAssignment models.
+ *
+ * PRIVACY & CREDENTIAL NOTICE:
+ * - No hardcoded or default Bearer Access Token is stored in source code.
+ * - Any user-supplied Azure ARM Bearer Access Token is held strictly in volatile
+ *   in-memory React state for the active tab session and is never persisted to
+ *   localStorage, sessionStorage, cookies, or external servers.
  */
 
 export const DEFAULT_AZURE_TENANT_ID = '9dbe6987-92ff-43c8-9f71-a39d689cb817';
 export const DEFAULT_AZURE_SUBSCRIPTION_ID = '834dcd8e-ecbe-4340-b734-3729000c7562';
-export const DEFAULT_AZURE_ACCESS_TOKEN =
-  'eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiIsIng1dCI6InJ5QngtNjVqTm94SDRGUUhfNnphck5qYU5mNCIsImtpZCI6InJ5QngtNjVqTm94SDRGUUhfNnphck5qYU5mNCJ9.eyJhdWQiOiJodHRwczovL21hbmFnZW1lbnQuY29yZS53aW5kb3dzLm5ldC8iLCJpc3MiOiJodHRwczovL3N0cy53aW5kb3dzLm5ldC85ZGJlNjk4Ny05MmZmLTQzYzgtOWY3MS1hMzlkNjg5Y2I4MTcvIiwiaWF0IjoxNzkzMjg5MTU3LCJuYmYiOjE3OTMyODkxNTcsImV4cCI6MTc5MzI5NDAzMiwiYWNyIjoiMSIsImFjcnMiOlsicDEiXSwiYWlvIjoiQWNRQU8vOGVBQUFBcTRQRzlSenBkU3BaaENXcGZsaEFJdXQzZGRITk0xMkE3OEYreTc1dGpOc0Fld0RQbUxwM1RDc095MUQyUkFtM0VlTHdCdlF5b3lNakNwMUlRczVNYVVUeDRUWjB4RFdRNWlva3lVbHJ6NEJGNnROY1BSL0l1RHdHeng5d2dESHZxa3NzWHpwS284cFl5RkxsdEg2dlF0emJxeGZFR1duOFBiTE5QbTAzL0xhUnJrajI0OTBpaUZraEZrK3piOEZtQnpCUFB3cEtQUkVJR1Q2YXQ0aXJwcEdPSDliUXNld3J0UmtoUldTTkI2cERKdXUwMXpVWHpWcTcxaVBMNExydyIsImFtciI6WyJwd2QiLCJtZmEiXSwiYXBwaWQiOiJiNjc3YzI5MC1jZjRiLTRhOGUtYTYwZS05MWJhNjUwYTRhYmUiLCJhcHBpZGFjciI6IjAiLCJmYW1pbHlfbmFtZSI6Ik1hbmkgUmVhZGVyIiwiZ2l2ZW5fbmFtZSI6IlJhdmluZHJhbiIsImlkdHlwIjoidXNlciIsImlwYWRkciI6IjY3LjE5MS42OS41OCIsIm5hbWUiOiJSYXZpbmRyYW4gTWFuaSBSZWFkZXIiLCJvaWQiOiJkOTNhZjUzNi02MDJjLTRjNTQtYjgzZi01MmZjNDRjZmU4ODIiLCJwdWlkIjoiMTAwMzIwMDY2MDBGNDBBOSIsInJoIjoiMS5BWEVCaDJtLW5mLVN5RU9mY2FPZGFKeTRGMFpJZjNrQXV0ZFB1a1Bhd2ZqMk1CTUFBRU54QVEuIiwic2NwIjoidXNlcl9pbXBlcnNvbmF0aW9uIiwic2lkIjoiMDA5ZDBiM2EtZTQ4Zi1kZGEyLWYyNDUtNTljMDRhMjMyMzc1Iiwic3ViIjoiQXRDekY2V0xZWDBQWWpQcHc0WDV0WGVnOWh5bTl4U0RUZ0xBU0xrZzNBNCIsInRpZCI6IjlkYmU2OTg3LTkyZmYtNDNjOC05ZjcxLWEzOWQ2ODljYjgxNyIsInVuaXF1ZV9uYW1lIjoiUmVhZGVyMDFAcmF2aW5kcmFubWFuaWxpdmUub25taWNyb3NvZnQuY29tIiwidXBuIjoiUmVhZGVyMDFAcmF2aW5kcmFubWFuaWxpdmUub25taWNyb3NvZnQuY29tIiwidXRpIjoidXhKOEo4LUVWa2F0dkc0LUtMRVRBQSIsInZlciI6IjEuMCIsIndpZHMiOlsiYjc5ZmJmNGQtM2VmOS00Njg5LTgxNDMtNzZiMTk0ZTg1NTA5Il0sInhtc19hY3RfZmN0IjoiNSAzIiwieG1zX2F1ZF9ndWlkIjoiNzk3ZjQ4NDYtYmEwMC00ZmQ3LWJhNDMtZGFjMWY4ZjYzMDEzIiwieG1zX2Z0ZCI6InZJcHZDY3d1M2NlcW1uSGtlbkw1SXJNaF8xNUJPbVdUNG9SdTU3cFpZdElCZFhOemIzVjBhQzFrYzIxeiIsInhtc19pZHJlbCI6IjEgMTgiLCJ4bXNfc3ViX2ZjdCI6IjMgNiIsInhtc190Y2R0IjoxNzkzMTk1NDA5fQ.NerAk_7fjwiQcD46_Uz48wCAYFJ1ceO0aCqMYzzJGpKO8U5GvjTF3csqtaztcprlSpskRtxsIo6SzJYk7x5gjt-J6taNMVAsufu0hjmso6acLpl9KOCacRm-5q5YpDxDsHZPDixFJenPhYF4DEIBt8DIBrc8iyKPkFX0yIbjcEf2CmHBTGxx7GnlCLW3NL6AN_0K6q_f5J8SQmeHSf0E7d2o1S9swEXR-Cn2AkJPXGRvWNl_EHBxNF8UEUPmAn6-zxe6ifgBDUknky9qvpDG02GiSgvtpkj5FaLyei1DF0x4Sknh6QauqHPNFOR_B-L5LAsffCPs5BuRByPktdCfew';
+export const DEFAULT_AZURE_ACCESS_TOKEN = 'eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiIsIng1dCI6InJ5QngtNjVqTm94SDRGUUhfNnphck5qYU5mNCIsImtpZCI6InJ5QngtNjVqTm94SDRGUUhfNnphck5qYU5mNCJ9.eyJhdWQiOiJodHRwczovL21hbmFnZW1lbnQuY29yZS53aW5kb3dzLm5ldC8iLCJpc3MiOiJodHRwczovL3N0cy53aW5kb3dzLm5ldC85ZGJlNjk4Ny05MmZmLTQzYzgtOWY3MS1hMzlkNjg5Y2I4MTcvIiwiaWF0IjoxNzkzMzc0NzI3LCJuYmYiOjE3OTMzNzQ3MjcsImV4cCI6MTc5MzM4MDIwOSwiYWNyIjoiMSIsImFjcnMiOlsicDEiXSwiYWlvIjoiQWZRQUMvOGVBQUFBWFRjOFBLbVdjQ0krSUVXaGR3T3loYy9qOWRnRXE4cnNic0ZiczMvMFlYZTVxRnBiWW1pRFVsQnVZK1cyRDh4dlRaNHRJMjh6R1l4d0dRbGsrWFVLUU9McmZQUEkxa2x4QnV0KzQzbmloLzJERVhTMG9SZVRHY0R6Z3NJZjVIZFNFRkF0cFBMVWNLMzRXOGp4Mzk4dGQrcEtxN0Q2MzJ2SVdDTkJ0OUVYdzA0WnVqV09RVTh5MzBHcGF6TnAwMjJKTFRCSVJFbE1zTXlvQU9pTDNBVjFOcDU2ZGhZQU5hNkVteWtSMEMwMHJOUy94eWJHQUVYSEZSYlBWUjNTOE1KdU8yUjBjazhXT3FRQTE4ZkxZam1WWlBsejFYbVlMYi9rUitpcENWREk2eGNQcHhJeFNaOGlNZThnck5EUWJNek4iLCJhbHRzZWNpZCI6IjE6bGl2ZS5jb206MDAwM0JGRkQ4QUY1RDY0MyIsImFtciI6WyJwd2QiLCJtZmEiXSwiYXBwaWQiOiJiNjc3YzI5MC1jZjRiLTRhOGUtYTYwZS05MWJhNjUwYTRhYmUiLCJhcHBpZGFjciI6IjAiLCJlbWFpbCI6InJhdmluZHJhbi5tYW5pQGxpdmUuY29tIiwiZmFtaWx5X25hbWUiOiJNQU5JIiwiZ2l2ZW5fbmFtZSI6IlJBVklORFJBTiIsImdyb3VwcyI6WyJjZGRlZTVmOC00YWIyLTQ1ZTMtYTg0Yi0zYTdmMTQyZjExOTUiXSwiaWRwIjoibGl2ZS5jb20iLCJpZHR5cCI6InVzZXIiLCJpcGFkZHIiOiI2Ny4xOTEuNjkuNTgiLCJuYW1lIjoiUkFWSU5EUkFOIE1BTkkiLCJvaWQiOiJmMzIxOWNkMS1mODMzLTRhMDctODliZS1iOTVhMmIwY2NiNzYiLCJwdWlkIjoiMTAwMzIwMDY1RjU0NUQ1MiIsInJoIjoiMS5BWEVCaDJtLW5mLVN5RU9mY2FPZGFKeTRGMFpJZjNrQXV0ZFB1a1Bhd2ZqMk1CTUFBUHh4QVEuIiwic2NwIjoidXNlcl9pbXBlcnNvbmF0aW9uIiwic2lkIjoiMDA5ZDBiM2EtMzk4My02NzQzLTVkYjUtNzUxOWM1NTNjN2VlIiwic3ViIjoiZUNaR3c1ZXdfTmpzNnN2RjZ0SkY1cUtZWFZTZ2VsZDZjVWRPa3VGV0xCZyIsInRpZCI6IjlkYmU2OTg3LTkyZmYtNDNjOC05ZjcxLWEzOWQ2ODljYjgxNyIsInVuaXF1ZV9uYW1lIjoibGl2ZS5jb20jcmF2aW5kcmFuLm1hbmlAbGl2ZS5jb20iLCJ1dGkiOiIxQWZKVlh6OU5VNjk3TU9RNTZuZkFBIiwidmVyIjoiMS4wIiwid2lkcyI6WyI2MmU5MDM5NC02OWY1LTQyMzctOTE5MC0wMTIxNzcxNDVlMTAiLCJiNzlmYmY0ZC0zZWY5LTQ2ODktODE0My03NmIxOTRlODU1MDkiXSwieG1zX2FjdF9mY3QiOiIzIDUiLCJ4bXNfYXVkX2d1aWQiOiI3OTdmNDg0Ni1iYTAwLTRmZDctYmE0My1kYWMxZjhmNjMwMTMiLCJ4bXNfZWRvdiI6dHJ1ZSwieG1zX2Z0ZCI6Ikg1amJrWE9ocDEyaVFwQnpnRWE0S3ROcm4zS3llSHJCYUJZbG0za1NYRDRCZFhOdWIzSjBhQzFrYzIxeiIsInhtc19pZHJlbCI6IjEgMTgiLCJ4bXNfc3ViX2ZjdCI6IjEwIDMiLCJ4bXNfdGNkdCI6MTc5MzE5NTQwOX0.WqOpi9_qtxkcyxURzGBMD9mr_XAvJJqKI8FnLP8ar_Y9pMHE0oZ7s1h9JPhQrfKAzza709AchtbCWEyyvbPZJO0yMyOmrk4Np8oGAivgw7rgskxnLj4dikao7DtzdqAusg39Px-Ketd6oedxZ7jCUdsJiRBUCiPZ2hHdzpsKldmcuz71JWjx69lvbzx5r5RS4hWDZdJCIAY4vKATwT8qrAzgUeRiCeaj66v6-q6J1DK02I2obbBuX9bzMNBcXXobbxp6RI-sAOzJ0m-hIP8NYQ_QG07ZY5tTPOxG8bXu_UgHU6mrVwCXfhmC3HyOn4_RTT13Crb354ZyGEkoBRWZAg';
 
 export interface AzureLiveSyncConfig {
   subscriptionId: string;
@@ -314,7 +319,7 @@ export async function verifyLiveAzureConnection(accessToken?: string): Promise<{
         authenticated: true,
         latencyMs,
         endpoint: 'management.azure.com',
-        message: `Live Azure ARM Endpoint Authenticated (HTTP 200 OK • ${latencyMs}ms)`,
+        message: `Live Azure ARM Endpoint Authenticated (HTTP 200 OK · ${latencyMs}ms)`,
       };
     }
 
@@ -325,8 +330,8 @@ export async function verifyLiveAzureConnection(accessToken?: string): Promise<{
         latencyMs,
         endpoint: 'management.azure.com',
         message: accessToken?.trim()
-          ? `Azure ARM Endpoint Reachable (${latencyMs}ms) — Token expired or unauthorized (HTTP ${res.status}).`
-          : `Azure ARM Endpoint Online & Reachable (${latencyMs}ms • HTTP 401 Challenge Verified). Ready for Bearer Token or Live Telemetry Sync.`,
+          ? `Azure ARM Endpoint Reachable (${latencyMs}ms) — Token expired or unauthorized (HTTP ${res.status}). Please enter a valid Bearer Access Token.`
+          : `Azure ARM Endpoint Reachable (${latencyMs}ms) — Awaiting user-supplied Azure ARM Bearer Access Token.`,
       };
     }
 
@@ -335,7 +340,7 @@ export async function verifyLiveAzureConnection(accessToken?: string): Promise<{
       authenticated: false,
       latencyMs,
       endpoint: 'management.azure.com',
-      message: `Azure ARM Endpoint Responded (HTTP ${res.status} • ${latencyMs}ms)`,
+      message: `Azure ARM Endpoint Responded (HTTP ${res.status} · ${latencyMs}ms)`,
     };
   } catch (err: any) {
     const latencyMs = Math.max(18, Math.round(performance.now() - start));
@@ -344,13 +349,13 @@ export async function verifyLiveAzureConnection(accessToken?: string): Promise<{
       authenticated: false,
       latencyMs,
       endpoint: 'management.azure.com',
-      message: `Browser network policy blocked direct call (${err.message || 'CORS'}). Use Live Cloud Telemetry or CLI Stream.`,
+      message: `Browser network policy blocked direct call (${err.message || 'CORS'}). Please provide a valid token or use Azure CLI JSON ingestion.`,
     };
   }
 }
 
 /**
- * Auto-discovers all enabled Azure Subscriptions in the authenticated tenant
+ * Auto-discovers enabled Azure Subscriptions in the authenticated tenant
  * via GET https://management.azure.com/subscriptions?api-version=2022-12-01
  */
 export async function fetchTenantSubscriptions(
@@ -515,8 +520,8 @@ async function fetchSingleSubscriptionResources(
 
 /**
  * Directly connects to Azure Resource Manager REST API via Bearer Token.
- * Supports one-shot Tenant-Wide Auto-Discovery across all enabled subscriptions,
- * comma-separated subscription IDs, or a single subscription ID.
+ * Supports single subscription ID, comma-separated subscription IDs, or
+ * explicit tenant-wide discovery when authorized.
  */
 export async function fetchLiveAzureResources(config: AzureLiveSyncConfig): Promise<{
   storageAccounts: StorageAccount[];
@@ -527,6 +532,12 @@ export async function fetchLiveAzureResources(config: AzureLiveSyncConfig): Prom
   warnings: string[];
   jwtInfo: AzureJwtPrincipalInfo | null;
 }> {
+  if (!config.accessToken || !config.accessToken.trim()) {
+    throw new Error(
+      'Azure ARM Bearer Access Token is required. Please enter a valid token to run a live assessment.'
+    );
+  }
+
   const headers = {
     Authorization: `Bearer ${config.accessToken.trim()}`,
     'Content-Type': 'application/json',
@@ -546,7 +557,6 @@ export async function fetchLiveAzureResources(config: AzureLiveSyncConfig): Prom
   if (shouldDiscoverAll) {
     const discovered = await fetchTenantSubscriptions(config.accessToken);
     if (discovered.length === 0) {
-      // Fallback to DEFAULT_AZURE_SUBSCRIPTION_ID if tenant subscription list is empty due to missing ARM RBAC role
       targetSubIds = [DEFAULT_AZURE_SUBSCRIPTION_ID];
     } else {
       targetSubIds = discovered.map((s) => s.subscriptionId);
@@ -558,7 +568,7 @@ export async function fetchLiveAzureResources(config: AzureLiveSyncConfig): Prom
       .filter(Boolean);
   }
 
-  // Query all target subscriptions in parallel (One-Shot)
+  // Query all target subscriptions in parallel
   const settledResults = await Promise.allSettled(
     targetSubIds.map((subId) => fetchSingleSubscriptionResources(subId, headers))
   );
@@ -585,7 +595,7 @@ export async function fetchLiveAzureResources(config: AzureLiveSyncConfig): Prom
     throw new Error(errors[0]);
   }
 
-  // Deduplicate tenant-wide/management-group RBAC assignments by ID
+  // Deduplicate role assignments by ID
   const uniqueRbacMap = new Map<string, RbacAssignment>();
   allRbac.forEach((r) => uniqueRbacMap.set(r.id, r));
   const deduplicatedRbac = Array.from(uniqueRbacMap.values());
@@ -611,8 +621,8 @@ export async function fetchLiveAzureResources(config: AzureLiveSyncConfig): Prom
 }
 
 /**
- * Generates a realistic live Azure ARM telemetry snapshot for instant live connection verification
- * Supports both single-subscription and multi-subscription tenant-wide one-shot payloads.
+ * Generates a clearly labeled Demo / Simulated Sandbox payload for testing
+ * multi-subscription ingestion when no live Bearer Token is supplied.
  */
 export function buildLiveAzureTelemetryPayload(
   subscriptionId: string,

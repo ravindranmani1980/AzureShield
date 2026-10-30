@@ -3,13 +3,46 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { jsPDF } from 'jspdf';
+import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { AuditMetrics, Finding } from '../types/security';
+import {
+  AuditMetrics,
+  Finding,
+  RbacAssignment,
+  StorageAccount,
+} from '../types/security';
+
+export interface PdfGenerationOptions {
+  isDemoData?: boolean;
+  redactIdentifiers?: boolean;
+  collectionSource?: string;
+  lastCollectedAt?: string;
+}
 
 /**
- * Creates high-resolution chart images on an off-screen HTML5 canvas
- * to embed directly into the PDF report as visual aids.
+ * Redacts subscription GUIDs, email addresses, and resource names when requested (Recommendation #15).
+ */
+export function maskSensitiveIdentifier(
+  value: string,
+  shouldRedact?: boolean
+): string {
+  if (!shouldRedact || !value) return value;
+  // Redact UUIDs / Subscription IDs
+  let masked = value.replace(
+    /[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}/g,
+    (match) => `${match.slice(0, 4)}-****-****-****-${match.slice(-4)}`
+  );
+  // Redact email user parts
+  masked = masked.replace(
+    /([a-zA-Z0-9._%+-]+)@([a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/g,
+    (_, user, domain) => `${user.slice(0, 2)}***@${domain}`
+  );
+  return masked;
+}
+
+/**
+ * Renders crisp HTML5 Canvas charts and returns base64 PNG Data URLs
+ * for embedding into both the PDF report and the interactive PDF preview modal.
  */
 export function generateVisualAidsCanvas(
   metrics: AuditMetrics,
@@ -18,180 +51,138 @@ export function generateVisualAidsCanvas(
   severityChartDataUrl: string;
   categoryChartDataUrl: string;
 } {
-  // 1. Severity Distribution Donut / Bar Chart
+  // 1. Severity Distribution Horizontal Bar Chart
   const sevCanvas = document.createElement('canvas');
-  sevCanvas.width = 700;
-  sevCanvas.height = 340;
-  const ctx = sevCanvas.getContext('2d');
+  sevCanvas.width = 640;
+  sevCanvas.height = 300;
+  const ctx = sevCanvas.getContext('2d')!;
 
-  if (ctx) {
-    ctx.fillStyle = '#FFFFFF';
-    ctx.fillRect(0, 0, sevCanvas.width, sevCanvas.height);
+  ctx.fillStyle = '#0f172a';
+  ctx.fillRect(0, 0, sevCanvas.width, sevCanvas.height);
 
-    // Title
-    ctx.fillStyle = '#0F172A';
-    ctx.font = 'bold 20px sans-serif';
-    ctx.fillText('Finding Severity Distribution', 30, 36);
+  ctx.strokeStyle = '#1e293b';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(1, 1, sevCanvas.width - 2, sevCanvas.height - 2);
 
-    const data = [
-      { label: 'Critical', count: metrics.criticalCount, color: '#DC2626' },
-      { label: 'High', count: metrics.highCount, color: '#EA580C' },
-      { label: 'Medium', count: metrics.mediumCount, color: '#D97706' },
-      { label: 'Low', count: metrics.lowCount, color: '#2563EB' },
-    ];
+  ctx.fillStyle = '#f8fafc';
+  ctx.font = 'bold 18px sans-serif';
+  ctx.fillText('FINDINGS BY SEVERITY DISTRIBUTION', 28, 38);
 
-    const total = Math.max(1, metrics.totalFindings);
-    const centerX = 160;
-    const centerY = 190;
-    const outerRadius = 110;
-    const innerRadius = 65;
+  ctx.fillStyle = '#94a3b8';
+  ctx.font = '12px sans-serif';
+  ctx.fillText('Active security loopholes detected across Storage & RBAC', 28, 58);
 
-    let startAngle = -0.5 * Math.PI;
+  const items = [
+    { label: 'CRITICAL', count: metrics.criticalCount, color: '#ef4444' },
+    { label: 'HIGH', count: metrics.highCount, color: '#f97316' },
+    { label: 'MEDIUM', count: metrics.mediumCount, color: '#eab308' },
+    { label: 'LOW', count: metrics.lowCount, color: '#3b82f6' },
+  ];
 
-    if (metrics.totalFindings === 0) {
-      // Draw 100% clean green circle
-      ctx.beginPath();
-      ctx.arc(centerX, centerY, outerRadius, 0, 2 * Math.PI);
-      ctx.fillStyle = '#10B981';
-      ctx.fill();
+  const maxVal = Math.max(...items.map((i) => i.count), 1);
 
-      ctx.beginPath();
-      ctx.arc(centerX, centerY, innerRadius, 0, 2 * Math.PI);
-      ctx.fillStyle = '#FFFFFF';
-      ctx.fill();
+  items.forEach((item, idx) => {
+    const y = 85 + idx * 48;
 
-      ctx.fillStyle = '#0F172A';
-      ctx.font = 'bold 16px sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillText('CLEAN', centerX, centerY + 6);
-    } else {
-      data.forEach((item) => {
-        if (item.count > 0) {
-          const sliceAngle = (item.count / total) * 2 * Math.PI;
-          ctx.beginPath();
-          ctx.arc(centerX, centerY, outerRadius, startAngle, startAngle + sliceAngle);
-          ctx.arc(centerX, centerY, innerRadius, startAngle + sliceAngle, startAngle, true);
-          ctx.closePath();
-          ctx.fillStyle = item.color;
-          ctx.fill();
-          startAngle += sliceAngle;
-        }
-      });
+    ctx.fillStyle = '#cbd5e1';
+    ctx.font = 'bold 13px monospace';
+    ctx.fillText(item.label, 28, y + 20);
 
-      // Center score
-      ctx.textAlign = 'center';
-      ctx.fillStyle = '#0F172A';
-      ctx.font = 'bold 26px sans-serif';
-      ctx.fillText(`${metrics.postureScore}`, centerX, centerY + 4);
-      ctx.fillStyle = '#64748B';
-      ctx.font = '12px sans-serif';
-      ctx.fillText('/ 100 Posture', centerX, centerY + 22);
-    }
+    ctx.fillStyle = '#1e293b';
+    ctx.fillRect(130, y, 420, 28);
 
-    // Legend & breakdown table on right
-    ctx.textAlign = 'left';
-    let legendY = 95;
-    data.forEach((item) => {
-      // Swatch
-      ctx.fillStyle = item.color;
-      ctx.beginPath();
-      ctx.roundRect ? ctx.roundRect(340, legendY - 14, 18, 18, 4) : ctx.fillRect(340, legendY - 14, 18, 18);
-      ctx.fill();
+    const barWidth = Math.max(
+      item.count > 0 ? 18 : 4,
+      Math.round((item.count / maxVal) * 420)
+    );
+    ctx.fillStyle = item.color;
+    ctx.fillRect(130, y, barWidth, 28);
 
-      // Label & Count
-      ctx.fillStyle = '#1E293B';
-      ctx.font = 'bold 16px sans-serif';
-      ctx.fillText(item.label, 375, legendY);
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 15px monospace';
+    ctx.fillText(String(item.count), 565, y + 20);
+  });
 
-      const percent = total > 0 ? Math.round((item.count / total) * 100) : 0;
-      ctx.fillStyle = '#475569';
-      ctx.font = '14px sans-serif';
-      ctx.fillText(`${item.count} issues (${percent}%)`, 500, legendY);
-
-      legendY += 50;
-    });
-  }
-
-  // 2. Misconfiguration Category & Frequency Bar Chart
+  // 2. Category Breakdown & Selected Control Pass Rate Chart
   const catCanvas = document.createElement('canvas');
-  catCanvas.width = 700;
-  catCanvas.height = 340;
-  const cctx = catCanvas.getContext('2d');
+  catCanvas.width = 640;
+  catCanvas.height = 300;
+  const cctx = catCanvas.getContext('2d')!;
 
-  if (cctx) {
-    cctx.fillStyle = '#FFFFFF';
-    cctx.fillRect(0, 0, catCanvas.width, catCanvas.height);
+  cctx.fillStyle = '#0f172a';
+  cctx.fillRect(0, 0, catCanvas.width, catCanvas.height);
 
-    // Title
-    cctx.fillStyle = '#0F172A';
-    cctx.font = 'bold 20px sans-serif';
-    cctx.fillText('Misconfigurations by Domain & Frequency', 30, 36);
+  cctx.strokeStyle = '#1e293b';
+  cctx.lineWidth = 2;
+  cctx.strokeRect(1, 1, catCanvas.width - 2, catCanvas.height - 2);
 
-    const categories = [
-      {
-        name: 'Storage Accounts & Blob Containers',
-        count: findings.filter((f) => f.category === 'storage').length,
-        color: '#0284C7',
-      },
-      {
-        name: 'RBAC & Overly Permissive Roles',
-        count: findings.filter((f) => f.category === 'rbac').length,
-        color: '#7C3AED',
-      },
-      {
-        name: 'Privilege Escalation Risks',
-        count: findings.filter((f) => f.category === 'privilege_escalation').length,
-        color: '#DC2626',
-      },
-      {
-        name: 'Network Perimeter & Firewalls',
-        count: findings.filter((f) => f.category === 'network').length,
-        color: '#F59E0B',
-      },
-      {
-        name: 'Encryption & Deprecated TLS',
-        count: findings.filter((f) => f.category === 'encryption').length,
-        color: '#0D9488',
-      },
-    ];
+  cctx.fillStyle = '#f8fafc';
+  cctx.font = 'bold 18px sans-serif';
+  cctx.fillText('LOOPHOLE DOMAIN & SELECTED CHECK PASS RATE', 28, 38);
 
-    const maxCount = Math.max(1, ...categories.map((c) => c.count));
-    const startY = 75;
-    const barHeight = 26;
-    const maxBarWidth = 350;
+  cctx.fillStyle = '#94a3b8';
+  cctx.font = '12px sans-serif';
+  cctx.fillText(
+    'Informational cross-reference to 18 selected controls (not formal certification)',
+    28,
+    58
+  );
 
-    categories.forEach((cat, idx) => {
-      const y = startY + idx * 50;
+  const storageFindings = findings.filter((f) => f.category === 'storage').length;
+  const rbacFindings = findings.filter((f) => f.category === 'rbac').length;
+  const escalationFindings = findings.filter(
+    (f) => f.category === 'privilege_escalation'
+  ).length;
 
-      // Label
-      cctx.fillStyle = '#1E293B';
-      cctx.font = '13px sans-serif';
-      cctx.textAlign = 'left';
-      cctx.fillText(cat.name, 30, y + 17);
+  const domainBars = [
+    {
+      label: 'Storage Exposure',
+      val: storageFindings,
+      max: Math.max(findings.length, 1),
+      color: '#06b6d4',
+      suffix: ' findings',
+    },
+    {
+      label: 'RBAC Over-Privilege',
+      val: rbacFindings,
+      max: Math.max(findings.length, 1),
+      color: '#f59e0b',
+      suffix: ' findings',
+    },
+    {
+      label: 'Priv-Escalation Paths',
+      val: escalationFindings,
+      max: Math.max(findings.length, 1),
+      color: '#a855f7',
+      suffix: ' paths',
+    },
+    {
+      label: 'CIS Selected Checks',
+      val: metrics.complianceScores.cisAzure,
+      max: 100,
+      color: '#10b981',
+      suffix: '% pass',
+    },
+  ];
 
-      // Bar track
-      const barX = 240;
-      cctx.fillStyle = '#F1F5F9';
-      cctx.beginPath();
-      cctx.roundRect ? cctx.roundRect(barX, y, maxBarWidth, barHeight, 6) : cctx.fillRect(barX, y, maxBarWidth, barHeight);
-      cctx.fill();
+  domainBars.forEach((bar, idx) => {
+    const y = 85 + idx * 48;
 
-      // Active bar
-      const barWidth = Math.max(12, Math.round((cat.count / maxCount) * maxBarWidth));
-      if (cat.count > 0) {
-        cctx.fillStyle = cat.color;
-        cctx.beginPath();
-        cctx.roundRect ? cctx.roundRect(barX, y, barWidth, barHeight, 6) : cctx.fillRect(barX, y, barWidth, barHeight);
-        cctx.fill();
-      }
+    cctx.fillStyle = '#cbd5e1';
+    cctx.font = 'bold 12px monospace';
+    cctx.fillText(bar.label, 28, y + 20);
 
-      // Count badge
-      cctx.fillStyle = '#0F172A';
-      cctx.font = 'bold 14px sans-serif';
-      cctx.textAlign = 'left';
-      cctx.fillText(`${cat.count}`, barX + maxBarWidth + 18, y + 18);
-    });
-  }
+    cctx.fillStyle = '#1e293b';
+    cctx.fillRect(195, y, 340, 28);
+
+    const fillW = Math.max(6, Math.round((bar.val / bar.max) * 340));
+    cctx.fillStyle = bar.color;
+    cctx.fillRect(195, y, fillW, 28);
+
+    cctx.fillStyle = '#f8fafc';
+    cctx.font = 'bold 13px monospace';
+    cctx.fillText(`${bar.val}${bar.suffix}`, 545, y + 20);
+  });
 
   return {
     severityChartDataUrl: sevCanvas.toDataURL('image/png'),
@@ -199,338 +190,397 @@ export function generateVisualAidsCanvas(
   };
 }
 
-export interface PdfReportOptions {
-  subscriptionName?: string;
-  subscriptionId?: string;
-  auditorName?: string;
-  website?: string;
-  notes?: string;
-}
-
-export function generateAzureSecurityPdfReport(
-  findings: Finding[],
+/**
+ * Generates and downloads a multi-page enterprise PDF security audit report
+ * incorporating Recommendations #3, #5, #8, #9, #13, #14, and #15.
+ */
+export function downloadSecurityAuditPdf(
   metrics: AuditMetrics,
-  options: PdfReportOptions = {}
-): jsPDF {
+  findings: Finding[],
+  storageAccounts: StorageAccount[],
+  roleAssignments: RbacAssignment[],
+  presetTitle: string,
+  options: PdfGenerationOptions = {}
+): void {
+  const isDemo = options.isDemoData ?? true;
+  const redact = options.redactIdentifiers ?? false;
   const doc = new jsPDF({
     orientation: 'portrait',
     unit: 'mm',
     format: 'a4',
   });
 
-  const authorName = options.auditorName || 'Mani Ravindran';
-  const website = options.website || 'ravindran.in';
-
-  doc.setProperties({
-    title: 'Maniq Shield Security Audit Report',
-    author: `${authorName} (${website})`,
-    subject: 'Azure Storage & RBAC Loophole Assessment with Remediation Runbooks',
-    keywords: 'Maniq Shield, Azure, Storage, RBAC, IAM, CSPM, CIS Benchmark, ravindran.in',
-    creator: `${authorName} - https://${website}`,
-  });
+  const { severityChartDataUrl, categoryChartDataUrl } =
+    generateVisualAidsCanvas(metrics, findings);
 
   const pageWidth = doc.internal.pageSize.getWidth();
-  const pageHeight = doc.internal.pageSize.getHeight();
-  const auditDate = new Date().toLocaleString();
-  const subId = options.subscriptionId || 'c4b8e219-94fc-4809-b6bb-2a1e8a93ef01';
-  const subName = options.subscriptionName || 'Azure Production Workloads (East US)';
+  const timestamp = options.lastCollectedAt || new Date().toLocaleString();
 
-  // -------------------------------------------------------------
-  // PAGE 1: COVER & EXECUTIVE SUMMARY
-  // -------------------------------------------------------------
+  // Top Header Banner
+  doc.setFillColor(15, 23, 42);
+  doc.rect(0, 0, pageWidth, 44, 'F');
 
-  // Top Azure Blue Brand Header Bar
-  doc.setFillColor(0, 120, 212); // Azure Blue #0078D4
-  doc.rect(0, 0, pageWidth, 28, 'F');
+  doc.setTextColor(6, 182, 212);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(9);
+  doc.text(
+    isDemo
+      ? 'MANIQ SHIELD — DEMO DATA — NO LIVE ASSESSMENT (NON-CONFIDENTIAL SAMPLE)'
+      : 'MANIQ SHIELD — LIVE AZURE HEURISTIC ASSESSMENT REPORT (CONFIDENTIAL)',
+    14,
+    12
+  );
 
   doc.setTextColor(255, 255, 255);
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(18);
-  doc.text('Maniq Shield — Cloud Security Loophole Assessment', 14, 13);
+  doc.setFontSize(17);
+  doc.text('Azure Storage & RBAC Loophole Assessment', 14, 21);
 
-  doc.setFontSize(9);
-  doc.setFont('helvetica', 'normal');
-  doc.text(`Confidential CSPM Audit Report • Author: ${authorName} • https://${website}`, 14, 21);
-
-  // Metadata block
-  doc.setTextColor(15, 23, 42);
-  doc.setFontSize(10);
-  doc.setFont('helvetica', 'bold');
-  doc.text('Assessment Scope & Auditor Information', 14, 38);
-
+  doc.setTextColor(148, 163, 184);
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(8.5);
+  doc.text(
+    `Source: ${maskSensitiveIdentifier(options.collectionSource || presetTitle, redact)}  |  Timestamp: ${timestamp}`,
+    14,
+    29
+  );
+  // Recommendation #8: Use Tool Author instead of Lead Auditor and state Human Review status
+  doc.text(
+    `Tool Author: Mani Ravindran (https://ravindran.in)  |  Audit Type: Automated Heuristic Scan (Human Review: Not Performed)`,
+    14,
+    35
+  );
+  doc.text(
+    `Classification: ${
+      isDemo
+        ? 'DEMO SAMPLE — NO LIVE TENANT ASSESSMENT PERFORMED'
+        : redact
+        ? 'CONFIDENTIAL (IDENTIFIERS REDACTED) — RESTRICT TO AUTHORIZED OWNERS'
+        : 'CONFIDENTIAL — CONTAINS LIVE TENANT METADATA (HANDLE PER ORG POLICY)'
+    }`,
+    14,
+    41
+  );
+
+  // Executive Summary Scorecards
+  doc.setFillColor(241, 245, 249);
+  doc.roundedRect(14, 49, 58, 24, 2, 2, 'F');
+  doc.roundedRect(76, 49, 58, 24, 2, 2, 'F');
+  doc.roundedRect(138, 49, 58, 24, 2, 2, 'F');
+
   doc.setTextColor(71, 85, 105);
-  doc.text(`Subscription: ${subName} (${subId})`, 14, 44);
-  doc.text(`Lead Auditor / Author: ${authorName} • Website: https://${website}`, 14, 49);
-  doc.text(`Audit Timestamp: ${auditDate} • Frameworks: CIS Azure 2.0, MCSB, NIST 800-53`, 14, 54);
-
-  // Posture Score & Metrics Cards
-  const scoreBoxY = 60;
-  
-  // Card 1: Security Posture Score
-  doc.setFillColor(248, 250, 252);
-  doc.setDrawColor(226, 232, 240);
-  doc.roundedRect(14, scoreBoxY, 55, 32, 3, 3, 'FD');
-
   doc.setFontSize(8);
-  doc.setTextColor(100, 116, 139);
-  doc.text('SECURITY POSTURE SCORE', 18, scoreBoxY + 7);
-
-  doc.setFontSize(20);
   doc.setFont('helvetica', 'bold');
-  if (metrics.postureScore >= 80) doc.setTextColor(16, 185, 129);
-  else if (metrics.postureScore >= 60) doc.setTextColor(245, 158, 11);
-  else doc.setTextColor(220, 38, 38);
-  doc.text(`${metrics.postureScore}/100`, 18, scoreBoxY + 18);
+  doc.text('SELECTED CHECKS SCORE', 18, 56);
+  doc.text('CRITICAL LOOPHOLES', 80, 56);
+  doc.text('EXPOSED CONTAINERS / ESCALATION', 142, 56);
 
-  doc.setFontSize(9);
-  doc.setTextColor(71, 85, 105);
-  doc.text(`Risk Grade: ${metrics.riskGrade}`, 18, scoreBoxY + 26);
+  doc.setFontSize(15);
+  doc.setTextColor(
+    metrics.postureScore >= 80 ? 16 : metrics.postureScore >= 60 ? 217 : 220,
+    metrics.postureScore >= 80 ? 185 : metrics.postureScore >= 60 ? 119 : 38,
+    metrics.postureScore >= 80 ? 129 : metrics.postureScore >= 60 ? 6 : 38
+  );
+  doc.text(
+    metrics.isEvaluationComplete === false
+      ? `N/A (Unknown)`
+      : `${metrics.postureScore}/100 (Grade ${metrics.riskGrade})`,
+    18,
+    67
+  );
 
-  // Card 2: Critical / High Loopholes
-  doc.setFillColor(248, 250, 252);
-  doc.roundedRect(74, scoreBoxY, 55, 32, 3, 3, 'FD');
-
-  doc.setFontSize(8);
-  doc.setFont('helvetica', 'normal');
-  doc.setTextColor(100, 116, 139);
-  doc.text('CRITICAL & HIGH DEFECTS', 78, scoreBoxY + 7);
-
-  doc.setFontSize(20);
-  doc.setFont('helvetica', 'bold');
   doc.setTextColor(220, 38, 38);
-  doc.text(`${metrics.criticalCount + metrics.highCount}`, 78, scoreBoxY + 18);
+  doc.text(`${metrics.criticalCount} Critical`, 80, 67);
 
-  doc.setFontSize(8.5);
-  doc.setTextColor(71, 85, 105);
-  doc.text(`${metrics.criticalCount} Critical | ${metrics.highCount} High`, 78, scoreBoxY + 26);
+  doc.setTextColor(124, 58, 237);
+  doc.text(
+    `${metrics.exposedContainerCount} Public / ${metrics.privilegeEscalationCount} PrivEsc`,
+    142,
+    67
+  );
 
-  // Card 3: Storage & RBAC Split
-  doc.setFillColor(248, 250, 252);
-  doc.roundedRect(134, scoreBoxY, 62, 32, 3, 3, 'FD');
-
-  doc.setFontSize(8);
-  doc.setFont('helvetica', 'normal');
-  doc.setTextColor(100, 116, 139);
-  doc.text('KEY ATTACK VECTORS', 138, scoreBoxY + 7);
-
-  doc.setFontSize(9);
-  doc.setFont('helvetica', 'bold');
+  // Visual Aids Section
   doc.setTextColor(15, 23, 42);
-  doc.text(`Exposed Blob Containers: ${metrics.exposedContainerCount || metrics.openBucketCount}`, 138, scoreBoxY + 16);
-  doc.text(`Privilege Escalations: ${metrics.privilegeEscalationCount}`, 138, scoreBoxY + 22);
-  doc.text(`Dormant RBAC Roles: ${metrics.inactiveRoleCount}`, 138, scoreBoxY + 28);
-
-  // Embed Visual Aids Charts
-  const visualAids = generateVisualAidsCanvas(metrics, findings);
-
   doc.setFontSize(11);
   doc.setFont('helvetica', 'bold');
-  doc.setTextColor(15, 23, 42);
-  doc.text('Executive Visual Analytics', 14, 102);
+  doc.text('1. Executive Visual Aids & Risk Telemetry', 14, 82);
 
-  // Embed Severity Chart (Left/Top)
-  doc.addImage(visualAids.severityChartDataUrl, 'PNG', 14, 106, 88, 43);
-  // Embed Category Chart (Right/Top)
-  doc.addImage(visualAids.categoryChartDataUrl, 'PNG', 106, 106, 90, 43);
+  doc.addImage(severityChartDataUrl, 'PNG', 14, 86, 88, 41);
+  doc.addImage(categoryChartDataUrl, 'PNG', 108, 86, 88, 41);
 
-  // Compliance Benchmark Scorecards
+  // Recommendation #3 & #9: Selected Control Cross-Reference Table (Passed / Failed / Unknown)
   doc.setFontSize(11);
   doc.setFont('helvetica', 'bold');
-  doc.setTextColor(15, 23, 42);
-  doc.text('Compliance Framework Alignment', 14, 158);
+  doc.text(
+    '2. Informational Control Cross-Reference (Selected Checks Only)',
+    14,
+    136
+  );
+
+  const cisChecks = metrics.frameworkChecks?.cisAzure || {
+    passed: 0,
+    failed: 0,
+    unknown: 7,
+    totalSelected: 7,
+    passRate: 0,
+  };
+  const mcsbChecks = metrics.frameworkChecks?.mcsb || {
+    passed: 0,
+    failed: 0,
+    unknown: 6,
+    totalSelected: 6,
+    passRate: 0,
+  };
+  const nistChecks = metrics.frameworkChecks?.nist || {
+    passed: 0,
+    failed: 0,
+    unknown: 5,
+    totalSelected: 5,
+    passRate: 0,
+  };
 
   autoTable(doc, {
-    startY: 162,
-    head: [['Framework', 'Standard Version', 'Passing Rate', 'Status']],
+    startY: 140,
+    head: [
+      [
+        'Reference Framework (Informational)',
+        'Selected Subset',
+        'Passed / Failed / Unknown',
+        'Subset Pass Rate',
+        'Evaluation State',
+      ],
+    ],
     body: [
-      ['CIS Microsoft Azure Foundations Benchmark', 'v2.0.0', `${metrics.complianceScores.cisAzure}%`, metrics.complianceScores.cisAzure >= 80 ? 'Compliant' : 'Needs Remediation'],
-      ['Microsoft Cloud Security Benchmark (MCSB)', 'v1.0', `${metrics.complianceScores.mcsb}%`, metrics.complianceScores.mcsb >= 80 ? 'Compliant' : 'Needs Remediation'],
-      ['NIST SP 800-53 Rev. 5 Access Control & Protection', 'Rev 5', `${metrics.complianceScores.nist}%`, metrics.complianceScores.nist >= 80 ? 'Compliant' : 'Action Required'],
+      [
+        'CIS Microsoft Azure Foundations v2.0 (Cross-Ref)',
+        `${cisChecks.totalSelected} Selected Checks`,
+        `${cisChecks.passed} Passed / ${cisChecks.failed} Failed / ${cisChecks.unknown} Unknown`,
+        `${cisChecks.passRate}%`,
+        cisChecks.unknown > 0
+          ? 'Incomplete Scope (Unknowns)'
+          : cisChecks.failed === 0
+          ? 'Selected Checks Passed'
+          : 'Selected Checks Failed',
+      ],
+      [
+        'Microsoft Cloud Security Benchmark v1.0 (Cross-Ref)',
+        `${mcsbChecks.totalSelected} Selected Checks`,
+        `${mcsbChecks.passed} Passed / ${mcsbChecks.failed} Failed / ${mcsbChecks.unknown} Unknown`,
+        `${mcsbChecks.passRate}%`,
+        mcsbChecks.unknown > 0
+          ? 'Incomplete Scope (Unknowns)'
+          : mcsbChecks.failed === 0
+          ? 'Selected Checks Passed'
+          : 'Selected Checks Failed',
+      ],
+      [
+        'NIST SP 800-53 Rev 5 (Selected AC/SC/IA Cross-Ref)',
+        `${nistChecks.totalSelected} Selected Checks`,
+        `${nistChecks.passed} Passed / ${nistChecks.failed} Failed / ${nistChecks.unknown} Unknown`,
+        `${nistChecks.passRate}%`,
+        nistChecks.unknown > 0
+          ? 'Incomplete Scope (Unknowns)'
+          : nistChecks.failed === 0
+          ? 'Selected Checks Passed'
+          : 'Selected Checks Failed',
+      ],
     ],
     theme: 'grid',
-    headStyles: { fillColor: [0, 120, 212], textColor: 255, fontSize: 8.5 },
-    styles: { fontSize: 8, cellPadding: 2.2 },
-    columnStyles: {
-      2: { fontStyle: 'bold', halign: 'center' },
-      3: { fontStyle: 'bold', halign: 'center' },
-    },
+    headStyles: { fillColor: [15, 23, 42], fontSize: 8 },
+    styles: { fontSize: 7.5 },
   });
 
-  // Executive Summary Narrative
-  const afterTableY = (doc as any).lastAutoTable?.finalY ? (doc as any).lastAutoTable.finalY + 8 : 195;
-  doc.setFontSize(10);
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(15, 23, 42);
-  doc.text('Executive Summary & Risk Assessment', 14, afterTableY);
-
+  // Scope, Exclusions & Non-Affiliation Disclaimer Box (Rec #3, #9, #13, #15)
+  const afterComplianceY = (doc as any).lastAutoTable.finalY + 5;
+  doc.setFontSize(7.5);
   doc.setFont('helvetica', 'normal');
-  doc.setFontSize(8);
-  doc.setTextColor(51, 65, 85);
-  const narrative = [
-    `This assessment identified ${metrics.totalFindings} security misconfiguration(s) across storage assets and role-based access control (RBAC).`,
-    `Specifically, ${metrics.exposedContainerCount || metrics.openBucketCount} storage asset(s) are actively configured with anonymous public access or lack network perimeter restrictions, creating exposure to unauthenticated data exfiltration.`,
-    `In the identity domain, ${metrics.rbacFindingCount + metrics.privilegeEscalationCount} finding(s) involve overly permissive role assignments, external guest privilege escalation, or inactive accounts.`,
-    `Immediate priority should be given to resolving CRITICAL findings using the attached remediation runbooks.`,
-  ];
-  doc.text(narrative, 14, afterTableY + 6, { maxWidth: pageWidth - 28, lineHeightFactor: 1.4 });
+  doc.setTextColor(71, 85, 105);
+  const disclaimerLines = doc.splitTextToSize(
+    'SCOPE, CALCULATION & INDEPENDENCE NOTICE: Scores reflect only the 18 automated heuristic checks evaluated on in-scope Storage Accounts and ARM Role Assignments (100 minus weighted deductions for active findings). This report does NOT assess overall organizational compliance and is NOT certified or endorsed by Microsoft, CIS, or NIST. Azure Storage encrypts all data at rest by default using Microsoft-Managed Keys (MMK). Execute all remediation commands in dry-run/staging first.',
+    182
+  );
+  doc.text(disclaimerLines, 14, afterComplianceY);
 
-  // -------------------------------------------------------------
-  // PAGE 2: INVENTORY TABLE OF FINDINGS
-  // -------------------------------------------------------------
-  doc.addPage();
-
-  // Page Header
-  doc.setFillColor(241, 245, 249);
-  doc.rect(0, 0, pageWidth, 16, 'F');
+  // Findings Summary Table
+  const findingsStartY = afterComplianceY + 15;
   doc.setTextColor(15, 23, 42);
   doc.setFontSize(11);
   doc.setFont('helvetica', 'bold');
-  doc.text('Findings Inventory Register (Storage & RBAC)', 14, 11);
-
-  const findingsTableRows = findings.map((f) => [
-    f.severity,
-    f.category.toUpperCase().replace('_', ' '),
-    f.resourceName,
-    f.title,
-    f.compliance.cisAzure ? `CIS ${f.compliance.cisAzure}` : 'MCSB',
-  ]);
+  doc.text(
+    `3. Detected Security Loopholes (${findings.length} Total)`,
+    14,
+    findingsStartY
+  );
 
   autoTable(doc, {
-    startY: 22,
-    head: [['Severity', 'Category', 'Target Resource', 'Finding Title', 'Benchmark']],
-    body: findingsTableRows,
+    startY: findingsStartY + 3,
+    head: [
+      [
+        'Severity',
+        'Domain / Classification',
+        'Target Resource',
+        'Finding Summary',
+        'Informational Ref',
+      ],
+    ],
+    body: findings.map((f) => [
+      f.severity,
+      f.findingType === 'guardrail_gap'
+        ? 'STORAGE (GUARDRAIL GAP)'
+        : f.findingType === 'confirmed_exposure'
+        ? 'STORAGE (CONFIRMED EXPOSURE)'
+        : f.category.toUpperCase().replace('_', ' '),
+      maskSensitiveIdentifier(f.resourceName, redact),
+      maskSensitiveIdentifier(f.title, redact),
+      f.compliance.cisAzure
+        ? `CIS ${f.compliance.cisAzure}`
+        : f.compliance.mcsb || 'NIST AC-6',
+    ]),
     theme: 'striped',
-    headStyles: { fillColor: [30, 41, 59], textColor: 255, fontSize: 8 },
+    headStyles: { fillColor: [15, 23, 42], fontSize: 8 },
     styles: { fontSize: 7.5, cellPadding: 2 },
     columnStyles: {
-      0: { fontStyle: 'bold', halign: 'center', cellWidth: 20 },
-      1: { cellWidth: 28 },
-      2: { cellWidth: 38 },
-      3: { cellWidth: 75 },
-      4: { halign: 'center', cellWidth: 20 },
-    },
-    didParseCell: (data) => {
-      if (data.column.index === 0 && data.section === 'body') {
-        const text = String(data.cell.raw);
-        if (text === 'CRITICAL') {
-          data.cell.styles.textColor = [220, 38, 38];
-        } else if (text === 'HIGH') {
-          data.cell.styles.textColor = [234, 88, 12];
-        } else if (text === 'MEDIUM') {
-          data.cell.styles.textColor = [217, 119, 6];
-        } else {
-          data.cell.styles.textColor = [37, 99, 235];
-        }
-      }
+      0: { fontStyle: 'bold', cellWidth: 20 },
+      1: { cellWidth: 34 },
+      2: { cellWidth: 36 },
+      3: { cellWidth: 68 },
+      4: { cellWidth: 24 },
     },
   });
 
-  // -------------------------------------------------------------
-  // PAGE 3+: ACTIONABLE REMEDIATION RUNBOOKS
-  // -------------------------------------------------------------
+  // Page 2+: Detailed Remediation Runbooks with Pre-Check & Rollback (Rec #14)
   doc.addPage();
 
-  doc.setFillColor(0, 120, 212);
-  doc.rect(0, 0, pageWidth, 16, 'F');
+  doc.setFillColor(15, 23, 42);
+  doc.rect(0, 0, pageWidth, 24, 'F');
   doc.setTextColor(255, 255, 255);
-  doc.setFontSize(11);
+  doc.setFontSize(13);
   doc.setFont('helvetica', 'bold');
-  doc.text('Detailed Actionable Remediation Runbooks', 14, 11);
+  doc.text(
+    '4. Step-by-Step Remediation Runbooks (Pre-Check, CLI & Rollback)',
+    14,
+    15
+  );
 
-  let curY = 24;
+  let currentY = 32;
 
   findings.forEach((finding, index) => {
-    // Check if we need a new page
-    if (curY > pageHeight - 65) {
+    if (currentY > 225) {
       doc.addPage();
-      curY = 20;
+      currentY = 20;
     }
 
-    // Header bar for each finding
-    const isCrit = finding.severity === 'CRITICAL';
-    const isHigh = finding.severity === 'HIGH';
+    doc.setFillColor(241, 245, 249);
+    doc.rect(14, currentY, 182, 9, 'F');
 
-    doc.setFillColor(isCrit ? 254 : isHigh ? 255 : 248, isCrit ? 242 : isHigh ? 247 : 250, isCrit ? 242 : isHigh ? 237 : 252);
-    doc.setDrawColor(isCrit ? 252 : isHigh ? 253 : 226, isCrit ? 165 : isHigh ? 186 : 232, isCrit ? 165 : isHigh ? 116 : 240);
-    doc.roundedRect(14, curY, pageWidth - 28, 10, 2, 2, 'FD');
-
-    // Severity tag
-    doc.setFontSize(8);
     doc.setFont('helvetica', 'bold');
-    doc.setTextColor(isCrit ? 220 : isHigh ? 234 : 217, isCrit ? 38 : isHigh ? 88 : 119, isCrit ? 38 : isHigh ? 12 : 6);
-    doc.text(`[${finding.severity}]`, 18, curY + 6.5);
-
-    // Title
-    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9.5);
     doc.setTextColor(15, 23, 42);
-    doc.text(`#${index + 1} ${finding.title}`, 38, curY + 6.5);
+    doc.text(
+      `${index + 1}. [${finding.severity}] ${maskSensitiveIdentifier(
+        finding.title,
+        redact
+      )} (${maskSensitiveIdentifier(finding.resourceName, redact)})`,
+      16,
+      currentY + 6
+    );
+    currentY += 13;
 
-    curY += 14;
-
-    // Resource & exploit scenario
     doc.setFont('helvetica', 'normal');
-    doc.setFontSize(7.5);
-    doc.setTextColor(71, 85, 105);
-    doc.text(`Resource: ${finding.resourceName} (${finding.resourceType}) | Category: ${finding.category.toUpperCase()}`, 16, curY);
-    curY += 5;
-
-    doc.setFont('helvetica', 'italic');
-    doc.setTextColor(100, 116, 139);
-    doc.text(`Threat Mechanics: ${finding.exploitScenario.substring(0, 140)}...`, 16, curY, { maxWidth: pageWidth - 32 });
-    curY += 7;
-
-    // Remediation Steps
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(8);
-    doc.setTextColor(15, 23, 42);
-    doc.text('Actionable Remediation:', 16, curY);
-    curY += 4.5;
-
-    // Azure CLI Command in Monospace Box
-    doc.setFillColor(15, 23, 42); // Dark terminal background
-    const cliHeight = 13;
-    doc.roundedRect(16, curY, pageWidth - 32, cliHeight, 2, 2, 'F');
-
-    doc.setTextColor(147, 197, 253); // Light blue terminal text
-    doc.setFont('courier', 'normal');
-    doc.setFontSize(7);
-    const cliLines = doc.splitTextToSize(finding.remediation.cliCommand, pageWidth - 38);
-    doc.text(cliLines.slice(0, 2), 20, curY + 5);
-
-    curY += cliHeight + 4;
-
-    // Portal Steps
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(7.5);
+    doc.setFontSize(8.5);
     doc.setTextColor(51, 65, 85);
-    const portalSummary = finding.remediation.portalSteps.slice(0, 2).join(' -> ');
-    doc.text(`Portal Walkthrough: ${portalSummary}`, 16, curY, { maxWidth: pageWidth - 32 });
-    curY += 6;
+    const descLines = doc.splitTextToSize(
+      `Technical Risk: ${maskSensitiveIdentifier(finding.description, redact)}`,
+      180
+    );
+    doc.text(descLines, 14, currentY);
+    currentY += descLines.length * 4.2 + 2;
 
-    // Impact
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(7);
-    doc.setTextColor(180, 83, 9);
-    doc.text(`Notice: ${finding.remediation.impactNotice}`, 16, curY, { maxWidth: pageWidth - 32 });
-    curY += 9;
+    if (finding.remediation.preCheckCommand) {
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(15, 118, 110);
+      doc.text('Pre-Change Verification (Read-Only):', 14, currentY);
+      currentY += 4;
+      doc.setFont('courier', 'normal');
+      doc.setFontSize(7.5);
+      const preLines = doc.splitTextToSize(
+        maskSensitiveIdentifier(
+          finding.remediation.preCheckCommand.replace(/\\\n/g, ' '),
+          redact
+        ),
+        178
+      );
+      doc.text(preLines, 16, currentY);
+      currentY += preLines.length * 3.8 + 2;
+    }
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8.5);
+    doc.setTextColor(15, 23, 42);
+    doc.text(
+      'Remediation CLI Command (Validate in Staging First):',
+      14,
+      currentY
+    );
+    currentY += 4;
+
+    doc.setFillColor(15, 23, 42);
+    const cliLines = doc.splitTextToSize(
+      maskSensitiveIdentifier(
+        finding.remediation.cliCommand.replace(/\\\n/g, ' '),
+        redact
+      ),
+      176
+    );
+    const cliBoxH = cliLines.length * 4.2 + 4;
+    doc.rect(14, currentY, 182, cliBoxH, 'F');
+    doc.setFont('courier', 'normal');
+    doc.setFontSize(7.5);
+    doc.setTextColor(56, 189, 248);
+    doc.text(cliLines, 17, currentY + 4);
+    currentY += cliBoxH + 3;
+
+    if (finding.remediation.rollbackCommand) {
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(8);
+      doc.setTextColor(180, 83, 9);
+      doc.text('Emergency Rollback Command:', 14, currentY);
+      currentY += 3.8;
+      doc.setFont('courier', 'normal');
+      doc.setFontSize(7.5);
+      const rbLines = doc.splitTextToSize(
+        maskSensitiveIdentifier(
+          finding.remediation.rollbackCommand.replace(/\\\n/g, ' '),
+          redact
+        ),
+        178
+      );
+      doc.text(rbLines, 16, currentY);
+      currentY += rbLines.length * 3.8 + 4;
+    } else {
+      currentY += 4;
+    }
   });
 
-  // Footer on all pages
+  // Stamp page numbers and Demo/Confidentiality classification on all pages
   const totalPages = doc.getNumberOfPages();
-  for (let i = 1; i <= totalPages; i++) {
-    doc.setPage(i);
+  for (let p = 1; p <= totalPages; p++) {
+    doc.setPage(p);
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(7.5);
     doc.setTextColor(148, 163, 184);
     doc.text(
-      `Maniq Shield Security Report • Author: ${authorName} (https://${website}) • Confidential • ${auditDate}`,
+      `${
+        isDemo
+          ? 'DEMO DATA — NO LIVE ASSESSMENT'
+          : 'CONFIDENTIAL — LIVE AZURE ASSESSMENT'
+      } · Tool Author: Mani Ravindran (ravindran.in) · Page ${p} of ${totalPages}`,
       14,
-      pageHeight - 6
+      290
     );
-    doc.text(`Page ${i} of ${totalPages}`, pageWidth - 28, pageHeight - 6);
   }
 
-  return doc;
+  const filePrefix = isDemo
+    ? 'Maniq-Shield-DEMO-Report'
+    : 'Maniq-Shield-Live-Assessment';
+  doc.save(`${filePrefix}-${new Date().toISOString().slice(0, 10)}.pdf`);
 }

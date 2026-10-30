@@ -6,1109 +6,570 @@
 import React, { useState, useMemo } from 'react';
 import {
   Search,
-  ChevronDown,
-  ChevronRight,
-  Download,
-  ArrowUpDown,
-  RotateCcw,
-  ExternalLink,
-  SlidersHorizontal,
+  Database,
+  Lock,
+  Unlock,
+  ShieldAlert,
+  ShieldCheck,
+  KeyRound,
+  FolderOpen,
+  Filter,
+  Wrench,
+  CheckCircle2,
+  Globe,
+  HardDrive,
 } from 'lucide-react';
-import { Finding, StorageAccount, StorageContainer } from '../types/security';
+import { StorageAccount } from '../types/security';
 
 interface StorageInventoryProps {
   storageAccounts: StorageAccount[];
-  findings: Finding[];
-  onSelectFinding: (findingId: string) => void;
-  onNavigateToAuditor?: () => void;
-  onSelectDataset?: (presetKey: string) => void;
+  onHardenAccount?: (accountId: string) => void;
+  isDemoData?: boolean;
 }
 
-type InventoryViewMode = 'unified' | 'accounts' | 'containers';
-type AccessFilter = 'all' | 'exposed' | 'private';
-type EncryptionFilter = 'all' | 'weak' | 'hardened';
-type SortField =
-  | 'accountName'
-  | 'containerName'
-  | 'location'
-  | 'publicAccess'
-  | 'encryption'
-  | 'blobCount'
-  | 'findings';
-
-interface FlattenedInventoryRow {
+interface InventoryRow {
   rowId: string;
-  rowType: 'container' | 'account_empty';
-  account: StorageAccount;
-  container: StorageContainer | null;
-  accountFindings: Finding[];
-  rowFindings: Finding[];
-  isPubliclyExposed: boolean;
-  hasWeakEncryption: boolean;
+  accountId: string;
+  accountName: string;
+  subscriptionId: string;
+  resourceGroup: string;
+  location: string;
+  sku: string;
+  kind: string;
+  containerName: string;
+  containerPublicAccess: 'Container' | 'Blob' | 'None';
+  effectiveAnonymousExposure: boolean;
+  isGuardrailGapOnly: boolean;
+  blobCount: number;
+  sizeGb: number;
+  hasSensitiveData: boolean;
+  immutabilityPolicy: boolean;
+  lastModified: string;
+  allowBlobPublicAccess: boolean;
+  allowSharedKeyAccess: boolean;
+  encryptionKeySource: 'Microsoft.Storage' | 'Microsoft.Keyvault';
+  minimumTlsVersion: 'TLS1_0' | 'TLS1_1' | 'TLS1_2';
+  supportsHttpsTrafficOnly: boolean;
+  defaultAction: 'Allow' | 'Deny';
+  publicNetworkAccess: 'Enabled' | 'Disabled';
+  isAccountHardened: boolean;
 }
 
 export const StorageInventory: React.FC<StorageInventoryProps> = ({
   storageAccounts,
-  findings,
-  onSelectFinding,
-  onNavigateToAuditor,
-  onSelectDataset,
+  onHardenAccount,
+  isDemoData = true,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
-  const [viewMode, setViewMode] = useState<InventoryViewMode>('unified');
-  const [accessFilter, setAccessFilter] = useState<AccessFilter>('all');
-  const [encryptionFilter, setEncryptionFilter] = useState<EncryptionFilter>('all');
-  const [sortField, setSortField] = useState<SortField>('accountName');
-  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
-  const [expandedAccounts, setExpandedAccounts] = useState<Record<string, boolean>>({});
+  const [accessFilter, setAccessFilter] = useState<'ALL' | 'PUBLIC' | 'GUARDRAIL_GAP' | 'PRIVATE'>('ALL');
+  const [encryptionFilter, setEncryptionFilter] = useState<
+    'ALL' | 'Microsoft.Storage' | 'Microsoft.Keyvault'
+  >('ALL');
+  const [subscriptionFilter, setSubscriptionFilter] = useState<string>('ALL');
 
-  const isAccountExpanded = (accountName: string) => {
-    return expandedAccounts[accountName] ?? true;
-  };
+  const subscriptions = useMemo(() => {
+    const subs = new Set<string>();
+    storageAccounts.forEach((acc) => {
+      if (acc.subscriptionId) subs.add(acc.subscriptionId);
+    });
+    return Array.from(subs);
+  }, [storageAccounts]);
 
-  const toggleAccountExpanded = (accountName: string) => {
-    setExpandedAccounts((prev) => ({
-      ...prev,
-      [accountName]: !(prev[accountName] ?? true),
-    }));
-  };
-
-  // Build flattened rows combining Storage Accounts and their Blob Containers
-  const allRows: FlattenedInventoryRow[] = useMemo(() => {
-    const rows: FlattenedInventoryRow[] = [];
+  const rows: InventoryRow[] = useMemo(() => {
+    const list: InventoryRow[] = [];
 
     storageAccounts.forEach((acc) => {
-      const accountFindings = findings.filter(
-        (f) =>
-          f.resourceName === acc.name ||
-          f.resourceName.startsWith(`${acc.name}/`) ||
-          f.resourceId === acc.id ||
-          f.resourceId.startsWith(`${acc.id}/`)
-      );
-
-      const accountHasWeakEncryption =
-        !acc.supportsHttpsTrafficOnly ||
-        acc.minimumTlsVersion === 'TLS1_0' ||
-        acc.minimumTlsVersion === 'TLS1_1' ||
-        !acc.customerManagedKeyEnabled;
+      const isAccountHardened =
+        !acc.allowBlobPublicAccess &&
+        !acc.allowSharedKeyAccess &&
+        acc.defaultAction === 'Deny' &&
+        acc.minimumTlsVersion === 'TLS1_2' &&
+        acc.supportsHttpsTrafficOnly;
 
       if (acc.containers.length === 0) {
-        const isPubliclyExposed =
-          acc.allowBlobPublicAccess ||
-          (acc.publicNetworkAccess === 'Enabled' && acc.defaultAction === 'Allow');
-
-        rows.push({
-          rowId: `${acc.id}::no-container`,
-          rowType: 'account_empty',
-          account: acc,
-          container: null,
-          accountFindings,
-          rowFindings: accountFindings,
-          isPubliclyExposed,
-          hasWeakEncryption: accountHasWeakEncryption,
+        list.push({
+          rowId: `${acc.id}-empty`,
+          accountId: acc.id,
+          accountName: acc.name,
+          subscriptionId: acc.subscriptionId || 'default-subscription',
+          resourceGroup: acc.resourceGroup,
+          location: acc.location,
+          sku: acc.sku,
+          kind: acc.kind,
+          containerName: '(0 containers)',
+          containerPublicAccess: 'None',
+          effectiveAnonymousExposure: false,
+          isGuardrailGapOnly: acc.allowBlobPublicAccess,
+          blobCount: 0,
+          sizeGb: 0,
+          hasSensitiveData: false,
+          immutabilityPolicy: false,
+          lastModified: '—',
+          allowBlobPublicAccess: acc.allowBlobPublicAccess,
+          allowSharedKeyAccess: acc.allowSharedKeyAccess,
+          encryptionKeySource: acc.encryptionKeySource,
+          minimumTlsVersion: acc.minimumTlsVersion,
+          supportsHttpsTrafficOnly: acc.supportsHttpsTrafficOnly,
+          defaultAction: acc.defaultAction,
+          publicNetworkAccess: acc.publicNetworkAccess,
+          isAccountHardened,
         });
       } else {
-        acc.containers.forEach((cont) => {
-          const contFindings = accountFindings.filter(
-            (f) =>
-              f.resourceName.includes(cont.name) ||
-              f.resourceId.endsWith(`/${cont.name}`) ||
-              f.resourceId.includes(`/${cont.name}/`) ||
-              f.resourceType === 'StorageAccount'
-          );
-
-          const isPubliclyExposed =
-            cont.publicAccess !== 'None' ||
-            acc.allowBlobPublicAccess ||
-            cont.hasStoredAccessPolicyWithNoExpiry ||
-            cont.sasTokenIssuedWithFullPermissions;
-
-          rows.push({
-            rowId: `${acc.id}::${cont.id || cont.name}`,
-            rowType: 'container',
-            account: acc,
-            container: cont,
-            accountFindings,
-            rowFindings: contFindings,
-            isPubliclyExposed,
-            hasWeakEncryption: accountHasWeakEncryption,
+        acc.containers.forEach((c) => {
+          const effectivePublic =
+            acc.allowBlobPublicAccess && c.publicAccess !== 'None';
+          const guardrailGapOnly =
+            acc.allowBlobPublicAccess && c.publicAccess === 'None';
+          list.push({
+            rowId: `${acc.id}-${c.name}`,
+            accountId: acc.id,
+            accountName: acc.name,
+            subscriptionId: acc.subscriptionId || 'default-subscription',
+            resourceGroup: acc.resourceGroup,
+            location: acc.location,
+            sku: acc.sku,
+            kind: acc.kind,
+            containerName: c.name,
+            containerPublicAccess: c.publicAccess,
+            effectiveAnonymousExposure: effectivePublic,
+            isGuardrailGapOnly: guardrailGapOnly,
+            blobCount: c.blobCount,
+            sizeGb: c.sizeGb,
+            hasSensitiveData: c.hasSensitiveData,
+            immutabilityPolicy: c.immutabilityPolicy,
+            lastModified: c.lastModified,
+            allowBlobPublicAccess: acc.allowBlobPublicAccess,
+            allowSharedKeyAccess: acc.allowSharedKeyAccess,
+            encryptionKeySource: acc.encryptionKeySource,
+            minimumTlsVersion: acc.minimumTlsVersion,
+            supportsHttpsTrafficOnly: acc.supportsHttpsTrafficOnly,
+            defaultAction: acc.defaultAction,
+            publicNetworkAccess: acc.publicNetworkAccess,
+            isAccountHardened,
           });
         });
       }
     });
 
-    return rows;
-  }, [storageAccounts, findings]);
-
-  // Filter rows by search query, public access filter, and encryption filter
-  const filteredRows = useMemo(() => {
-    const q = searchQuery.trim().toLowerCase();
-
-    return allRows
-      .filter((row) => {
-        if (viewMode === 'containers' && !row.container) {
-          return false;
-        }
-
-        if (accessFilter === 'exposed' && !row.isPubliclyExposed) {
-          return false;
-        }
-        if (accessFilter === 'private' && row.isPubliclyExposed) {
-          return false;
-        }
-
-        if (encryptionFilter === 'weak' && !row.hasWeakEncryption) {
-          return false;
-        }
-        if (encryptionFilter === 'hardened' && row.hasWeakEncryption) {
-          return false;
-        }
-
-        if (!q) return true;
-
-        const acc = row.account;
-        const cont = row.container;
-
-        const encryptionKeywords = [
-          acc.supportsHttpsTrafficOnly ? 'https required secure transfer' : 'http allowed insecure',
-          acc.minimumTlsVersion.toLowerCase(),
-          acc.minimumTlsVersion.replace('_', '.').toLowerCase(),
-          acc.customerManagedKeyEnabled ? 'cmk customer managed key vault' : 'mmk microsoft managed key',
-          acc.infrastructureEncryption ? 'double infrastructure encryption' : 'standard encryption',
-          cont?.immutabilityPolicyEnabled ? 'worm immutability locked' : '',
-        ].join(' ');
-
-        const accessKeywords = [
-          acc.allowBlobPublicAccess ? 'blob public access allowed enabled' : 'blob public access disabled private',
-          `network ${acc.publicNetworkAccess.toLowerCase()}`,
-          `firewall ${acc.defaultAction.toLowerCase()}`,
-          cont ? `container ${cont.publicAccess.toLowerCase()}` : 'no containers',
-          cont?.publicAccess === 'None' ? 'private' : 'public anonymous exposed',
-        ].join(' ');
-
-        const searchableText = [
-          acc.name,
-          acc.resourceGroup,
-          acc.location,
-          acc.subscriptionId,
-          cont?.name || '',
-          cont?.dataClassification || '',
-          encryptionKeywords,
-          accessKeywords,
-        ]
-          .join(' ')
-          .toLowerCase();
-
-        return searchableText.includes(q);
-      })
-      .sort((a, b) => {
-        const dir = sortDirection === 'asc' ? 1 : -1;
-        switch (sortField) {
-          case 'accountName':
-            return a.account.name.localeCompare(b.account.name) * dir;
-          case 'containerName':
-            return (a.container?.name || '').localeCompare(b.container?.name || '') * dir;
-          case 'location':
-            return a.account.location.localeCompare(b.account.location) * dir;
-          case 'publicAccess': {
-            const rankAccess = (r: FlattenedInventoryRow) => {
-              if (r.container?.publicAccess === 'Container') return 3;
-              if (r.container?.publicAccess === 'Blob') return 2;
-              if (r.account.allowBlobPublicAccess) return 1;
-              return 0;
-            };
-            return (rankAccess(b) - rankAccess(a)) * dir;
-          }
-          case 'encryption': {
-            const rankEnc = (r: FlattenedInventoryRow) => {
-              let score = 0;
-              if (r.account.supportsHttpsTrafficOnly) score += 2;
-              if (r.account.minimumTlsVersion === 'TLS1_2' || r.account.minimumTlsVersion === 'TLS1_3') score += 2;
-              if (r.account.customerManagedKeyEnabled) score += 2;
-              if (r.account.infrastructureEncryption) score += 1;
-              return score;
-            };
-            return (rankEnc(a) - rankEnc(b)) * dir;
-          }
-          case 'blobCount':
-            return ((a.container?.blobCount || 0) - (b.container?.blobCount || 0)) * dir;
-          case 'findings':
-            return (b.rowFindings.length - a.rowFindings.length) * dir;
-          default:
-            return 0;
-        }
-      });
-  }, [allRows, searchQuery, viewMode, accessFilter, encryptionFilter, sortField, sortDirection]);
-
-  // Filtered Storage Accounts for the 'accounts' view mode
-  const filteredAccounts = useMemo(() => {
-    const matchedAccountIds = new Set(filteredRows.map((r) => r.account.id));
-    return storageAccounts.filter((acc) => matchedAccountIds.has(acc.id));
-  }, [storageAccounts, filteredRows]);
-
-  // Inventory Summary Metrics
-  const summaryStats = useMemo(() => {
-    const totalAccounts = storageAccounts.length;
-    const totalContainers = storageAccounts.reduce(
-      (sum, acc) => sum + acc.containers.length,
-      0
-    );
-    const totalBlobs = storageAccounts.reduce(
-      (sum, acc) =>
-        sum + acc.containers.reduce((cSum, c) => cSum + (c.blobCount || 0), 0),
-      0
-    );
-    const publicAccountsCount = storageAccounts.filter(
-      (acc) => acc.allowBlobPublicAccess
-    ).length;
-    const exposedContainersCount = storageAccounts.reduce(
-      (sum, acc) =>
-        sum + acc.containers.filter((c) => c.publicAccess !== 'None').length,
-      0
-    );
-    const cmkEncryptedAccountsCount = storageAccounts.filter(
-      (acc) => acc.customerManagedKeyEnabled
-    ).length;
-    const tlsHardenedAccountsCount = storageAccounts.filter(
-      (acc) =>
-        acc.supportsHttpsTrafficOnly &&
-        (acc.minimumTlsVersion === 'TLS1_2' || acc.minimumTlsVersion === 'TLS1_3')
-    ).length;
-
-    return {
-      totalAccounts,
-      totalContainers,
-      totalBlobs,
-      publicAccountsCount,
-      exposedContainersCount,
-      cmkEncryptedAccountsCount,
-      tlsHardenedAccountsCount,
-    };
+    return list;
   }, [storageAccounts]);
 
-  const handleSort = (field: SortField) => {
-    if (sortField === field) {
-      setSortDirection((prev) => (prev === 'asc' ? 'desc' : 'asc'));
-    } else {
-      setSortField(field);
-      setSortDirection('asc');
-    }
-  };
+  const filteredRows = useMemo(() => {
+    return rows.filter((row) => {
+      const q = searchQuery.trim().toLowerCase();
+      const matchesSearch =
+        !q ||
+        row.accountName.toLowerCase().includes(q) ||
+        row.containerName.toLowerCase().includes(q) ||
+        row.resourceGroup.toLowerCase().includes(q) ||
+        row.location.toLowerCase().includes(q) ||
+        row.subscriptionId.toLowerCase().includes(q) ||
+        row.encryptionKeySource.toLowerCase().includes(q);
 
-  const resetFilters = () => {
-    setSearchQuery('');
-    setAccessFilter('all');
-    setEncryptionFilter('all');
-    setViewMode('unified');
-  };
+      const matchesAccess =
+        accessFilter === 'ALL' ||
+        (accessFilter === 'PUBLIC' && row.effectiveAnonymousExposure) ||
+        (accessFilter === 'GUARDRAIL_GAP' && row.isGuardrailGapOnly) ||
+        (accessFilter === 'PRIVATE' && !row.effectiveAnonymousExposure && !row.isGuardrailGapOnly);
 
-  // Export current filtered inventory to CSV
-  const handleExportCsv = () => {
-    const headers = [
-      'Storage Account',
-      'Resource Group',
-      'Location',
-      'Subscription ID',
-      'Account Public Blob Access',
-      'Public Network Access',
-      'Firewall Default Action',
-      'Container Name',
-      'Container Public Access',
-      'Data Classification',
-      'Blob Count',
-      'Stored Access Policy No Expiry',
-      'Full Permission SAS Issued',
-      'HTTPS Traffic Only',
-      'Minimum TLS Version',
-      'Key Management (CMK vs MMK)',
-      'Infrastructure Double Encryption',
-      'Shared Key Access',
-      'Soft Delete (Days)',
-      'WORM Immutability',
-      'Open Findings Count',
-    ];
+      const matchesEncryption =
+        encryptionFilter === 'ALL' ||
+        row.encryptionKeySource === encryptionFilter;
 
-    const csvRows = filteredRows.map((r) => {
-      const acc = r.account;
-      const cont = r.container;
-      return [
-        acc.name,
-        acc.resourceGroup,
-        acc.location,
-        acc.subscriptionId,
-        acc.allowBlobPublicAccess ? 'Enabled (Allowed)' : 'Disabled',
-        acc.publicNetworkAccess,
-        acc.defaultAction,
-        cont ? cont.name : 'No Containers',
-        cont ? cont.publicAccess : 'N/A',
-        cont?.dataClassification || 'Unclassified',
-        cont?.blobCount ?? 0,
-        cont?.hasStoredAccessPolicyWithNoExpiry ? 'Yes' : 'No',
-        cont?.sasTokenIssuedWithFullPermissions ? 'Yes' : 'No',
-        acc.supportsHttpsTrafficOnly ? 'HTTPS Required' : 'HTTP Permitted',
-        acc.minimumTlsVersion.replace('_', '.'),
-        acc.customerManagedKeyEnabled ? 'Customer-Managed Key (CMK)' : 'Microsoft-Managed Key (MMK)',
-        acc.infrastructureEncryption ? 'Enabled' : 'Disabled',
-        acc.allowSharedKeyAccess ? 'Enabled' : 'Disabled (Entra Only)',
-        acc.softDeleteEnabled ? `${acc.blobRetentionDays}d` : 'Disabled',
-        cont?.immutabilityPolicyEnabled ? 'Enabled' : 'Disabled',
-        r.rowFindings.length,
-      ]
-        .map((val) => `"${String(val).replace(/"/g, '""')}"`)
-        .join(',');
+      const matchesSub =
+        subscriptionFilter === 'ALL' ||
+        row.subscriptionId === subscriptionFilter;
+
+      return (
+        matchesSearch && matchesAccess && matchesEncryption && matchesSub
+      );
     });
+  }, [rows, searchQuery, accessFilter, encryptionFilter, subscriptionFilter]);
 
-    const csvContent = [headers.join(','), ...csvRows].join('\n');
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.setAttribute('download', `maniq_shield_storage_inventory_${Date.now()}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-  };
+  const totalContainers = storageAccounts.reduce(
+    (acc, s) => acc + s.containers.length,
+    0
+  );
+  const exposedContainersCount = rows.filter(
+    (r) => r.effectiveAnonymousExposure
+  ).length;
+  const cmkAccountsCount = storageAccounts.filter(
+    (s) => s.encryptionKeySource === 'Microsoft.Keyvault'
+  ).length;
 
   return (
     <div className="space-y-6">
-      {/* Header & Top Actions (Postrix .xh-panel) */}
-      <section className="xh-panel space-y-5">
-        <div className="xh-kicker">
-          <span className="k">Asset Configuration Directory · Storage &amp; Containers</span>
-          <span className="tag">
-            {summaryStats.totalAccounts} Accounts · {summaryStats.totalContainers} Containers
+      {/* Header & Summary KPI Strip */}
+      <div className="p-5 rounded-xl border border-slate-200/90 bg-white flex flex-col lg:flex-row lg:items-center justify-between gap-4 shadow-xs">
+        <div>
+          <span className="rm-kicker">
+            {isDemoData
+              ? 'DEMO INVENTORY — NO LIVE ASSESSMENT'
+              : 'LIVE AZURE STORAGE & CONTAINER INVENTORY'}
           </span>
-        </div>
-
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-          <div>
-            <h2 className="text-xl sm:text-2xl font-semibold text-[#EEF3F1] tracking-tight">
-              Azure Storage &amp; Container Asset Inventory
+          <div className="flex items-center space-x-2 mt-0.5">
+            <Database className="w-5 h-5 text-[#1F8A79]" />
+            <h2 className="font-serif text-lg font-bold text-[#16232F]">
+              Storage Accounts &amp; Blob Containers Inventory
             </h2>
-            <p className="text-xs text-[#A9B7BF] mt-1 max-w-3xl leading-relaxed">
-              Searchable tabular directory of all synchronized Azure Storage Accounts and Blob Containers, detailing anonymous public access configuration, network perimeter rules, transport security, and encryption key management.
-            </p>
           </div>
-
-          <div className="flex flex-wrap items-center gap-2.5 shrink-0">
-            {onNavigateToAuditor && (
-              <button
-                type="button"
-                onClick={onNavigateToAuditor}
-                className="xh-btn whitespace-nowrap shrink-0"
-              >
-                <span>Open Topology &amp; Auditor View</span>
-                <ExternalLink className="w-3.5 h-3.5" />
-              </button>
-            )}
-            <button
-              type="button"
-              onClick={handleExportCsv}
-              disabled={filteredRows.length === 0}
-              className="xh-btn primary disabled:opacity-50 whitespace-nowrap shrink-0"
-            >
-              <Download className="w-3.5 h-3.5" />
-              <span>Export Inventory CSV</span>
-            </button>
-          </div>
+          <p className="text-xs text-[#546471] mt-1">
+            Distinguishes account-level <code className="font-mono">allowBlobPublicAccess</code> guardrail gaps from confirmed public containers (Rec #10), and notes Azure&apos;s default 256-bit AES Microsoft-Managed Key encryption at rest (Rec #11).
+          </p>
         </div>
 
-        {/* Inventory KPI Summary Strip (.xh-metric) */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
-          <div className="xh-metric">
-            <div className="lbl">
-              <span>STORAGE ACCOUNTS</span>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+          <div className="px-3.5 py-2 rounded-lg bg-slate-50 border border-slate-200">
+            <div className="text-[10px] font-mono uppercase text-[#546471]">
+              Storage Accounts
             </div>
-            <div className="num tabular-nums">{summaryStats.totalAccounts}</div>
-            <p>
-              {summaryStats.publicAccountsCount} allowing public blob access ·{' '}
-              {summaryStats.totalAccounts - summaryStats.publicAccountsCount} private
-            </p>
+            <div className="font-serif text-base font-bold text-[#16232F] mt-0.5">
+              {storageAccounts.length}
+            </div>
           </div>
-
-          <div className="xh-metric">
-            <div className="lbl">
-              <span>BLOB CONTAINERS</span>
+          <div className="px-3.5 py-2 rounded-lg bg-slate-50 border border-slate-200">
+            <div className="text-[10px] font-mono uppercase text-[#546471]">
+              Total Containers
             </div>
-            <div className="num tabular-nums">{summaryStats.totalContainers}</div>
-            <p>{summaryStats.totalBlobs.toLocaleString()} total indexed blobs</p>
+            <div className="font-serif text-base font-bold text-[#1F8A79] mt-0.5">
+              {totalContainers}
+            </div>
           </div>
-
-          <div className="xh-metric">
-            <div className="lbl">
-              <span>PUBLIC ACCESS EXPOSURE</span>
+          <div className="px-3.5 py-2 rounded-lg bg-slate-50 border border-slate-200">
+            <div className="text-[10px] font-mono uppercase text-[#546471]">
+              Confirmed Public
             </div>
-            <div className="num hi tabular-nums">
-              {summaryStats.exposedContainersCount} Exposed
-            </div>
-            <p>
-              {summaryStats.totalContainers - summaryStats.exposedContainersCount} private containers
-            </p>
-          </div>
-
-          <div className="xh-metric">
-            <div className="lbl">
-              <span>ENCRYPTION &amp; TRANSPORT</span>
-            </div>
-            <div className="num hi tabular-nums">
-              {summaryStats.tlsHardenedAccountsCount}/{summaryStats.totalAccounts} HTTPS+TLS1.2
-            </div>
-            <p>
-              {summaryStats.cmkEncryptedAccountsCount} CMK Key Vault ·{' '}
-              {summaryStats.totalAccounts - summaryStats.cmkEncryptedAccountsCount} Microsoft-Managed
-            </p>
-          </div>
-        </div>
-      </section>
-
-      {/* Search & Filter Toolbar */}
-      <div className="p-4 rounded-xl bg-white border border-slate-200 shadow-xs space-y-3">
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
-          {/* Search Input */}
-          <div className="relative flex-1">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search by storage account, container name, resource group, region, public access (Container/Blob/None), or encryption (CMK/MMK/TLS)..."
-              aria-label="Search storage inventory"
-              className="w-full bg-slate-50 border border-slate-200 focus:border-[#0E2238] focus:bg-white rounded-lg pl-10 pr-20 py-2 text-xs text-slate-900 placeholder-slate-500 focus:outline-none transition-colors"
-            />
-            {searchQuery && (
-              <button
-                type="button"
-                onClick={() => setSearchQuery('')}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] text-slate-500 hover:text-slate-900 font-medium cursor-pointer"
-              >
-                Clear
-              </button>
-            )}
-          </div>
-
-          {/* Segmented View Mode Switcher */}
-          <div className="flex items-center gap-1 p-1 bg-slate-100 border border-slate-200 rounded-lg self-start lg:self-auto shrink-0">
-            <button
-              type="button"
-              onClick={() => setViewMode('unified')}
-              className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
-                viewMode === 'unified'
-                  ? 'bg-[#0E2238] text-[#EEF3F1]'
-                  : 'text-slate-600 hover:text-slate-900'
+            <div
+              className={`font-serif text-base font-bold mt-0.5 ${
+                exposedContainersCount > 0
+                  ? 'text-red-600'
+                  : 'text-[#1F8A79]'
               }`}
             >
-              Unified Table ({filteredRows.length})
-            </button>
-            <button
-              type="button"
-              onClick={() => setViewMode('accounts')}
-              className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
-                viewMode === 'accounts'
-                  ? 'bg-[#0E2238] text-[#EEF3F1]'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              By Storage Account ({filteredAccounts.length})
-            </button>
-            <button
-              type="button"
-              onClick={() => setViewMode('containers')}
-              className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
-                viewMode === 'containers'
-                  ? 'bg-[#0E2238] text-[#EEF3F1]'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              Containers Only ({filteredRows.filter((r) => r.container !== null).length})
-            </button>
-          </div>
-        </div>
-
-        {/* Secondary Filter Bar: Public Access & Encryption Posture */}
-        <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-slate-200 text-xs">
-          <div className="flex flex-wrap items-center gap-4">
-            {/* Public Access Filter */}
-            <div className="flex items-center gap-2">
-              <span className="text-slate-600 font-medium flex items-center gap-1">
-                <SlidersHorizontal className="w-3.5 h-3.5 text-slate-500" />
-                <span>Public Access:</span>
-              </span>
-              <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-lg border border-slate-200">
-                <button
-                  type="button"
-                  onClick={() => setAccessFilter('all')}
-                  className={`px-2.5 py-1 rounded text-xs font-medium transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
-                    accessFilter === 'all'
-                      ? 'bg-white text-slate-900 shadow-xs'
-                      : 'text-slate-600 hover:text-slate-900'
-                  }`}
-                >
-                  All
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setAccessFilter('exposed')}
-                  className={`px-2.5 py-1 rounded text-xs font-medium transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
-                    accessFilter === 'exposed'
-                      ? 'bg-red-50 text-red-700 border border-red-200'
-                      : 'text-slate-600 hover:text-slate-900'
-                  }`}
-                >
-                  Public / Exposed
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setAccessFilter('private')}
-                  className={`px-2.5 py-1 rounded text-xs font-medium transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
-                    accessFilter === 'private'
-                      ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
-                      : 'text-slate-600 hover:text-slate-900'
-                  }`}
-                >
-                  Private Only
-                </button>
-              </div>
-            </div>
-
-            {/* Encryption Filter */}
-            <div className="flex items-center gap-2">
-              <span className="text-slate-600 font-medium">Encryption:</span>
-              <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-lg border border-slate-200">
-                <button
-                  type="button"
-                  onClick={() => setEncryptionFilter('all')}
-                  className={`px-2.5 py-1 rounded text-xs font-medium transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
-                    encryptionFilter === 'all'
-                      ? 'bg-white text-slate-900 shadow-xs'
-                      : 'text-slate-600 hover:text-slate-900'
-                  }`}
-                >
-                  All
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setEncryptionFilter('weak')}
-                  className={`px-2.5 py-1 rounded text-xs font-medium transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
-                    encryptionFilter === 'weak'
-                      ? 'bg-amber-50 text-amber-800 border border-amber-200'
-                      : 'text-slate-600 hover:text-slate-900'
-                  }`}
-                >
-                  HTTP / Legacy TLS / MMK
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setEncryptionFilter('hardened')}
-                  className={`px-2.5 py-1 rounded text-xs font-medium transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
-                    encryptionFilter === 'hardened'
-                      ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
-                      : 'text-slate-600 hover:text-slate-900'
-                  }`}
-                >
-                  HTTPS + TLS 1.2+ &amp; CMK
-                </button>
-              </div>
+              {exposedContainersCount}
             </div>
           </div>
-
-          <div className="flex items-center gap-3 text-slate-600 font-mono tabular-nums">
-            <span>
-              Showing <strong className="text-slate-900">{filteredRows.length}</strong> of{' '}
-              {allRows.length} inventory records
-            </span>
-            {(searchQuery || accessFilter !== 'all' || encryptionFilter !== 'all') && (
-              <button
-                type="button"
-                onClick={resetFilters}
-                className="flex items-center gap-1 text-emerald-700 hover:underline font-sans font-medium cursor-pointer"
-              >
-                <RotateCcw className="w-3 h-3" />
-                <span>Reset Filters</span>
-              </button>
-            )}
+          <div className="px-3.5 py-2 rounded-lg bg-slate-50 border border-slate-200">
+            <div className="text-[10px] font-mono uppercase text-[#546471]">
+              Encrypted (CMK / MMK)
+            </div>
+            <div className="font-serif text-base font-bold text-[#0E2238] mt-0.5">
+              {cmkAccountsCount} CMK / {storageAccounts.length - cmkAccountsCount} MMK
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Empty State Handling */}
-      {storageAccounts.length === 0 ? (
-        <div className="p-10 rounded-xl bg-white border border-slate-200 shadow-xs text-center space-y-3">
-          <div className="text-base font-serif font-semibold text-slate-900">
-            No Azure Storage Accounts Synchronized in Current View
+      {/* Search & Filter Controls */}
+      <div className="p-4 rounded-xl border border-slate-200/90 bg-white flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3 shadow-xs">
+        <div className="relative flex-1">
+          <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search by storage account, container name, resource group, region, or subscription..."
+            className="w-full bg-slate-50 border border-slate-300 rounded-lg pl-9 pr-4 py-2 text-xs text-[#16232F] placeholder-slate-400 focus:outline-none focus:border-[#2BB5A0]"
+          />
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2 text-xs">
+          <div className="flex items-center space-x-1.5 bg-slate-50 border border-slate-300 rounded-lg px-2.5 py-1.5">
+            <Filter className="w-3.5 h-3.5 text-[#546471]" />
+            <span className="text-[#546471]">Access:</span>
+            <select
+              aria-label="Filter by Public Access"
+              value={accessFilter}
+              onChange={(e) =>
+                setAccessFilter(e.target.value as 'ALL' | 'PUBLIC' | 'GUARDRAIL_GAP' | 'PRIVATE')
+              }
+              className="bg-transparent text-[#16232F] font-semibold focus:outline-none cursor-pointer"
+            >
+              <option value="ALL">All Containers</option>
+              <option value="PUBLIC">Confirmed Public (Anonymous)</option>
+              <option value="GUARDRAIL_GAP">Guardrail Gap Only (Private Container)</option>
+              <option value="PRIVATE">Strictly Private (Guardrail Blocked)</option>
+            </select>
           </div>
-          <p className="text-xs text-slate-600 max-w-lg mx-auto leading-relaxed">
-            The active subscription currently returned 0 Storage Accounts from Azure Resource Manager, or the current Bearer Token does not yet hold subscription-level Reader access on Microsoft.Storage/storageAccounts.
-          </p>
-          {onSelectDataset && (
-            <div className="pt-2 flex items-center justify-center gap-3">
-              <button
-                type="button"
-                onClick={() => onSelectDataset('high_risk')}
-                className="px-4 py-2 rounded-lg text-xs font-semibold bg-[#0E2238] hover:bg-[#081420] text-[#EEF3F1] transition-colors cursor-pointer"
+
+          <div className="flex items-center space-x-1.5 bg-slate-50 border border-slate-300 rounded-lg px-2.5 py-1.5">
+            <KeyRound className="w-3.5 h-3.5 text-[#546471]" />
+            <span className="text-[#546471]">Encryption:</span>
+            <select
+              aria-label="Filter by Encryption Key Source"
+              value={encryptionFilter}
+              onChange={(e) =>
+                setEncryptionFilter(
+                  e.target.value as
+                    | 'ALL'
+                    | 'Microsoft.Storage'
+                    | 'Microsoft.Keyvault'
+                )
+              }
+              className="bg-transparent text-[#16232F] font-semibold focus:outline-none cursor-pointer"
+            >
+              <option value="ALL">All Encrypted (MMK + CMK)</option>
+              <option value="Microsoft.Keyvault">Customer-Managed Key (CMK)</option>
+              <option value="Microsoft.Storage">Default Microsoft-Managed (MMK)</option>
+            </select>
+          </div>
+
+          {subscriptions.length > 1 && (
+            <div className="flex items-center space-x-1.5 bg-slate-50 border border-slate-300 rounded-lg px-2.5 py-1.5">
+              <Globe className="w-3.5 h-3.5 text-[#546471]" />
+              <span className="text-[#546471]">Subscription:</span>
+              <select
+                aria-label="Filter by Subscription"
+                value={subscriptionFilter}
+                onChange={(e) => setSubscriptionFilter(e.target.value)}
+                className="bg-transparent text-[#16232F] font-semibold focus:outline-none cursor-pointer"
               >
-                Load High-Risk Sample Inventory
-              </button>
-              <button
-                type="button"
-                onClick={() => onSelectDataset('hardened')}
-                className="px-4 py-2 rounded-lg text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 transition-colors cursor-pointer"
-              >
-                Load CIS Hardened Baseline Inventory
-              </button>
+                <option value="ALL">All Subscriptions</option>
+                {subscriptions.map((sub) => (
+                  <option key={sub} value={sub}>
+                    {sub}
+                  </option>
+                ))}
+              </select>
             </div>
           )}
         </div>
-      ) : filteredRows.length === 0 ? (
-        <div className="p-10 rounded-xl bg-white border border-slate-200 shadow-xs text-center space-y-3">
-          <div className="text-base font-serif font-semibold text-slate-900">
-            No Matching Storage Accounts or Containers
-          </div>
-          <p className="text-xs text-slate-600 max-w-md mx-auto">
-            No inventory rows matched your current search query or filter criteria.
-          </p>
-          <button
-            type="button"
-            onClick={resetFilters}
-            className="px-4 py-2 rounded-lg text-xs font-semibold bg-[#0E2238] hover:bg-[#081420] text-[#EEF3F1] transition-colors cursor-pointer"
-          >
-            Reset All Filters
-          </button>
-        </div>
-      ) : viewMode === 'accounts' ? (
-        /* Hierarchical Storage Accounts View with Expandable Container Sub-Tables */
-        <div className="rounded-xl bg-white border border-slate-200 shadow-xs overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="border-b border-slate-200 bg-slate-50 text-[11px] font-mono uppercase tracking-wider font-semibold text-slate-600">
-                  <th className="py-3 px-4">Storage Account &amp; Scope</th>
-                  <th className="py-3 px-4">Location</th>
-                  <th className="py-3 px-4">Account Public Access &amp; Network</th>
-                  <th className="py-3 px-4">Encryption &amp; Transport Settings</th>
-                  <th className="py-3 px-4 text-right">Containers</th>
-                  <th className="py-3 px-4 text-right">Findings</th>
+      </div>
+
+      {/* Searchable Inventory Table */}
+      <div className="rounded-xl border border-slate-200/90 bg-white overflow-hidden shadow-xs">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr className="border-b border-slate-200 bg-slate-50 text-[11px] font-mono uppercase text-[#546471]">
+                <th className="py-3 px-4">Storage Account</th>
+                <th className="py-3 px-4">Container Name</th>
+                <th className="py-3 px-3">Public Access Status (Rec #10)</th>
+                <th className="py-3 px-3">At-Rest Encryption &amp; TLS (Rec #11)</th>
+                <th className="py-3 px-3">Network &amp; Auth</th>
+                <th className="py-3 px-3 text-right">Volume / Blobs</th>
+                <th className="py-3 px-4 text-right">Simulate (Rec #6)</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-200 text-xs">
+              {filteredRows.length === 0 ? (
+                <tr>
+                  <td
+                    colSpan={7}
+                    className="py-10 text-center text-[#546471] font-mono"
+                  >
+                    No storage accounts or containers match your current search filter.
+                  </td>
                 </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-200 text-xs">
-                {filteredAccounts.map((acc) => {
-                  const expanded = isAccountExpanded(acc.name);
-                  const accFindings = findings.filter(
-                    (f) =>
-                      f.resourceName === acc.name ||
-                      f.resourceName.startsWith(`${acc.name}/`) ||
-                      f.resourceId === acc.id ||
-                      f.resourceId.startsWith(`${acc.id}/`)
-                  );
-                  const exposedContCount = acc.containers.filter(
-                    (c) => c.publicAccess !== 'None'
-                  ).length;
+              ) : (
+                filteredRows.map((row) => (
+                  <tr
+                    key={row.rowId}
+                    className="hover:bg-slate-50/80 transition-colors"
+                  >
+                    {/* Storage Account Column */}
+                    <td className="py-3.5 px-4 align-top">
+                      <div className="flex items-center space-x-2">
+                        <HardDrive className="w-4 h-4 text-[#1F8A79] flex-shrink-0" />
+                        <span className="font-mono font-bold text-[#16232F]">
+                          {row.accountName}
+                        </span>
+                      </div>
+                      <div className="text-[11px] text-[#546471] mt-0.5 font-mono">
+                        {row.resourceGroup} · {row.location} · {row.sku}
+                      </div>
+                    </td>
 
-                  return (
-                    <React.Fragment key={acc.id}>
-                      <tr
-                        onClick={() => toggleAccountExpanded(acc.name)}
-                        className="hover:bg-slate-50/80 cursor-pointer transition-colors"
-                      >
-                        <td className="py-3.5 px-4">
-                          <div className="flex items-center gap-2">
-                            {expanded ? (
-                              <ChevronDown className="w-4 h-4 text-slate-500 shrink-0" />
-                            ) : (
-                              <ChevronRight className="w-4 h-4 text-slate-500 shrink-0" />
-                            )}
-                            <div>
-                              <div className="font-mono font-bold text-slate-900">
-                                {acc.name}
-                              </div>
-                              <div className="text-[11px] text-slate-500 font-mono">
-                                RG: {acc.resourceGroup} · Sub: {acc.subscriptionId.slice(0, 8)}...
-                              </div>
-                            </div>
-                          </div>
-                        </td>
-
-                        <td className="py-3.5 px-4 font-mono text-slate-700">
-                          {acc.location}
-                        </td>
-
-                        <td className="py-3.5 px-4">
-                          <div className="space-y-0.5">
-                            <div
-                              className={`font-semibold ${
-                                acc.allowBlobPublicAccess
-                                  ? 'text-red-700'
-                                  : 'text-emerald-700'
-                              }`}
-                            >
-                              Blob Public Access:{' '}
-                              {acc.allowBlobPublicAccess ? 'Enabled (Allowed)' : 'Disabled'}
-                            </div>
-                            <div className="text-[11px] text-slate-500 font-mono tabular-nums">
-                              Network: {acc.publicNetworkAccess} · Firewall: {acc.defaultAction} ·{' '}
-                              {acc.privateEndpointConnectionsCount} Private Endpoints
-                            </div>
-                          </div>
-                        </td>
-
-                        <td className="py-3.5 px-4">
-                          <div className="space-y-0.5">
-                            <div className="font-medium text-slate-800">
-                              Key: {acc.customerManagedKeyEnabled ? 'Customer-Managed (CMK)' : 'Microsoft-Managed (MMK)'}
-                              {' · '}
-                              Infra Double Enc: {acc.infrastructureEncryption ? 'On' : 'Off'}
-                            </div>
-                            <div
-                              className={`text-[11px] font-mono ${
-                                !acc.supportsHttpsTrafficOnly ||
-                                acc.minimumTlsVersion === 'TLS1_0' ||
-                                acc.minimumTlsVersion === 'TLS1_1'
-                                  ? 'text-amber-700 font-semibold'
-                                  : 'text-slate-600'
-                              }`}
-                            >
-                              {acc.supportsHttpsTrafficOnly ? 'HTTPS Only' : 'HTTP Allowed'} ·{' '}
-                              Min TLS: {acc.minimumTlsVersion.replace('_', '.')} ·{' '}
-                              Shared Key: {acc.allowSharedKeyAccess ? 'Enabled' : 'Disabled'}
-                            </div>
-                          </div>
-                        </td>
-
-                        <td className="py-3.5 px-4 text-right font-mono tabular-nums">
-                          <div className="font-bold text-slate-900">
-                            {acc.containers.length} total
-                          </div>
-                          <div
-                            className={`text-[11px] ${
-                              exposedContCount > 0 ? 'text-red-700 font-semibold' : 'text-emerald-700'
-                            }`}
-                          >
-                            {exposedContCount} public
-                          </div>
-                        </td>
-
-                        <td className="py-3.5 px-4 text-right font-mono tabular-nums">
-                          {accFindings.length > 0 ? (
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                onSelectFinding(accFindings[0].id);
-                              }}
-                              className="text-red-700 hover:underline font-semibold cursor-pointer"
-                            >
-                              {accFindings.length} open
-                            </button>
-                          ) : (
-                            <span className="text-emerald-700 font-semibold">0 issues</span>
-                          )}
-                        </td>
-                      </tr>
-
-                      {expanded && (
-                        <tr className="bg-slate-50/70">
-                          <td colSpan={6} className="px-8 py-3">
-                            {acc.containers.length === 0 ? (
-                              <div className="text-xs text-slate-500 py-2 font-mono">
-                                No Blob Containers present in storage account {acc.name}.
-                              </div>
-                            ) : (
-                              <div className="border border-slate-200 bg-white rounded-lg overflow-hidden">
-                                <table className="w-full text-left border-collapse">
-                                  <thead>
-                                    <tr className="bg-slate-100 border-b border-slate-200 text-[11px] font-mono text-slate-600">
-                                      <th className="py-2 px-3">Container Name</th>
-                                      <th className="py-2 px-3">Container Public Access</th>
-                                      <th className="py-2 px-3">SAS &amp; Access Policy</th>
-                                      <th className="py-2 px-3">WORM Immutability &amp; Classification</th>
-                                      <th className="py-2 px-3 text-right">Blobs</th>
-                                    </tr>
-                                  </thead>
-                                  <tbody className="divide-y divide-slate-200 text-xs">
-                                    {acc.containers.map((cont) => (
-                                      <tr
-                                        key={cont.id || cont.name}
-                                        className="hover:bg-slate-50"
-                                      >
-                                        <td className="py-2.5 px-3 font-mono font-semibold text-emerald-800">
-                                          {cont.name}
-                                        </td>
-                                        <td className="py-2.5 px-3">
-                                          <span
-                                            className={`font-semibold ${
-                                              cont.publicAccess === 'Container'
-                                                ? 'text-red-700'
-                                                : cont.publicAccess === 'Blob'
-                                                ? 'text-amber-700'
-                                                : 'text-emerald-700'
-                                            }`}
-                                          >
-                                            {cont.publicAccess === 'Container'
-                                              ? 'Container (Anonymous Read/List)'
-                                              : cont.publicAccess === 'Blob'
-                                              ? 'Blob (Anonymous Read Only)'
-                                              : 'None (Private)'}
-                                          </span>
-                                        </td>
-                                        <td className="py-2.5 px-3 text-[11px] text-slate-700">
-                                          {cont.hasStoredAccessPolicyWithNoExpiry
-                                            ? 'Infinite Stored Policy'
-                                            : 'Standard Expiry'}{' '}
-                                          ·{' '}
-                                          {cont.sasTokenIssuedWithFullPermissions
-                                            ? 'Full-Perm SAS Active'
-                                            : 'Scoped SAS'}
-                                        </td>
-                                        <td className="py-2.5 px-3 text-[11px] text-slate-700">
-                                          WORM: {cont.immutabilityPolicyEnabled ? 'Locked' : 'Unlocked'}{' '}
-                                          · Class: {cont.dataClassification || 'Internal'}
-                                        </td>
-                                        <td className="py-2.5 px-3 text-right font-mono tabular-nums text-slate-900">
-                                          {(cont.blobCount ?? 0).toLocaleString()}
-                                        </td>
-                                      </tr>
-                                    ))}
-                                  </tbody>
-                                </table>
-                              </div>
-                            )}
-                          </td>
-                        </tr>
-                      )}
-                    </React.Fragment>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      ) : (
-        /* Unified & Containers-Only Flat Searchable Table View */
-        <div className="rounded-xl bg-white border border-slate-200 shadow-xs overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="border-b border-slate-200 bg-slate-50 text-[11px] font-mono uppercase tracking-wider font-semibold text-slate-600">
-                  <th className="py-3 px-4">
-                    <button
-                      type="button"
-                      onClick={() => handleSort('accountName')}
-                      className="flex items-center gap-1 hover:text-slate-900 transition-colors whitespace-nowrap cursor-pointer"
-                    >
-                      <span>Storage Account &amp; Resource Group</span>
-                      <ArrowUpDown className="w-3 h-3" />
-                    </button>
-                  </th>
-                  <th className="py-3 px-4">
-                    <button
-                      type="button"
-                      onClick={() => handleSort('containerName')}
-                      className="flex items-center gap-1 hover:text-slate-900 transition-colors whitespace-nowrap cursor-pointer"
-                    >
-                      <span>Blob Container &amp; Classification</span>
-                      <ArrowUpDown className="w-3 h-3" />
-                    </button>
-                  </th>
-                  <th className="py-3 px-4">
-                    <button
-                      type="button"
-                      onClick={() => handleSort('publicAccess')}
-                      className="flex items-center gap-1 hover:text-slate-900 transition-colors whitespace-nowrap cursor-pointer"
-                    >
-                      <span>Public Access Settings</span>
-                      <ArrowUpDown className="w-3 h-3" />
-                    </button>
-                  </th>
-                  <th className="py-3 px-4">
-                    <button
-                      type="button"
-                      onClick={() => handleSort('encryption')}
-                      className="flex items-center gap-1 hover:text-slate-900 transition-colors whitespace-nowrap cursor-pointer"
-                    >
-                      <span>Encryption &amp; Transport Settings</span>
-                      <ArrowUpDown className="w-3 h-3" />
-                    </button>
-                  </th>
-                  <th className="py-3 px-4 text-right">
-                    <button
-                      type="button"
-                      onClick={() => handleSort('blobCount')}
-                      className="flex items-center justify-end gap-1 ml-auto hover:text-slate-900 transition-colors whitespace-nowrap cursor-pointer"
-                    >
-                      <span>Blobs</span>
-                      <ArrowUpDown className="w-3 h-3" />
-                    </button>
-                  </th>
-                  <th className="py-3 px-4 text-right">
-                    <button
-                      type="button"
-                      onClick={() => handleSort('findings')}
-                      className="flex items-center justify-end gap-1 ml-auto hover:text-slate-900 transition-colors whitespace-nowrap cursor-pointer"
-                    >
-                      <span>Audit Status</span>
-                      <ArrowUpDown className="w-3 h-3" />
-                    </button>
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-200 text-xs">
-                {filteredRows.map((row) => {
-                  const { account: acc, container: cont, rowFindings } = row;
-                  const topFinding = rowFindings[0];
-
-                  return (
-                    <tr
-                      key={row.rowId}
-                      className="hover:bg-slate-50/80 transition-colors"
-                    >
-                      <td className="py-3.5 px-4 align-top">
-                        <div className="font-mono font-bold text-slate-900">
-                          {acc.name}
-                        </div>
-                        <div className="text-[11px] text-slate-500 font-mono mt-0.5">
-                          {acc.resourceGroup} · {acc.location}
-                        </div>
-                      </td>
-
-                      <td className="py-3.5 px-4 align-top">
-                        {cont ? (
-                          <div>
-                            <div className="font-mono font-semibold text-emerald-800">
-                              {cont.name}
-                            </div>
-                            <div className="text-[11px] text-slate-500 mt-0.5">
-                              {cont.dataClassification || 'Internal'} ·{' '}
-                              {cont.immutabilityPolicyEnabled
-                                ? 'WORM Locked'
-                                : 'No WORM Policy'}
-                            </div>
-                          </div>
-                        ) : (
-                          <span className="text-slate-500 font-mono">
-                            No containers provisioned
+                    {/* Container Name Column */}
+                    <td className="py-3.5 px-4 align-top">
+                      <div className="flex items-center space-x-2">
+                        <FolderOpen
+                          className={`w-4 h-4 flex-shrink-0 ${
+                            row.effectiveAnonymousExposure
+                              ? 'text-red-600'
+                              : 'text-slate-400'
+                          }`}
+                        />
+                        <span
+                          className={`font-mono font-semibold ${
+                            row.containerName === '(0 containers)'
+                              ? 'text-slate-400 italic'
+                              : 'text-[#16232F]'
+                          }`}
+                        >
+                          {row.containerName}
+                        </span>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                        {row.hasSensitiveData && (
+                          <span className="px-1.5 py-0.2 rounded text-[10px] font-mono bg-red-50 text-red-700 border border-red-200 font-semibold">
+                            Sensitive Data
                           </span>
                         )}
-                      </td>
+                        {row.immutabilityPolicy && (
+                          <span className="px-1.5 py-0.2 rounded text-[10px] font-mono bg-emerald-50 text-[#1F8A79] border border-emerald-200 font-semibold">
+                            WORM Locked
+                          </span>
+                        )}
+                      </div>
+                    </td>
 
-                      <td className="py-3.5 px-4 align-top">
-                        <div className="space-y-0.5">
-                          {cont ? (
-                            <div
-                              className={`font-semibold ${
-                                cont.publicAccess === 'Container'
-                                  ? 'text-red-700'
-                                  : cont.publicAccess === 'Blob'
-                                  ? 'text-amber-700'
-                                  : 'text-emerald-700'
-                              }`}
-                            >
-                              Container:{' '}
-                              {cont.publicAccess === 'Container'
-                                ? 'Public (Container Read/List)'
-                                : cont.publicAccess === 'Blob'
-                                ? 'Public (Blob Read Only)'
-                                : 'Private (None)'}
-                            </div>
-                          ) : (
-                            <div className="text-slate-600 font-medium">
-                              Container: N/A
-                            </div>
-                          )}
-
-                          <div className="text-[11px] text-slate-600 font-mono">
-                            Account Blob Public:{' '}
-                            <span
-                              className={
-                                acc.allowBlobPublicAccess
-                                  ? 'text-red-700 font-semibold'
-                                  : 'text-emerald-700'
-                              }
-                            >
-                              {acc.allowBlobPublicAccess ? 'Allowed' : 'Disabled'}
-                            </span>{' '}
-                            · Firewall: {acc.defaultAction}
-                          </div>
-
-                          {cont &&
-                            (cont.hasStoredAccessPolicyWithNoExpiry ||
-                              cont.sasTokenIssuedWithFullPermissions) && (
-                              <div className="text-[11px] text-amber-700 font-mono font-semibold">
-                                {cont.hasStoredAccessPolicyWithNoExpiry
-                                  ? 'No-Expiry Policy'
-                                  : ''}
-                                {cont.hasStoredAccessPolicyWithNoExpiry &&
-                                cont.sasTokenIssuedWithFullPermissions
-                                  ? ' · '
-                                  : ''}
-                                {cont.sasTokenIssuedWithFullPermissions
-                                  ? 'Full-Perm SAS'
-                                  : ''}
-                              </div>
-                            )}
-                        </div>
-                      </td>
-
-                      <td className="py-3.5 px-4 align-top">
-                        <div className="space-y-0.5">
-                          <div className="font-medium text-slate-800">
-                            {acc.customerManagedKeyEnabled
-                              ? 'Customer-Managed Key (CMK)'
-                              : 'Microsoft-Managed Key (MMK)'}{' '}
-                            ·{' '}
-                            <span className="text-slate-500">
-                              {acc.infrastructureEncryption
-                                ? 'Double Infra Enc'
-                                : 'Standard Enc'}
-                            </span>
-                          </div>
-                          <div
-                            className={`text-[11px] font-mono ${
-                              !acc.supportsHttpsTrafficOnly ||
-                              acc.minimumTlsVersion === 'TLS1_0' ||
-                              acc.minimumTlsVersion === 'TLS1_1'
+                    {/* Public Access Column (Rec #10) */}
+                    <td className="py-3.5 px-3 align-top">
+                      <div className="space-y-1">
+                        {row.effectiveAnonymousExposure ? (
+                          <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded text-[11px] font-mono font-semibold bg-red-50 text-red-700 border border-red-200">
+                            <Unlock className="w-3 h-3" />
+                            <span>Confirmed Public ({row.containerPublicAccess})</span>
+                          </span>
+                        ) : row.isGuardrailGapOnly ? (
+                          <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded text-[11px] font-mono font-semibold bg-amber-50 text-amber-800 border border-amber-200">
+                            <Lock className="w-3 h-3" />
+                            <span>Container Private (Account Guardrail Gap)</span>
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded text-[11px] font-mono font-semibold bg-emerald-50 text-[#1F8A79] border border-emerald-200">
+                            <Lock className="w-3 h-3" />
+                            <span>Private (Guardrail Blocked)</span>
+                          </span>
+                        )}
+                        <div className="text-[11px] text-[#546471] font-mono">
+                          Account allowBlobPublicAccess:{' '}
+                          <span
+                            className={
+                              row.allowBlobPublicAccess
                                 ? 'text-amber-700 font-semibold'
-                                : 'text-emerald-700'
-                            }`}
+                                : 'text-[#1F8A79] font-semibold'
+                            }
                           >
-                            {acc.supportsHttpsTrafficOnly
-                              ? 'HTTPS Required'
-                              : 'HTTP Allowed (Insecure)'}{' '}
-                            · {acc.minimumTlsVersion.replace('_', '.')} ·{' '}
-                            {acc.allowSharedKeyAccess
-                              ? 'Shared Key Enabled'
-                              : 'Entra ID Only'}
-                          </div>
-                        </div>
-                      </td>
-
-                      <td className="py-3.5 px-4 align-top text-right font-mono tabular-nums text-slate-900">
-                        {cont ? (cont.blobCount ?? 0).toLocaleString() : '—'}
-                      </td>
-
-                      <td className="py-3.5 px-4 align-top text-right font-mono tabular-nums">
-                        {rowFindings.length > 0 && topFinding ? (
-                          <button
-                            type="button"
-                            onClick={() => onSelectFinding(topFinding.id)}
-                            className="text-red-700 hover:underline font-semibold whitespace-nowrap cursor-pointer"
-                          >
-                            {rowFindings.length}{' '}
-                            {rowFindings.length === 1 ? 'finding' : 'findings'} →
-                          </button>
-                        ) : (
-                          <span className="text-emerald-700 font-semibold whitespace-nowrap">
-                            Hardened
+                            {row.allowBlobPublicAccess ? 'true' : 'false'}
                           </span>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                        </div>
+                      </div>
+                    </td>
+
+                    {/* Encryption Settings Column (Rec #11) */}
+                    <td className="py-3.5 px-3 align-top">
+                      <div className="space-y-1 font-mono">
+                        <span
+                          className={`inline-flex items-center space-x-1 px-2 py-0.5 rounded text-[11px] font-semibold ${
+                            row.encryptionKeySource === 'Microsoft.Keyvault'
+                              ? 'bg-emerald-50 text-[#1F8A79] border border-emerald-200'
+                              : 'bg-slate-100 text-[#16232F] border border-slate-300'
+                          }`}
+                        >
+                          <KeyRound className="w-3 h-3" />
+                          <span>
+                            {row.encryptionKeySource === 'Microsoft.Keyvault'
+                              ? '256-bit AES (Key Vault CMK)'
+                              : '256-bit AES (Default MMK)'}
+                          </span>
+                        </span>
+                        <div className="text-[11px] text-[#546471]">
+                          Min TLS:{' '}
+                          <span
+                            className={
+                              row.minimumTlsVersion === 'TLS1_2'
+                                ? 'text-[#1F8A79] font-semibold'
+                                : 'text-red-600 font-semibold'
+                            }
+                          >
+                            {row.minimumTlsVersion}
+                          </span>{' '}
+                          · HTTPS:{' '}
+                          <span
+                            className={
+                              row.supportsHttpsTrafficOnly
+                                ? 'text-[#1F8A79] font-semibold'
+                                : 'text-red-600 font-semibold'
+                            }
+                          >
+                            {row.supportsHttpsTrafficOnly ? 'Required' : 'Optional'}
+                          </span>
+                        </div>
+                      </div>
+                    </td>
+
+                    {/* Network & Shared Key Auth Column */}
+                    <td className="py-3.5 px-3 align-top font-mono">
+                      <div className="space-y-1">
+                        <span
+                          className={`inline-flex items-center space-x-1 px-2 py-0.5 rounded text-[11px] font-semibold ${
+                            row.defaultAction === 'Deny'
+                              ? 'bg-emerald-50 text-[#1F8A79] border border-emerald-200'
+                              : 'bg-red-50 text-red-700 border border-red-200'
+                          }`}
+                        >
+                          {row.defaultAction === 'Deny' ? (
+                            <ShieldCheck className="w-3 h-3" />
+                          ) : (
+                            <ShieldAlert className="w-3 h-3" />
+                          )}
+                          <span>Firewall: {row.defaultAction}</span>
+                        </span>
+                        <div className="text-[11px] text-[#546471]">
+                          Shared Key:{' '}
+                          <span
+                            className={
+                              row.allowSharedKeyAccess
+                                ? 'text-amber-700 font-semibold'
+                                : 'text-[#1F8A79] font-semibold'
+                            }
+                          >
+                            {row.allowSharedKeyAccess ? 'Enabled' : 'Disabled'}
+                          </span>
+                        </div>
+                      </div>
+                    </td>
+
+                    {/* Volume / Blobs Column */}
+                    <td className="py-3.5 px-3 align-top text-right font-mono">
+                      <div className="text-[#16232F] font-semibold">
+                        {row.sizeGb.toFixed(1)} GB
+                      </div>
+                      <div className="text-[11px] text-[#546471]">
+                        {row.blobCount.toLocaleString()} blobs
+                      </div>
+                    </td>
+
+                    {/* Action Column (Rec #6) */}
+                    <td className="py-3.5 px-4 align-top text-right">
+                      {row.isAccountHardened ? (
+                        <span className="inline-flex items-center space-x-1 text-[11px] text-[#1F8A79] font-mono font-semibold">
+                          <CheckCircle2 className="w-3.5 h-3.5" />
+                          <span>Hardened</span>
+                        </span>
+                      ) : (
+                        onHardenAccount && (
+                          <button
+                            onClick={() => onHardenAccount(row.accountId)}
+                            className="inline-flex items-center space-x-1 px-2.5 py-1 rounded bg-[#0E2238] hover:bg-[#15314E] text-white text-[11px] font-semibold transition-all"
+                            title="Simulates hardening in UI memory only"
+                          >
+                            <Wrench className="w-3 h-3" />
+                            <span>Simulate Hardening</span>
+                          </button>
+                        )
+                      )}
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
         </div>
-      )}
+
+        {/* Footer Count */}
+        <div className="px-4 py-3 border-t border-slate-200 bg-slate-50 flex items-center justify-between text-xs text-[#546471]">
+          <span>
+            Showing <strong className="text-[#16232F]">{filteredRows.length}</strong> of{' '}
+            <strong className="text-[#16232F]">{rows.length}</strong> inventory records
+          </span>
+          <span className="font-mono text-[11px]">
+            All Azure Storage accounts are encrypted at rest by default (256-bit AES MMK)
+          </span>
+        </div>
+      </div>
     </div>
   );
 };

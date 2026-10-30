@@ -72,3 +72,4 @@ test('builds live Azure telemetry payload with Storage Accounts, Blob Containers
   assert.equal(payload.storageAccounts[0].containers.length, 2);
   assert.equal(payload.roleAssignments.length, 3);
 });
+

@@ -18,6 +18,10 @@ import {
   Activity,
   ShieldCheck,
   Wifi,
+  Lock,
+  Trash2,
+  KeyRound,
+  AlertTriangle,
 } from 'lucide-react';
 import {
   AzureActivityEvent,
@@ -41,12 +45,14 @@ interface LiveAzureSyncModalProps {
     subscriptionId: string;
     sourceName: string;
     warnings?: string[];
+    isDemoData?: boolean;
   }) => void;
   isLiveConnected: boolean;
   liveSourceName?: string;
   onToggleContinuousEventStream: () => void;
   isEventStreamActive: boolean;
   onTriggerDriftAlert?: (scenarioType: string) => void;
+  onPurgeToken?: () => void;
 }
 
 const INITIAL_ACTIVITY_EVENTS: AzureActivityEvent[] = [
@@ -54,37 +60,37 @@ const INITIAL_ACTIVITY_EVENTS: AzureActivityEvent[] = [
     id: 'evt-1',
     timestamp: new Date(Date.now() - 4000).toLocaleTimeString(),
     operationName: 'MICROSOFT.STORAGE/STORAGEACCOUNTS/BLOBSERVICES/CONTAINERS/WRITE',
-    resourceName: 'maniqprodvault01/customer-kyc-documents',
+    resourceName: 'maniqprodvault01/customer-kyc-documents (SIMULATED)',
     resourceType: 'StorageContainer',
     caller: 'vendor.architect#EXT#@contoso-partner.com',
     callerIpAddress: '198.51.100.42',
     status: 'Succeeded',
     riskLevel: 'CRITICAL',
-    description: 'Container publicAccess modified to Container (Anonymous Read/List).',
+    description: '[Simulated Demo Event] Container publicAccess modified to Container (Anonymous Read/List).',
   },
   {
     id: 'evt-2',
     timestamp: new Date(Date.now() - 18000).toLocaleTimeString(),
     operationName: 'MICROSOFT.AUTHORIZATION/ROLEASSIGNMENTS/WRITE',
-    resourceName: 'sp-github-actions-deploy',
+    resourceName: 'sp-github-actions-deploy (SIMULATED)',
     resourceType: 'RoleAssignment',
     caller: 'admin@maniqshield.io',
     callerIpAddress: '203.0.113.88',
     status: 'Succeeded',
     riskLevel: 'HIGH',
-    description: 'Custom role with roleAssignments/write assigned at Subscription scope.',
+    description: '[Simulated Demo Event] Custom role with roleAssignments/write assigned at Subscription scope.',
   },
   {
     id: 'evt-3',
     timestamp: new Date(Date.now() - 35000).toLocaleTimeString(),
     operationName: 'MICROSOFT.STORAGE/STORAGEACCOUNTS/WRITE',
-    resourceName: 'maniqdatalake02',
+    resourceName: 'maniqdatalake02 (SIMULATED)',
     resourceType: 'StorageAccount',
     caller: 'secops-automation-sp',
     callerIpAddress: '40.112.72.19',
     status: 'Succeeded',
     riskLevel: 'INFO',
-    description: 'Verified minimumTlsVersion=TLS1_2 and supportsHttpsTrafficOnly=true.',
+    description: '[Simulated Demo Event] Verified minimumTlsVersion=TLS1_2 and supportsHttpsTrafficOnly=true.',
   },
 ];
 
@@ -97,15 +103,20 @@ export const LiveAzureSyncModal: React.FC<LiveAzureSyncModalProps> = ({
   onToggleContinuousEventStream,
   isEventStreamActive,
   onTriggerDriftAlert,
+  onPurgeToken,
 }) => {
   const [activeTab, setActiveTab] = useState<'api' | 'cli' | 'stream'>('api');
 
   // REST API credentials & Multi-Subscription One-Shot toggle
+  // Recommendation #7: Default to single subscription least-privilege scope and require explicit confirmation for tenant-wide scans
   const [scanAllSubscriptions, setScanAllSubscriptions] = useState<boolean>(false);
+  const [confirmMultiSubScan, setConfirmMultiSubScan] = useState<boolean>(false);
+  const [authorizedOwnerConfirmed, setAuthorizedOwnerConfirmed] = useState<boolean>(true);
   const [subscriptionId, setSubscriptionId] = useState(
     DEFAULT_AZURE_SUBSCRIPTION_ID
   );
   const [tenantId, setTenantId] = useState(DEFAULT_AZURE_TENANT_ID);
+  // DEFAULT_AZURE_ACCESS_TOKEN is '' — prompts user to enter value
   const [accessToken, setAccessToken] = useState(DEFAULT_AZURE_ACCESS_TOKEN);
   const [isLoading, setIsLoading] = useState(false);
   const [isCheckingHealth, setIsCheckingHealth] = useState(false);
@@ -127,7 +138,7 @@ export const LiveAzureSyncModal: React.FC<LiveAzureSyncModalProps> = ({
   const [rbacJsonText, setRbacJsonText] = useState('');
   const [cliError, setCliError] = useState<string | null>(null);
 
-  // Live Event Grid stream state
+  // Simulated Event Grid stream state (Recommendation #4)
   const [activityEvents, setActivityEvents] = useState<AzureActivityEvent[]>(
     INITIAL_ACTIVITY_EVENTS
   );
@@ -148,40 +159,40 @@ export const LiveAzureSyncModal: React.FC<LiveAzureSyncModalProps> = ({
     };
   }, [isOpen]);
 
-  // Real-time event stream ticker when stream is active or tab is viewed
+  // Simulated event stream ticker when stream is active or tab is viewed
   useEffect(() => {
     if (!isOpen || (!isEventStreamActive && activeTab !== 'stream')) return;
 
     const sampleOperations = [
       {
         operationName: 'MICROSOFT.STORAGE/STORAGEACCOUNTS/LISTKEYS/ACTION',
-        resourceName: 'maniqprodvault01',
+        resourceName: 'maniqprodvault01 (SIMULATED)',
         resourceType: 'StorageAccount',
         caller: 'sp-github-actions-deploy',
         callerIpAddress: '52.168.11.90',
         status: 'Warning' as const,
         riskLevel: 'HIGH' as const,
-        description: 'Shared Access Account Key listed via ARM Control Plane.',
+        description: '[Simulated Demo Event] Shared Access Account Key listed via ARM Control Plane.',
       },
       {
         operationName: 'MICROSOFT.NETWORK/STORAGEFIREWALLS/VALIDATE/ACTION',
-        resourceName: 'maniqprodvault01',
+        resourceName: 'maniqprodvault01 (SIMULATED)',
         resourceType: 'StorageNetworkRule',
         caller: 'azure-policy-engine',
         callerIpAddress: '13.107.42.14',
         status: 'Succeeded' as const,
         riskLevel: 'MEDIUM' as const,
-        description: 'Detected defaultAction=Allow with 0 VNet/Private Endpoint rules.',
+        description: '[Simulated Demo Event] Detected defaultAction=Allow with 0 VNet/Private Endpoint rules.',
       },
       {
         operationName: 'MICROSOFT.AUTHORIZATION/ROLEASSIGNMENTS/READ',
-        resourceName: `/subscriptions/${subscriptionId.slice(0, 8)}...`,
+        resourceName: `/subscriptions/${subscriptionId.slice(0, 8)}... (SIMULATED)`,
         resourceType: 'SubscriptionIAM',
         caller: 'maniq-shield-cspm-scanner',
         callerIpAddress: '20.84.181.55',
         status: 'Succeeded' as const,
         riskLevel: 'INFO' as const,
-        description: 'Continuous RBAC drift evaluation completed (0 errors).',
+        description: '[Simulated Demo Event] Periodic RBAC drift evaluation completed.',
       },
     ];
 
@@ -208,21 +219,50 @@ export const LiveAzureSyncModal: React.FC<LiveAzureSyncModalProps> = ({
     setIsCheckingHealth(false);
   };
 
-  // Handle direct REST API live fetch (Single, Comma-Separated, or Full Tenant Auto-Discovery)
+  const handleClearTokenFromMemory = () => {
+    setAccessToken('');
+    setSyncStatus({
+      type: 'idle',
+    });
+    if (onPurgeToken) {
+      onPurgeToken();
+    }
+  };
+
+  // Handle direct REST API live fetch
   const handleFetchFromAzure = async () => {
+    if (!authorizedOwnerConfirmed) {
+      setSyncStatus({
+        type: 'error',
+        message:
+          'Authorized Use Required (Rec #13): Please confirm that you have account-owner authorization to scan the target Azure subscription(s).',
+      });
+      return;
+    }
+
+    if (scanAllSubscriptions && !confirmMultiSubScan) {
+      setSyncStatus({
+        type: 'error',
+        message:
+          'Explicit Confirmation Required (Rec #7): Please check the box confirming multi-subscription tenant enumeration before scanning all subscriptions.',
+      });
+      return;
+    }
+
     if (!scanAllSubscriptions && !subscriptionId.trim()) {
       setSyncStatus({
         type: 'error',
         message:
-          'Please provide at least one Azure Subscription ID or enable "All Subscriptions in Tenant (One-Shot)".',
+          'Please enter a target Azure Subscription ID or explicitly enable multi-subscription scanning.',
       });
       return;
     }
+
     if (!accessToken.trim()) {
       setSyncStatus({
         type: 'error',
         message:
-          'No Bearer Token entered. Paste a token from "az account get-access-token" OR click "Connect Live Cloud Telemetry (1-Click Sync)" to test live multi-subscription synchronization immediately.',
+          'Azure ARM Bearer Access Token Required: Please enter your OAuth2 Bearer Token from "az account get-access-token --resource https://management.azure.com --query accessToken -o tsv" in the field above.',
       });
       return;
     }
@@ -249,9 +289,10 @@ export const LiveAzureSyncModal: React.FC<LiveAzureSyncModalProps> = ({
         subscriptionId: subLabel,
         sourceName:
           result.subscriptionsScanned > 1
-            ? `Azure ARM Tenant Scan (${result.subscriptionsScanned} Subs)`
-            : `Azure ARM REST API (${subLabel.slice(0, 8)}...)`,
+            ? `Live Azure ARM Tenant Scan (${result.subscriptionsScanned} Subs)`
+            : `Live Azure ARM REST API (${subLabel.slice(0, 8)}...)`,
         warnings: result.warnings,
+        isDemoData: false,
       });
 
       const warnText =
@@ -268,15 +309,15 @@ export const LiveAzureSyncModal: React.FC<LiveAzureSyncModalProps> = ({
         type: 'error',
         message: `ARM REST API Response: ${
           err.message || 'Invalid/expired token or CORS restriction'
-        }. Tip: Click "Connect Live Cloud Telemetry (1-Click Sync)" below or use the CLI Stream tab.`,
+        }. Please verify your Bearer Access Token is valid and unexpired.`,
       });
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Instant 1-Click Live Cloud Telemetry Sync (works without needing an external CLI token)
-  const handleInstantLiveTelemetrySync = async () => {
+  // Simulated Sandbox Multi-Subscription Telemetry Loader (labeled clearly as Demo Data per Rec #4 & #5)
+  const handleLoadSimulatedSandboxTelemetry = async () => {
     setIsLoading(true);
     setSyncStatus({ type: 'idle' });
 
@@ -287,21 +328,20 @@ export const LiveAzureSyncModal: React.FC<LiveAzureSyncModalProps> = ({
     );
 
     const subDisplay = scanAllSubscriptions
-      ? `All Tenant Subscriptions (${payload.subscriptionsScanned} Subs)`
-      : subscriptionId.trim() || 'a8f93e11-44bb-4e92-91ef-00129a883100';
+      ? `Simulated Tenant Sandbox (${payload.subscriptionsScanned} Demo Subs)`
+      : `${subscriptionId.trim() || '834dcd8e-ecbe-4340-b734-3729000c7562'} (Demo Sandbox)`;
 
     onApplyLiveResources({
       storageAccounts: payload.storageAccounts,
       roleAssignments: payload.roleAssignments,
       subscriptionId: subDisplay,
-      sourceName: scanAllSubscriptions
-        ? `Live Tenant Telemetry (${payload.subscriptionsScanned} Subscriptions)`
-        : `Live Azure Telemetry (${subDisplay.slice(0, 8)}...)`,
+      sourceName: `Demo Data — Simulated Multi-Sub Sandbox (No Live Assessment)`,
+      isDemoData: true,
     });
 
     setSyncStatus({
       type: 'success',
-      message: `Connected to Live Azure Telemetry Stream! Synchronized ${payload.storageAccounts.length} Storage Accounts and ${payload.roleAssignments.length} RBAC Role Assignments across ${payload.subscriptionsScanned} subscription(s) in one shot.`,
+      message: `Loaded Simulated Sandbox Dataset (DEMO DATA — NO LIVE ASSESSMENT): ${payload.storageAccounts.length} sample Storage Accounts and ${payload.roleAssignments.length} sample RBAC Role Assignments across ${payload.subscriptionsScanned} simulated subscription(s). Enter a real Bearer Token above for a live Azure assessment.`,
     });
     setIsLoading(false);
   };
@@ -325,7 +365,7 @@ export const LiveAzureSyncModal: React.FC<LiveAzureSyncModalProps> = ({
 
       if (parsedStorage.length === 0 && parsedRbac.length === 0) {
         setCliError(
-          'Please paste valid JSON for either Storage Accounts or Role Assignments (or click "Load Multi-Sub Sample Payload").'
+          'Please paste valid JSON for either Storage Accounts or Role Assignments (or click "Load Demo Sample CLI Payload").'
         );
         return;
       }
@@ -340,11 +380,12 @@ export const LiveAzureSyncModal: React.FC<LiveAzureSyncModalProps> = ({
         subscriptionId:
           distinctSubs.length > 1
             ? `Multi-Subscription CLI (${distinctSubs.length} Subs)`
-            : distinctSubs[0] || subscriptionId || 'live-azure-sub',
+            : distinctSubs[0] || subscriptionId || 'cli-imported-sub',
         sourceName:
           distinctSubs.length > 1
-            ? `Azure CLI Multi-Sub Stream (${distinctSubs.length} Subs)`
-            : 'Azure Cloud Shell CLI Stream',
+            ? `Azure CLI Imported JSON (${distinctSubs.length} Subs)`
+            : 'Azure Cloud Shell CLI Imported JSON',
+        isDemoData: false,
       });
 
       setSyncStatus({
@@ -374,18 +415,18 @@ export const LiveAzureSyncModal: React.FC<LiveAzureSyncModalProps> = ({
         <div className="flex items-center justify-between px-6 py-4 border-b border-white/10 bg-[#081420] text-[#F3F5F1]">
           <div className="flex items-center space-x-3">
             <div className="p-2.5 rounded-lg bg-[#2BB5A0] text-[#081420]">
-              <Zap className="w-5 h-5" />
+              <KeyRound className="w-5 h-5" />
             </div>
             <div>
               <div className="flex items-center space-x-2">
                 <h3 className="font-serif font-bold text-base text-white">
-                  Maniq Shield — Live Azure Connection & Telemetry
+                  Azure ARM Bearer Token &amp; Live Assessment Connection
                 </h3>
                 <span
                   className={`text-[10px] font-mono px-2 py-0.5 rounded font-bold flex items-center space-x-1 border ${
                     isLiveConnected
                       ? 'bg-[#2BB5A0]/20 text-[#5FD3BF] border-[#2BB5A0]/40'
-                      : 'bg-white/10 text-[#EBC385] border-white/20'
+                      : 'bg-amber-500/20 text-[#EBC385] border-amber-400/30'
                   }`}
                 >
                   <span
@@ -393,13 +434,13 @@ export const LiveAzureSyncModal: React.FC<LiveAzureSyncModalProps> = ({
                       isLiveConnected ? 'bg-[#5FD3BF]' : 'bg-[#EBC385]'
                     }`}
                   />
-                  {isLiveConnected ? 'CONNECTED' : 'READY TO SYNC'}
+                  {isLiveConnected ? 'LIVE AZURE CONNECTED' : 'TOKEN REQUIRED FOR LIVE SCAN'}
                 </span>
               </div>
               <p className="text-xs text-[#B7C3CC]">
                 {isLiveConnected && liveSourceName
                   ? `Active Source: ${liveSourceName}`
-                  : 'Connect directly to Azure ARM REST API (Single or All Tenant Subscriptions), Cloud Shell CLI, or Live Telemetry.'}
+                  : 'Please enter your Azure ARM Bearer Access Token below to run a live assessment.'}
               </p>
             </div>
           </div>
@@ -427,21 +468,33 @@ export const LiveAzureSyncModal: React.FC<LiveAzureSyncModalProps> = ({
               {isCheckingHealth
                 ? 'Pinging https://management.azure.com...'
                 : endpointHealth?.message ||
-                  'Azure ARM Endpoint (management.azure.com) Ready'}
+                  'Azure ARM Endpoint (management.azure.com) Ready — Enter Bearer Token to Authenticate'}
             </span>
           </div>
 
-          <button
-            type="button"
-            onClick={handleCheckEndpointHealth}
-            disabled={isCheckingHealth}
-            className="xh-btn text-[11px] py-1 px-2.5 disabled:opacity-50"
-          >
-            <RefreshCw
-              className={`w-3 h-3 ${isCheckingHealth ? 'animate-spin' : ''}`}
-            />
-            <span>Test Live Endpoint</span>
-          </button>
+          <div className="flex items-center space-x-2">
+            {accessToken && (
+              <button
+                type="button"
+                onClick={handleClearTokenFromMemory}
+                className="px-2.5 py-1 rounded bg-red-500/20 hover:bg-red-500/30 text-red-200 border border-red-400/30 font-mono text-[11px] flex items-center space-x-1"
+              >
+                <Trash2 className="w-3 h-3" />
+                <span>Purge Token</span>
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={handleCheckEndpointHealth}
+              disabled={isCheckingHealth}
+              className="xh-btn text-[11px] py-1 px-2.5 disabled:opacity-50"
+            >
+              <RefreshCw
+                className={`w-3 h-3 ${isCheckingHealth ? 'animate-spin' : ''}`}
+              />
+              <span>Test Endpoint</span>
+            </button>
+          </div>
         </div>
 
         {/* Navigation Tabs */}
@@ -455,7 +508,7 @@ export const LiveAzureSyncModal: React.FC<LiveAzureSyncModalProps> = ({
             }`}
           >
             <Globe className="w-4 h-4 text-[#1F8A79]" />
-            <span>Azure ARM REST API</span>
+            <span>1. Azure ARM Bearer Token (Live API)</span>
           </button>
           <button
             onClick={() => setActiveTab('cli')}
@@ -466,7 +519,7 @@ export const LiveAzureSyncModal: React.FC<LiveAzureSyncModalProps> = ({
             }`}
           >
             <Terminal className="w-4 h-4 text-[#1F8A79]" />
-            <span>Azure Cloud Shell / CLI Stream</span>
+            <span>2. Azure CLI JSON Import</span>
           </button>
           <button
             onClick={() => setActiveTab('stream')}
@@ -477,124 +530,182 @@ export const LiveAzureSyncModal: React.FC<LiveAzureSyncModalProps> = ({
             }`}
           >
             <Radio className="w-4 h-4 text-[#1F8A79]" />
-            <span>Real-Time Activity Event Stream</span>
+            <span>3. Simulated Activity Stream (Demo)</span>
           </button>
         </div>
 
         {/* Tab 1: Direct ARM REST API Sync */}
         {activeTab === 'api' && (
           <div className="p-6 space-y-4 overflow-y-auto flex-1 bg-white">
-            <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 text-xs text-[#16232F] leading-relaxed flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <div>
-                <strong>One-Shot Tenant & Multi-Subscription Discovery:</strong> Automatically enumerates{' '}
-                <code className="bg-[#081420] px-1.5 py-0.5 rounded text-[#5FD3BF] font-mono">
-                  GET /subscriptions
-                </code>{' '}
-                and scans all Storage Accounts, Blob Containers, and RBAC Role Assignments in parallel.
+            {/* Bearer Token Entry Request Banner */}
+            <div className="p-4 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-950 space-y-1.5">
+              <div className="font-bold flex items-center justify-between">
+                <span className="flex items-center space-x-2">
+                  <KeyRound className="w-4 h-4 text-amber-700" />
+                  <span>Action Required: Please Enter Your Azure ARM Bearer Access Token</span>
+                </span>
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-amber-200/70 text-amber-900 font-bold">
+                  NO DEFAULT TOKEN STORED
+                </span>
               </div>
-              <button
-                type="button"
-                onClick={handleInstantLiveTelemetrySync}
-                disabled={isLoading}
-                className="flex items-center space-x-1.5 px-3 py-2 rounded-lg bg-[#2BB5A0] hover:bg-[#1F8A79] text-[#081420] hover:text-white font-bold text-xs whitespace-nowrap transition-all"
-              >
-                <Sparkles className="w-3.5 h-3.5" />
-                <span>Connect Live Cloud Telemetry (1-Click Sync)</span>
-              </button>
+              <p className="text-[#546471]">
+                For security and credential hygiene (Recommendation #12), no default Bearer Token is pre-loaded. Generate a short-lived read token in Azure Cloud Shell or terminal and paste it below:
+              </p>
+              <code className="block bg-[#081420] text-[#5FD3BF] px-2.5 py-1.5 rounded font-mono text-[11px]">
+                az account get-access-token --resource https://management.azure.com --query accessToken -o tsv
+              </code>
             </div>
 
-            {/* Scan Scope Selector: All Tenant Subscriptions vs Specific Subscription(s) */}
-            <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <div>
-                <div className="text-xs font-bold text-[#16232F] flex items-center space-x-2">
-                  <ShieldCheck className="w-4 h-4 text-[#1F8A79]" />
-                  <span>Subscription Scan Scope (One-Shot Mode)</span>
-                </div>
-                <p className="text-[11px] text-[#546471] mt-0.5">
-                  {scanAllSubscriptions
-                    ? 'Auto-discovers every enabled subscription in your Entra Tenant and audits them in parallel.'
-                    : 'Scans a single Subscription ID or a comma-separated list of Subscription IDs.'}
-                </p>
-              </div>
-              <div className="flex items-center space-x-1.5 bg-white p-1 rounded-lg border border-slate-200">
-                <button
-                  type="button"
-                  onClick={() => setScanAllSubscriptions(true)}
-                  className={`px-2.5 py-1.5 rounded-md text-[11px] font-bold transition-all ${
-                    scanAllSubscriptions
-                      ? 'bg-[#0E2238] text-white'
-                      : 'text-[#546471] hover:text-[#16232F]'
-                  }`}
-                >
-                  All Tenant Subscriptions
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setScanAllSubscriptions(false)}
-                  className={`px-2.5 py-1.5 rounded-md text-[11px] font-bold transition-all ${
-                    !scanAllSubscriptions
-                      ? 'bg-[#0E2238] text-white'
-                      : 'text-[#546471] hover:text-[#16232F]'
-                  }`}
-                >
-                  Specific Subscription(s)
-                </button>
-              </div>
-            </div>
-
+            {/* Tenant & Subscription Inputs */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="block text-xs font-bold text-[#16232F] mb-1">
-                  {scanAllSubscriptions
-                    ? 'Subscription Filter (* = All Enabled in Tenant):'
-                    : 'Azure Subscription ID(s) (Comma-separated):'}
-                </label>
-                <input
-                  type="text"
-                  value={scanAllSubscriptions ? '* (Auto-Discover All Tenant Subscriptions)' : subscriptionId}
-                  disabled={scanAllSubscriptions}
-                  onChange={(e) => setSubscriptionId(e.target.value)}
-                  placeholder="sub-id-1, sub-id-2, sub-id-3"
-                  className="w-full bg-slate-50 border border-slate-300 text-[#16232F] text-xs rounded-lg px-3 py-2 font-mono focus:outline-none focus:ring-1 focus:ring-[#2BB5A0] disabled:opacity-70"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-[#16232F] mb-1">
-                  Azure Entra Tenant ID (Optional):
+                  Azure Entra Tenant ID (Default Configured):
                 </label>
                 <input
                   type="text"
                   value={tenantId}
                   onChange={(e) => setTenantId(e.target.value)}
-                  placeholder="e.g. 72f988bf-86f1-41af-91ab-2d7cd011db47"
+                  placeholder="9dbe6987-92ff-43c8-9f71-a39d689cb817"
                   className="w-full bg-slate-50 border border-slate-300 text-[#16232F] text-xs rounded-lg px-3 py-2 font-mono focus:outline-none focus:ring-1 focus:ring-[#2BB5A0]"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-[#16232F] mb-1">
+                  {scanAllSubscriptions
+                    ? 'Subscription Scope (All Enabled in Tenant):'
+                    : 'Target Azure Subscription ID (Default Configured):'}
+                </label>
+                <input
+                  type="text"
+                  value={
+                    scanAllSubscriptions
+                      ? '* (Enumerate All Accessible Subscriptions)'
+                      : subscriptionId
+                  }
+                  disabled={scanAllSubscriptions}
+                  onChange={(e) => setSubscriptionId(e.target.value)}
+                  placeholder="834dcd8e-ecbe-4340-b734-3729000c7562"
+                  className="w-full bg-slate-50 border border-slate-300 text-[#16232F] text-xs rounded-lg px-3 py-2 font-mono focus:outline-none focus:ring-1 focus:ring-[#2BB5A0] disabled:opacity-70"
                 />
               </div>
             </div>
 
+            {/* Bearer Token Input */}
             <div>
               <div className="flex items-center justify-between mb-1">
-                <label className="text-xs font-bold text-[#16232F]">
-                  Azure ARM Bearer Access Token (Tenant-Wide Read Token):
+                <label className="text-xs font-bold text-[#16232F] flex items-center space-x-1.5">
+                  <span>Azure ARM Bearer Access Token (Required for Live Scan):</span>
+                  <span className="text-red-600">*</span>
                 </label>
-                <span className="text-[11px] text-[#546471] font-mono">
-                  OAuth2 Bearer Token
-                </span>
+                <div className="flex items-center space-x-2">
+                  {accessToken && (
+                    <button
+                      type="button"
+                      onClick={handleClearTokenFromMemory}
+                      className="text-[11px] text-red-600 hover:underline font-semibold"
+                    >
+                      Clear Token
+                    </button>
+                  )}
+                  <span className="text-[11px] text-[#546471] font-mono">
+                    Volatile Memory Only
+                  </span>
+                </div>
               </div>
               <textarea
                 rows={3}
                 value={accessToken}
                 onChange={(e) => setAccessToken(e.target.value)}
-                placeholder="Paste token from: az account get-access-token --resource https://management.azure.com --query accessToken -o tsv"
-                className="w-full bg-slate-50 border border-slate-300 text-[#16232F] text-xs rounded-lg p-3 font-mono focus:outline-none focus:ring-1 focus:ring-[#2BB5A0]"
+                placeholder="Please enter your Azure ARM Bearer Access Token (eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiIs...)"
+                className="w-full bg-slate-50 border-2 border-[#2BB5A0]/60 text-[#16232F] text-xs rounded-lg p-3 font-mono focus:outline-none focus:ring-2 focus:ring-[#2BB5A0]"
               />
-              <div className="mt-1 text-[11px] text-[#546471]">
-                One token works across all subscriptions in your tenant where you hold{' '}
-                <code className="bg-slate-100 px-1 py-0.5 rounded text-[#1F8A79] font-mono">
-                  Reader
-                </code>{' '}
-                access (Tip: assign Reader at the <strong>Root Management Group</strong> level for tenant-wide coverage).
+              {/* Recommendation #7: Least-Privilege Scope Guidance */}
+              <div className="mt-1.5 text-[11px] text-[#546471] flex items-start space-x-1.5">
+                <ShieldCheck className="w-4 h-4 text-[#1F8A79] flex-shrink-0 mt-0.5" />
+                <span>
+                  <strong>Least-Privilege Scope (Rec #7):</strong> Use an identity with built-in{' '}
+                  <code className="bg-slate-100 px-1 py-0.5 rounded text-[#1F8A79] font-mono">
+                    Reader
+                  </code>{' '}
+                  on the target Resource Group or single Subscription. Avoid Root Management Group assignments or Global Administrator elevation.
+                </span>
+              </div>
+            </div>
+
+            {/* Scope Selector & Explicit Multi-Subscription Confirmation (Rec #7 & #13) */}
+            <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-2.5 text-xs">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div>
+                  <span className="font-bold text-[#16232F]">
+                    Assessment Scope Selection
+                  </span>
+                  <p className="text-[11px] text-[#546471]">
+                    Single-subscription scope is recommended by default for least privilege.
+                  </p>
+                </div>
+                <div className="flex items-center space-x-1.5 bg-white p-1 rounded-lg border border-slate-200">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setScanAllSubscriptions(false);
+                      setConfirmMultiSubScan(false);
+                    }}
+                    className={`px-2.5 py-1 rounded-md text-[11px] font-bold transition-all ${
+                      !scanAllSubscriptions
+                        ? 'bg-[#0E2238] text-white'
+                        : 'text-[#546471] hover:text-[#16232F]'
+                    }`}
+                  >
+                    Single / Listed Subscription (Default)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setScanAllSubscriptions(true)}
+                    className={`px-2.5 py-1 rounded-md text-[11px] font-bold transition-all ${
+                      scanAllSubscriptions
+                        ? 'bg-[#0E2238] text-white'
+                        : 'text-[#546471] hover:text-[#16232F]'
+                    }`}
+                  >
+                    All Tenant Subscriptions
+                  </button>
+                </div>
+              </div>
+
+              {scanAllSubscriptions && (
+                <label className="flex items-start space-x-2 p-2.5 rounded-lg bg-amber-50 border border-amber-200 text-amber-950 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={confirmMultiSubScan}
+                    onChange={(e) => setConfirmMultiSubScan(e.target.checked)}
+                    className="mt-0.5 rounded accent-[#1F8A79]"
+                  />
+                  <span className="text-[11px] leading-relaxed">
+                    <strong>Explicit Multi-Subscription Confirmation (Rec #7):</strong> I confirm that I intend to enumerate <code>GET /subscriptions</code> and query Storage Accounts and Role Assignments across all accessible subscriptions in this tenant.
+                  </span>
+                </label>
+              )}
+
+              <label className="flex items-start space-x-2 text-[11px] text-[#546471] cursor-pointer pt-1">
+                <input
+                  type="checkbox"
+                  checked={authorizedOwnerConfirmed}
+                  onChange={(e) => setAuthorizedOwnerConfirmed(e.target.checked)}
+                  className="mt-0.5 rounded accent-[#1F8A79]"
+                />
+                <span>
+                  <strong>Authorized Use (Rec #13):</strong> I am authorized by the Azure subscription/tenant owner to perform this read-only configuration assessment.
+                </span>
+              </label>
+            </div>
+
+            {/* Privacy & Credential Handling Summary Box (Rec #12) */}
+            <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-[11px] text-[#546471] flex items-start space-x-2">
+              <Lock className="w-4 h-4 text-[#1F8A79] flex-shrink-0 mt-0.5" />
+              <div>
+                <strong>Privacy &amp; Token Notice (Rec #12):</strong> Your Bearer Token is kept exclusively in volatile in-memory React state, transmitted only via direct browser HTTPS calls to <code>https://management.azure.com</code>, never logged or persisted to disk/storage, and purged immediately when you click <em>Purge Token</em> or close this tab.
               </div>
             </div>
 
@@ -617,44 +728,44 @@ export const LiveAzureSyncModal: React.FC<LiveAzureSyncModalProps> = ({
                   onClick={onClose}
                   className="px-3 py-1 rounded-md bg-[#0E2238] hover:bg-[#15314E] text-white font-bold text-[11px] whitespace-nowrap"
                 >
-                  View Audit Results →
+                  View Results →
                 </button>
               </div>
             )}
 
-            <div className="pt-2 flex flex-wrap items-center justify-between gap-2">
+            <div className="pt-2 flex flex-wrap items-center justify-between gap-2 border-t border-slate-200">
               <button
                 type="button"
-                onClick={() => setActiveTab('cli')}
-                className="text-xs text-[#1F8A79] hover:text-[#15695B] font-semibold"
+                onClick={handleLoadSimulatedSandboxTelemetry}
+                disabled={isLoading}
+                className="px-3 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-[#16232F] border border-slate-300 font-semibold text-xs flex items-center space-x-1.5 transition-all"
               >
-                Or Use Multi-Subscription Azure CLI / Resource Graph →
+                <Sparkles className="w-3.5 h-3.5 text-[#D79A45]" />
+                <span>Load Simulated Multi-Sub Sandbox (Demo Data)</span>
               </button>
 
-              <div className="flex items-center space-x-2">
-                <button
-                  type="button"
-                  onClick={handleFetchFromAzure}
-                  disabled={isLoading}
-                  className="flex items-center space-x-2 px-4 py-2 rounded-lg text-xs font-semibold bg-[#0E2238] hover:bg-[#15314E] text-white transition-all disabled:opacity-50"
-                >
-                  {isLoading ? (
-                    <>
-                      <RefreshCw className="w-4 h-4 animate-spin" />
-                      <span>Scanning Tenant Subscriptions...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Zap className="w-4 h-4" />
-                      <span>
-                        {scanAllSubscriptions
-                          ? 'One-Shot Scan All Tenant Subscriptions'
-                          : 'Fetch with Bearer Token'}
-                      </span>
-                    </>
-                  )}
-                </button>
-              </div>
+              <button
+                type="button"
+                onClick={handleFetchFromAzure}
+                disabled={isLoading}
+                className="flex items-center space-x-2 px-4 py-2 rounded-lg text-xs font-semibold bg-[#0E2238] hover:bg-[#15314E] text-white transition-all disabled:opacity-50"
+              >
+                {isLoading ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                    <span>Scanning Azure ARM...</span>
+                  </>
+                ) : (
+                  <>
+                    <Zap className="w-4 h-4 text-[#5FD3BF]" />
+                    <span>
+                      {scanAllSubscriptions
+                        ? 'Authenticate & Scan All Tenant Subscriptions'
+                        : 'Authenticate & Fetch Live Azure Resources'}
+                    </span>
+                  </>
+                )}
+              </button>
             </div>
           </div>
         )}
@@ -664,7 +775,7 @@ export const LiveAzureSyncModal: React.FC<LiveAzureSyncModalProps> = ({
           <div className="p-6 space-y-4 overflow-y-auto flex-1 bg-white">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
               <span className="text-xs text-[#16232F] font-medium">
-                Export across <strong>all subscriptions in your tenant in one shot</strong> using Azure Resource Graph or Bash loop:
+                Paste JSON output from Azure CLI or Resource Graph (processed locally in browser memory):
               </span>
               <button
                 type="button"
@@ -672,7 +783,7 @@ export const LiveAzureSyncModal: React.FC<LiveAzureSyncModalProps> = ({
                 className="text-xs px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-[#16232F] border border-slate-300 font-semibold flex items-center space-x-1.5 transition-all whitespace-nowrap"
               >
                 <Sparkles className="w-3.5 h-3.5 text-[#1F8A79]" />
-                <span>Load Multi-Sub Sample Payload (3 Subs)</span>
+                <span>Load Demo Sample CLI Payload (3 Subs)</span>
               </button>
             </div>
 
@@ -680,10 +791,10 @@ export const LiveAzureSyncModal: React.FC<LiveAzureSyncModalProps> = ({
               <div>
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between text-xs mb-1 gap-1">
                   <span className="font-bold text-[#16232F] font-mono">
-                    1. One-Shot All Tenant Storage Accounts (Resource Graph or CLI Loop)
+                    1. Storage Accounts JSON (Single Sub or Resource Graph)
                   </span>
                   <code className="text-[10px] text-[#5FD3BF] bg-[#081420] px-2 py-0.5 rounded font-mono">
-                    az graph query -q "Resources | where type =~ 'microsoft.storage/storageaccounts'" --first 1000 -o json --query data
+                    az storage account list --subscription {subscriptionId || '<sub-id>'} -o json
                   </code>
                 </div>
                 <textarea
@@ -698,10 +809,10 @@ export const LiveAzureSyncModal: React.FC<LiveAzureSyncModalProps> = ({
               <div>
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between text-xs mb-1 gap-1">
                   <span className="font-bold text-[#16232F] font-mono">
-                    2. One-Shot All Tenant RBAC Role Assignments (Multi-Sub Loop)
+                    2. RBAC Role Assignments JSON
                   </span>
                   <code className="text-[10px] text-[#5FD3BF] bg-[#081420] px-2 py-0.5 rounded font-mono">
-                    az account list --query "[?state=='Enabled'].id" -o tsv | xargs -I {} az role assignment list --all --subscription {} -o json | jq -s 'add'
+                    az role assignment list --all --subscription {subscriptionId || '<sub-id>'} -o json
                   </code>
                 </div>
                 <textarea
@@ -728,15 +839,22 @@ export const LiveAzureSyncModal: React.FC<LiveAzureSyncModalProps> = ({
                 className="flex items-center space-x-2 px-4 py-2 rounded-lg text-xs font-semibold bg-[#0E2238] hover:bg-[#15314E] text-white transition-all"
               >
                 <Layers className="w-4 h-4" />
-                <span>Ingest & Run Multi-Subscription Audit</span>
+                <span>Ingest CLI JSON &amp; Run Assessment</span>
               </button>
             </div>
           </div>
         )}
 
-        {/* Tab 3: Real-Time Event Stream */}
+        {/* Tab 3: Simulated Event Stream (Recommendation #4) */}
         {activeTab === 'stream' && (
           <div className="p-6 space-y-4 overflow-y-auto flex-1 bg-white">
+            <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-950 text-xs flex items-center space-x-2">
+              <AlertTriangle className="w-4 h-4 text-amber-700 flex-shrink-0" />
+              <span>
+                <strong>SIMULATED MONITORING STREAM (DEMO DATA — REC #4):</strong> The events and drift alerts below are synthetic in-browser training simulations and do not represent live Azure Activity Log or Event Grid traffic from your tenant.
+              </span>
+            </div>
+
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-xl bg-slate-50 border border-slate-200">
               <div className="flex items-center space-x-3">
                 <div
@@ -754,10 +872,10 @@ export const LiveAzureSyncModal: React.FC<LiveAzureSyncModalProps> = ({
                 </div>
                 <div>
                   <h4 className="font-serif text-sm font-bold text-[#16232F] flex items-center space-x-2">
-                    <span>Azure Activity Log & Event Grid Telemetry Stream</span>
+                    <span>Simulated Activity Log &amp; Drift Sandbox</span>
                   </h4>
                   <p className="text-xs text-[#546471]">
-                    Monitors real-time ARM management-plane operations (Blob Container ACL edits, RBAC role assignments, firewall changes).
+                    Demonstrates how control-plane drift events (Container ACL edits, RBAC role writes) affect posture scoring.
                   </p>
                 </div>
               </div>
@@ -773,20 +891,20 @@ export const LiveAzureSyncModal: React.FC<LiveAzureSyncModalProps> = ({
                         timestamp: new Date().toLocaleTimeString(),
                         operationName:
                           'MICROSOFT.STORAGE/STORAGEACCOUNTS/BLOBSERVICES/CONTAINERS/WRITE',
-                        resourceName: 'customer-ssn-vault',
+                        resourceName: 'customer-ssn-vault (SIMULATED)',
                         resourceType: 'StorageContainer',
                         caller: 'external-contractor#EXT#',
                         callerIpAddress: '185.220.101.9',
                         status: 'Warning',
                         riskLevel: 'CRITICAL',
                         description:
-                          'ALERT: Container publicAccess changed to Container (Anonymous Internet Read/List).',
+                          '[SIMULATED DRIFT] Container publicAccess changed to Container (Anonymous Read/List).',
                       };
                       setActivityEvents((prev) => [driftEvent, ...prev]);
                     }}
                     className="px-3 py-1.5 rounded-lg text-xs font-bold bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 transition-all whitespace-nowrap"
                   >
-                    Simulate Live Drift Event
+                    Inject Simulated Drift Event
                   </button>
                 )}
                 <button
@@ -798,20 +916,20 @@ export const LiveAzureSyncModal: React.FC<LiveAzureSyncModalProps> = ({
                       : 'bg-[#0E2238] text-white hover:bg-[#15314E]'
                   }`}
                 >
-                  {isEventStreamActive ? 'STREAM ACTIVE' : 'START STREAM'}
+                  {isEventStreamActive ? 'SIMULATION ACTIVE' : 'START SIMULATION'}
                 </button>
               </div>
             </div>
 
-            {/* Live Stream Feed */}
+            {/* Simulated Stream Feed */}
             <div className="space-y-2">
               <div className="flex items-center justify-between text-xs">
                 <span className="font-bold text-[#16232F] flex items-center space-x-1.5">
                   <Activity className="w-3.5 h-3.5 text-[#1F8A79]" />
-                  <span>Live Azure Activity Log Events ({activityEvents.length})</span>
+                  <span>Simulated Activity Events ({activityEvents.length})</span>
                 </span>
                 <span className="text-[11px] text-[#546471] font-mono">
-                  Polling interval: 5.5s
+                  Synthetic interval: 5.5s
                 </span>
               </div>
               <div className="space-y-2 max-h-64 overflow-y-auto font-mono text-xs pr-1">

@@ -71,6 +71,8 @@ export interface RbacAssignment {
 export interface RemediationGuidance {
   summary: string;
   cliCommand: string;
+  rollbackCommand?: string;
+  preCheckCommand?: string;
   portalSteps: string[];
   terraformSnippet: string;
   bicepSnippet?: string;
@@ -90,6 +92,7 @@ export interface Finding {
   title: string;
   category: VulnerabilityCategory;
   severity: Severity;
+  findingType?: 'confirmed_exposure' | 'guardrail_gap' | 'configuration_hardening';
   resourceId: string;
   resourceName: string;
   resourceType: 'StorageAccount' | 'StorageContainer' | 'RoleAssignment' | 'RoleDefinition' | 'IAM';
@@ -118,11 +121,21 @@ export interface SecurityAlert {
   read: boolean;
 }
 
+export interface FrameworkCheckSummary {
+  passed: number;
+  failed: number;
+  unknown: number;
+  totalSelected: number;
+  passRate: number;
+}
+
 export interface AuditMetrics {
   totalResources: number;
   totalFindings: number;
   hardenedFindingsCount?: number;
   totalEvaluatedFindings?: number;
+  unknownChecksCount?: number;
+  isEvaluationComplete?: boolean;
   criticalCount: number;
   highCount: number;
   mediumCount: number;
@@ -134,41 +147,84 @@ export interface AuditMetrics {
   privilegeEscalationCount: number;
   inactiveRoleCount: number;
   exposedContainerCount: number;
+  externalGuestRiskCount?: number;
+  guardrailGapAccountCount?: number;
   openBucketCount: number;
   complianceScores: {
     cisAzure: number;
     mcsb: number;
     nist: number;
   };
+  frameworkChecks?: {
+    cisAzure: FrameworkCheckSummary;
+    mcsb: FrameworkCheckSummary;
+    nist: FrameworkCheckSummary;
+  };
+}
+
+export type ActiveTab =
+  | 'overview'
+  | 'inventory'
+  | 'storage'
+  | 'rbac'
+  | 'findings'
+  | 'remediation_log';
+
+export interface SecurityAlertNotification {
+  id: string;
+  timestamp: string;
+  title: string;
+  message: string;
+  severity: 'CRITICAL' | 'HIGH' | 'INFO';
 }
 
 export interface AuditDataset {
   presetName: string;
   description: string;
   subscriptionId: string;
+  isDemoData?: boolean;
+  lastCollectedAt?: string;
+  collectionSource?: string;
   storageAccounts: StorageAccount[];
   roleAssignments: RbacAssignment[];
 }
 
 export interface RemediationLogEntry {
   id: string;
-  findingId: string;
-  title: string;
-  category: VulnerabilityCategory;
-  severity: Severity;
-  resourceId: string;
+  timestamp: string;
+  actionTitle: string;
   resourceName: string;
-  resourceType: Finding['resourceType'];
-  remediatedAt: string;
-  formattedTimestamp: string;
-  remediationMethod: 'Single Remediation' | 'Bulk Hardening' | 'Runbook Execution';
-  remediationSummary: string;
-  cliCommandExecuted: string;
+  category: VulnerabilityCategory;
+  previousScore: number;
+  newScore: number;
+  cliExecuted: string;
+  verificationStatus?:
+    | 'in_memory_simulation'
+    | 'acknowledged_unverified'
+    | 'Simulated in Session (Not Executed in Azure)'
+    | 'Acknowledged Only';
+  findingId?: string;
+  title?: string;
+  severity?: Severity;
+  resourceId?: string;
+  resourceType?: Finding['resourceType'];
+  remediatedAt?: string;
+  formattedTimestamp?: string;
+  remediationMethod?:
+    | 'Simulated in UI (Single)'
+    | 'Simulated in UI (Bulk)'
+    | 'Acknowledged in Runbook'
+    | 'Single Remediation'
+    | 'Bulk Hardening'
+    | 'Runbook Execution';
+  remediationSummary?: string;
+  cliCommandExecuted?: string;
+  rollbackCommand?: string;
   terraformSnippet?: string;
-  compliance: ComplianceMapping;
-  subscriptionId: string;
-  postureScoreBefore: number;
-  postureScoreAfter: number;
-  operator: string;
+  compliance?: ComplianceMapping;
+  subscriptionId?: string;
+  postureScoreBefore?: number;
+  postureScoreAfter?: number;
+  operator?: string;
 }
 

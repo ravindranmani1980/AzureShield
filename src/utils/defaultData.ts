@@ -3,12 +3,15 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { AuditDataset, StorageAccount, RbacAssignment } from '../types/security';
+import { AuditDataset } from '../types/security';
 
 export const SAMPLE_HIGH_RISK_DATASET: AuditDataset = {
-  presetName: 'Enterprise Production (Breach Imminent)',
-  description: 'Realistic hybrid cloud environment with publicly exposed storage accounts and blob containers, wildcard RBAC permissions, and guest privilege escalations.',
+  presetName: 'Demo Data — High-Risk Sample Scenario (No Live Assessment)',
+  description:
+    'Synthetic sandbox dataset for demonstration only (no live Azure assessment). Illustrates sample storage accounts, container access settings, and RBAC role assignments.',
   subscriptionId: '834dcd8e-ecbe-4340-b734-3729000c7562',
+  isDemoData: true,
+  collectionSource: 'Static Sandbox Sample Dataset (Not Connected to Azure)',
   storageAccounts: [
     {
       id: '/subscriptions/834dcd8e-ecbe-4340-b734-3729000c7562/resourceGroups/rg-enterprise-core/providers/Microsoft.Storage/storageAccounts/corpfinproddata',
@@ -16,27 +19,27 @@ export const SAMPLE_HIGH_RISK_DATASET: AuditDataset = {
       resourceGroup: 'rg-enterprise-core',
       subscriptionId: '834dcd8e-ecbe-4340-b734-3729000c7562',
       location: 'eastus',
-      allowBlobPublicAccess: true, // LOOPHOLE: Public Blob Access
-      publicNetworkAccess: 'Enabled', // LOOPHOLE: No Firewall
+      allowBlobPublicAccess: true,
+      publicNetworkAccess: 'Enabled',
       defaultAction: 'Allow',
       ipRulesCount: 0,
       virtualNetworkRulesCount: 0,
       privateEndpointConnectionsCount: 0,
-      supportsHttpsTrafficOnly: false, // LOOPHOLE: Insecure HTTP
-      minimumTlsVersion: 'TLS1_0', // LOOPHOLE: Deprecated TLS 1.0
+      supportsHttpsTrafficOnly: false,
+      minimumTlsVersion: 'TLS1_0',
       allowSharedKeyAccess: true,
       infrastructureEncryption: false,
       customerManagedKeyEnabled: false,
-      softDeleteEnabled: false, // LOOPHOLE: No ransomware protection
+      softDeleteEnabled: false,
       blobRetentionDays: 0,
       versioningEnabled: false,
-      loggingEnabled: false, // LOOPHOLE: No audit trail
+      loggingEnabled: false,
       containers: [
         {
           id: 'c1',
           name: 'customer-kyc-documents',
-          publicAccess: 'Blob', // LOOPHOLE: Anonymous reads allowed!
-          hasStoredAccessPolicyWithNoExpiry: true, // LOOPHOLE: Infinite SAS policy
+          publicAccess: 'Blob',
+          hasStoredAccessPolicyWithNoExpiry: true,
           sasTokenIssuedWithFullPermissions: true,
           immutabilityPolicyEnabled: false,
           blobCount: 2420,
@@ -79,7 +82,7 @@ export const SAMPLE_HIGH_RISK_DATASET: AuditDataset = {
         {
           id: 'c3',
           name: 'public-marketing-assets',
-          publicAccess: 'Container', // LOOPHOLE: Public Container Listing
+          publicAccess: 'Container',
           hasStoredAccessPolicyWithNoExpiry: false,
           sasTokenIssuedWithFullPermissions: false,
           immutabilityPolicyEnabled: false,
@@ -101,7 +104,7 @@ export const SAMPLE_HIGH_RISK_DATASET: AuditDataset = {
       virtualNetworkRulesCount: 0,
       privateEndpointConnectionsCount: 0,
       supportsHttpsTrafficOnly: true,
-      minimumTlsVersion: 'TLS1_1', // LOOPHOLE: Legacy TLS 1.1
+      minimumTlsVersion: 'TLS1_1',
       allowSharedKeyAccess: true,
       infrastructureEncryption: true,
       customerManagedKeyEnabled: false,
@@ -129,16 +132,16 @@ export const SAMPLE_HIGH_RISK_DATASET: AuditDataset = {
       principalId: 'ext-user-991',
       principalName: 'external_dev_lead#EXT#@external-partner.io',
       principalEmail: 'external_dev_lead@external-partner.io',
-      principalType: 'GuestUser', // LOOPHOLE: External Guest Admin
+      principalType: 'GuestUser',
       roleDefinitionName: 'Owner',
       roleDefinitionId: '8e3af657-a8ff-443c-a75c-2fe8c4bcb635',
-      scope: '/subscriptions/834dcd8e-ecbe-4340-b734-3729000c7562', // LOOPHOLE: Subscription scope Owner
+      scope: '/subscriptions/834dcd8e-ecbe-4340-b734-3729000c7562',
       isCustomRole: false,
       actions: ['*'],
       notActions: [],
       dataActions: [],
       lastActiveDays: 8,
-      mfaEnforced: false, // LOOPHOLE: No MFA on Owner!
+      mfaEnforced: false,
       isExternalGuest: true,
       assignedDate: '2024-11-10',
     },
@@ -154,7 +157,7 @@ export const SAMPLE_HIGH_RISK_DATASET: AuditDataset = {
       actions: [
         'Microsoft.Storage/*',
         'Microsoft.Compute/*',
-        'Microsoft.Authorization/roleAssignments/write', // LOOPHOLE: Privilege Escalation!
+        'Microsoft.Authorization/roleAssignments/write',
       ],
       notActions: [],
       dataActions: [],
@@ -176,7 +179,7 @@ export const SAMPLE_HIGH_RISK_DATASET: AuditDataset = {
       actions: ['*'],
       notActions: ['Microsoft.Authorization/*/Delete'],
       dataActions: [],
-      lastActiveDays: 165, // LOOPHOLE: Dormant user > 90 days!
+      lastActiveDays: 165,
       mfaEnforced: true,
       isExternalGuest: false,
       assignedDate: '2023-09-15',
@@ -195,7 +198,7 @@ export const SAMPLE_HIGH_RISK_DATASET: AuditDataset = {
       notActions: [],
       dataActions: ['Microsoft.Storage/storageAccounts/blobServices/containers/blobs/*'],
       lastActiveDays: 3,
-      mfaEnforced: false, // LOOPHOLE: Elevated data role without MFA
+      mfaEnforced: false,
       isExternalGuest: false,
       assignedDate: '2024-12-01',
     },
@@ -203,9 +206,12 @@ export const SAMPLE_HIGH_RISK_DATASET: AuditDataset = {
 };
 
 export const SAMPLE_HARDENED_DATASET: AuditDataset = {
-  presetName: 'CIS Azure Foundations 2.0 Hardened Baseline',
-  description: 'Fully remediated, zero-trust cloud configuration with private endpoints, TLS 1.3, Entra-only auth, and scoped least-privilege RBAC.',
+  presetName: 'Demo Data — Hardened Reference Sample (No Live Assessment)',
+  description:
+    'Synthetic reference configuration for demonstration only (no live Azure assessment). Illustrates private endpoints, TLS 1.3, Entra-only auth, and scoped RBAC.',
   subscriptionId: '98a72b11-301c-40ea-a128-e7f098192801',
+  isDemoData: true,
+  collectionSource: 'Static Reference Sample Dataset (Not Connected to Azure)',
   storageAccounts: [
     {
       id: '/subscriptions/98a72b11-301c-40ea-a128-e7f098192801/resourceGroups/rg-secure-prod/providers/Microsoft.Storage/storageAccounts/prodvaultstore01',
