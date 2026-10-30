@@ -39,6 +39,7 @@ import {
   RemediationLogEntry,
   StorageAccount,
 } from '../types/security';
+import { DashboardWidget } from './DashboardWidget';
 
 interface OverviewDashboardProps {
   metrics: AuditMetrics;
@@ -465,100 +466,111 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
         </div>
       </div>
 
-      {/* Compliance Timeline Section (Recharts LineChart — Rec #4: Separate Illustrative Baseline vs Session Simulation) */}
-      <div className="rounded-xl border border-slate-200/90 bg-white p-5 shadow-xs">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
-          <div>
-            <span className="rm-kicker">
-              ILLUSTRATIVE BASELINE &amp; SESSION SIMULATION
-            </span>
-            <div className="flex items-center space-x-2 mt-0.5">
-              <Activity className="w-4 h-4 text-[#1F8A79]" />
-              <h3 className="font-serif text-base font-bold text-[#16232F]">
-                Posture Score Trajectory (30d Reference Curve vs. In-Memory Simulation)
-              </h3>
+      {/* Analytics Row: Compliance Timeline LineChart + Comparative Compliance Radar Widget */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        {/* Compliance Timeline Section (Recharts LineChart — Rec #4: Separate Illustrative Baseline vs Session Simulation) */}
+        <div className="lg:col-span-7 rounded-xl border border-slate-200/90 bg-white p-5 shadow-xs flex flex-col justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+            <div>
+              <span className="rm-kicker">
+                ILLUSTRATIVE BASELINE &amp; SESSION SIMULATION
+              </span>
+              <div className="flex items-center space-x-2 mt-0.5">
+                <Activity className="w-4 h-4 text-[#1F8A79]" />
+                <h3 className="font-serif text-base font-bold text-[#16232F]">
+                  Posture Score Trajectory (30d Reference vs. Session)
+                </h3>
+              </div>
+              <p className="text-xs text-[#546471] mt-0.5">
+                Prior 30-day points are an <strong>illustrative reference curve</strong>. Current Source:{' '}
+                <span className="font-mono font-semibold text-[#16232F]">{collectionSource}</span> · Collected:{' '}
+                <span className="font-mono">{lastCollectedAt}</span>
+              </p>
             </div>
-            <p className="text-xs text-[#546471] mt-0.5">
-              Prior 30-day points are an <strong>illustrative reference curve</strong> (not historical Azure tenant telemetry). Current Source:{' '}
-              <span className="font-mono font-semibold text-[#16232F]">{collectionSource}</span> · Collected:{' '}
-              <span className="font-mono">{lastCollectedAt}</span>
-            </p>
+
+            <div className="flex items-center space-x-2 self-start sm:self-center">
+              <span className="px-2.5 py-1 rounded-md text-xs font-mono font-semibold bg-emerald-50 text-[#1F8A79] border border-emerald-200 flex items-center space-x-1">
+                <TrendingUp className="w-3.5 h-3.5" />
+                <span>
+                  {scoreImprovement >= 0 ? `+${scoreImprovement}` : scoreImprovement} pts
+                </span>
+              </span>
+              <span className="px-2.5 py-1 rounded-md text-xs font-mono text-[#546471] bg-slate-100 border border-slate-200">
+                {remediationLogs.length} Sim{remediationLogs.length === 1 ? '' : 's'}
+              </span>
+            </div>
           </div>
 
-          <div className="flex items-center space-x-2 self-start sm:self-center">
-            <span className="px-2.5 py-1 rounded-md text-xs font-mono font-semibold bg-emerald-50 text-[#1F8A79] border border-emerald-200 flex items-center space-x-1">
-              <TrendingUp className="w-3.5 h-3.5" />
-              <span>
-                {scoreImprovement >= 0 ? `+${scoreImprovement}` : scoreImprovement} pts vs Illustrative Start
-              </span>
-            </span>
-            <span className="px-2.5 py-1 rounded-md text-xs font-mono text-[#546471] bg-slate-100 border border-slate-200">
-              {remediationLogs.length} In-Memory Simulation{remediationLogs.length === 1 ? '' : 's'}
-            </span>
+          <div className="h-64 w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart
+                data={complianceTimelineData}
+                margin={{ top: 10, right: 24, left: 0, bottom: 5 }}
+              >
+                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                <XAxis
+                  dataKey="step"
+                  stroke="#546471"
+                  tick={{ fill: '#546471', fontSize: 11 }}
+                  tickLine={{ stroke: '#cbd5e1' }}
+                />
+                <YAxis
+                  domain={[0, 100]}
+                  stroke="#546471"
+                  tick={{ fill: '#546471', fontSize: 11 }}
+                  tickLine={{ stroke: '#cbd5e1' }}
+                  tickFormatter={(val) => `${val}%`}
+                />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: '#081420',
+                    borderColor: '#1e293b',
+                    borderRadius: '0.75rem',
+                    fontSize: '12px',
+                    color: '#F3F5F1',
+                  }}
+                  labelStyle={{ color: '#5FD3BF', fontWeight: 600, marginBottom: '4px' }}
+                  formatter={(value: any, name: any, props: any) => {
+                    if (name === 'Posture Score') {
+                      return [
+                        `${value}/100 pts (${props.payload.action})`,
+                        props.payload.dataType || 'Posture Score',
+                      ];
+                    }
+                    return [`${value}/100 pts`, name];
+                  }}
+                />
+                <ReferenceLine
+                  y={90}
+                  stroke="#1F8A79"
+                  strokeDasharray="4 4"
+                  label={{
+                    value: 'Target Grade A (90)',
+                    position: 'insideTopRight',
+                    fill: '#1F8A79',
+                    fontSize: 10,
+                  }}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="score"
+                  name="Posture Score"
+                  stroke="#2BB5A0"
+                  strokeWidth={3}
+                  dot={{ r: 5, fill: '#081420', stroke: '#2BB5A0', strokeWidth: 2 }}
+                  activeDot={{ r: 7, fill: '#2BB5A0', stroke: '#081420', strokeWidth: 2 }}
+                />
+              </LineChart>
+            </ResponsiveContainer>
           </div>
         </div>
 
-        <div className="h-64 w-full">
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart
-              data={complianceTimelineData}
-              margin={{ top: 10, right: 24, left: 0, bottom: 5 }}
-            >
-              <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-              <XAxis
-                dataKey="step"
-                stroke="#546471"
-                tick={{ fill: '#546471', fontSize: 11 }}
-                tickLine={{ stroke: '#cbd5e1' }}
-              />
-              <YAxis
-                domain={[0, 100]}
-                stroke="#546471"
-                tick={{ fill: '#546471', fontSize: 11 }}
-                tickLine={{ stroke: '#cbd5e1' }}
-                tickFormatter={(val) => `${val}%`}
-              />
-              <Tooltip
-                contentStyle={{
-                  backgroundColor: '#081420',
-                  borderColor: '#1e293b',
-                  borderRadius: '0.75rem',
-                  fontSize: '12px',
-                  color: '#F3F5F1',
-                }}
-                labelStyle={{ color: '#5FD3BF', fontWeight: 600, marginBottom: '4px' }}
-                formatter={(value: any, name: any, props: any) => {
-                  if (name === 'Posture Score') {
-                    return [
-                      `${value}/100 pts (${props.payload.action})`,
-                      props.payload.dataType || 'Posture Score',
-                    ];
-                  }
-                  return [`${value}/100 pts`, name];
-                }}
-              />
-              <ReferenceLine
-                y={90}
-                stroke="#1F8A79"
-                strokeDasharray="4 4"
-                label={{
-                  value: 'Target Grade A (90)',
-                  position: 'insideTopRight',
-                  fill: '#1F8A79',
-                  fontSize: 10,
-                }}
-              />
-              <Line
-                type="monotone"
-                dataKey="score"
-                name="Posture Score"
-                stroke="#2BB5A0"
-                strokeWidth={3}
-                dot={{ r: 5, fill: '#081420', stroke: '#2BB5A0', strokeWidth: 2 }}
-                activeDot={{ r: 7, fill: '#2BB5A0', stroke: '#081420', strokeWidth: 2 }}
-              />
-            </LineChart>
-          </ResponsiveContainer>
+        {/* Comparative Compliance Status Radar Widget (CIS, MCSB, NIST) */}
+        <div className="lg:col-span-5">
+          <DashboardWidget
+            metrics={metrics}
+            onOpenGovernance={onOpenGovernance}
+          />
         </div>
       </div>
 

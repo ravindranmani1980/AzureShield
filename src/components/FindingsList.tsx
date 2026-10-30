@@ -23,83 +23,174 @@ interface FindingsListProps {
 }
 
 /**
- * Generates an operator-safe Bash remediation script (Recommendation #14):
+ * Generates an operator-safe, structured Bulk Bash remediation script (Recommendation #14):
+ * - Groups pending remediation CLI commands by Severity and Domain Category
+ * - Includes Azure CLI pre-flight authentication & subscription verification
  * - Defaults to DRY_RUN=true unless --apply-live-changes is explicitly passed
- * - Requires interactive confirmation before modifying live Azure resources
- * - Prints pre-check and rollback commands for every finding
+ * - Prints pre-check, primary CLI remediation, and rollback commands for every finding
  */
-function downloadSafeRemediationBashScript(findings: Finding[]) {
+function exportBulkRemediationScript(
+  findingsToExport: Finding[],
+  scopeLabel = 'All Pending Findings'
+) {
+  const generatedAt = new Date().toISOString();
+  const dateSlug = generatedAt.slice(0, 10);
+
+  const severityOrder: Record<Severity, number> = {
+    CRITICAL: 0,
+    HIGH: 1,
+    MEDIUM: 2,
+    LOW: 3,
+    INFO: 4,
+  };
+
+  const sortedFindings = [...findingsToExport].sort(
+    (a, b) => severityOrder[a.severity] - severityOrder[b.severity]
+  );
+
+  const criticalCount = sortedFindings.filter((f) => f.severity === 'CRITICAL').length;
+  const highCount = sortedFindings.filter((f) => f.severity === 'HIGH').length;
+  const mediumCount = sortedFindings.filter((f) => f.severity === 'MEDIUM').length;
+
   const lines: string[] = [
     '#!/usr/bin/env bash',
-    '# ============================================================================',
-    '# MANIQ SHIELD — AZURE STORAGE & RBAC REMEDIATION RUNBOOK SCRIPT (SAFE MODE)',
-    `# Generated: ${new Date().toISOString()}`,
-    `# Total Findings Included: ${findings.length}`,
-    '# Tool Author: Mani Ravindran (https://ravindran.in)',
-    '# ============================================================================',
-    '# SAFETY GUARDRAILS (RECOMMENDATION #14):',
-    '# 1. By default, this script runs in DRY_RUN=true mode and makes ZERO changes.',
-    '# 2. Validate all commands in a non-production/staging subscription first.',
-    '# 3. To execute live changes, pass "--apply-live-changes" and confirm interactively.',
-    '# ============================================================================',
+    '# ==============================================================================',
+    '# MANIQ SHIELD — BULK AZURE STORAGE & RBAC REMEDIATION DEPLOYMENT SCRIPT (.sh)',
+    `# Generated At       : ${generatedAt}`,
+    `# Export Scope       : ${scopeLabel}`,
+    `# Pending Commands   : ${sortedFindings.length} (${criticalCount} Critical, ${highCount} High, ${mediumCount} Medium)`,
+    '# Author             : Mani Ravindran (https://ravindran.in)',
+    '# ==============================================================================',
+    '# USAGE:',
+    '#   1. Dry-Run Preview (Default — zero live Azure modifications):',
+    `#      chmod +x maniq-shield-bulk-remediation-${dateSlug}.sh`,
+    `#      ./maniq-shield-bulk-remediation-${dateSlug}.sh`,
+    '#',
+    '#   2. Live Bulk Deployment (Requires staging validation & confirmation):',
+    `#      ./maniq-shield-bulk-remediation-${dateSlug}.sh --apply-live-changes`,
+    '# ==============================================================================',
     'set -euo pipefail',
     '',
     'DRY_RUN=true',
     'if [[ "${1:-}" == "--apply-live-changes" ]]; then',
     '  DRY_RUN=false',
-    '  echo "WARNING: You have requested LIVE changes against Azure ARM resources."',
-    '  read -r -p "Have you validated these changes in staging and backed up current state? (yes/NO): " CONFIRM',
+    '  echo "=============================================================================="',
+    '  echo "WARNING: LIVE BULK REMEDIATION MODE ENABLED"',
+    '  echo "Target Azure CLI session will execute remediation changes across resources."',
+    '  echo "=============================================================================="',
+    '  if ! command -v az >/dev/null 2>&1; then',
+    '    echo "ERROR: Azure CLI (az) is not installed or not in PATH." >&2',
+    '    exit 1',
+    '  fi',
+    '  echo "Verifying active Azure CLI account context..."',
+    '  az account show --output table || { echo "ERROR: Run az login first." >&2; exit 1; }',
+    '  read -r -p "Confirm bulk execution of pending remediation commands? (yes/NO): " CONFIRM',
     '  if [[ "$CONFIRM" != "yes" ]]; then',
-    '    echo "Aborted by operator. Re-running in safe DRY_RUN mode."',
+    '    echo "Aborted by operator. Falling back to safe DRY_RUN preview mode."',
     '    DRY_RUN=true',
     '  fi',
     'else',
     '  echo "INFO: Running in safe DRY_RUN mode (no Azure resources will be modified)."',
-    '  echo "      Pass --apply-live-changes after reviewing pre-checks and rollback steps."',
+    '  echo "      Pass --apply-live-changes to deploy live Azure CLI remediations."',
     'fi',
     '',
-    'run_cmd() {',
+    'TOTAL_COMMANDS=' + sortedFindings.length,
+    'EXECUTED_COUNT=0',
+    '',
+    'run_remediation_step() {',
+    '  local step_num="$1"',
+    '  local finding_id="$2"',
+    '  local severity="$3"',
+    '  local resource_name="$4"',
+    '  local cmd="$5"',
+    '  EXECUTED_COUNT=$((EXECUTED_COUNT + 1))',
+    '  echo ""',
+    '  echo "[$step_num/$TOTAL_COMMANDS] [$severity] $finding_id — Resource: $resource_name"',
     '  if [[ "$DRY_RUN" == "true" ]]; then',
-    '    echo "[DRY-RUN] Would execute: $*"',
+    '    echo "  [DRY-RUN] $cmd"',
     '  else',
-    '    echo "[LIVE-EXEC] Executing: $*"',
-    '    eval "$*"',
+    '    echo "  [APPLYING] $cmd"',
+    '    eval "$cmd"',
     '  fi',
     '}',
     '',
   ];
 
-  findings.forEach((f, idx) => {
-    lines.push(
-      `# ----------------------------------------------------------------------------`
-    );
-    lines.push(`# [${idx + 1}] [${f.severity}] ${f.title}`);
-    lines.push(`# Target Resource: ${f.resourceName} (${f.resourceType})`);
-    lines.push(`# Operational Impact: ${f.remediation.impactNotice}`);
-    if (f.remediation.preCheckCommand) {
-      lines.push(`# Pre-Check (Read-Only): ${f.remediation.preCheckCommand.replace(/\n/g, ' ')}`);
-    }
-    if (f.remediation.rollbackCommand) {
-      lines.push(`# Rollback Command: ${f.remediation.rollbackCommand.replace(/\n/g, ' ')}`);
-    }
-    lines.push(
-      `# ----------------------------------------------------------------------------`
-    );
-    lines.push(`echo ">>> [${idx + 1}/${findings.length}] ${f.title} (${f.resourceName})..."`);
-    lines.push(`run_cmd ${JSON.stringify(f.remediation.cliCommand.replace(/\\\n/g, ' '))}`);
+  const categories: Array<{ key: Finding['category']; title: string }> = [
+    { key: 'storage', title: 'SECTION 1: AZURE STORAGE ACCOUNT & CONTAINER HARDENING' },
+    { key: 'rbac', title: 'SECTION 2: AZURE RBAC LEAST-PRIVILEGE REMEDIATION' },
+    { key: 'privilege_escalation', title: 'SECTION 3: PRIVILEGE ESCALATION & WILDCARD MITIGATION' },
+  ];
+
+  let stepCounter = 0;
+
+  categories.forEach((section) => {
+    const sectionFindings = sortedFindings.filter((f) => f.category === section.key);
+    if (sectionFindings.length === 0) return;
+
+    lines.push('# ==============================================================================');
+    lines.push(`# ${section.title} (${sectionFindings.length} Pending)`);
+    lines.push('# ==============================================================================');
     lines.push('');
+
+    sectionFindings.forEach((f) => {
+      stepCounter += 1;
+      const singleLineCli = f.remediation.cliCommand
+        .replace(/\\\r?\n/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+
+      lines.push(`# ------------------------------------------------------------------------------`);
+      lines.push(`# Step ${stepCounter}: [${f.severity}] ${f.title}`);
+      lines.push(`# Finding ID         : ${f.id}`);
+      lines.push(`# Target Resource    : ${f.resourceName} (${f.resourceType})`);
+      lines.push(
+        `# Compliance Mapping : CIS ${f.compliance.cisAzure || 'N/A'} | MCSB ${
+          f.compliance.mcsb || 'N/A'
+        } | NIST ${f.compliance.nist || 'N/A'}`
+      );
+      lines.push(`# Operational Impact : ${f.remediation.impactNotice}`);
+      if (f.remediation.preCheckCommand) {
+        lines.push(
+          `# Pre-Check Command  : ${f.remediation.preCheckCommand
+            .replace(/\\\r?\n/g, ' ')
+            .replace(/\s+/g, ' ')
+            .trim()}`
+        );
+      }
+      if (f.remediation.rollbackCommand) {
+        lines.push(
+          `# Emergency Rollback : ${f.remediation.rollbackCommand
+            .replace(/\\\r?\n/g, ' ')
+            .replace(/\s+/g, ' ')
+            .trim()}`
+        );
+      }
+      lines.push(`# ------------------------------------------------------------------------------`);
+      lines.push(
+        `run_remediation_step "${stepCounter}" ${JSON.stringify(f.id)} ${JSON.stringify(
+          f.severity
+        )} ${JSON.stringify(f.resourceName)} ${JSON.stringify(singleLineCli)}`
+      );
+      lines.push('');
+    });
   });
 
-  lines.push('echo "Runbook complete (DRY_RUN=$DRY_RUN)."');
+  lines.push('echo ""');
+  lines.push('echo "=============================================================================="');
+  lines.push(
+    'echo "Bulk remediation runbook finished: $EXECUTED_COUNT/$TOTAL_COMMANDS commands processed (DRY_RUN=$DRY_RUN)."'
+  );
+  lines.push('echo "=============================================================================="');
 
-  const blob = new Blob([lines.join('\n')], { type: 'text/x-sh' });
+  const blob = new Blob([lines.join('\n')], { type: 'text/x-sh;charset=utf-8' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `maniq-shield-remediation-dryrun-${new Date()
-    .toISOString()
-    .slice(0, 10)}.sh`;
+  a.download = `maniq-shield-bulk-remediation-${dateSlug}.sh`;
+  document.body.appendChild(a);
   a.click();
+  document.body.removeChild(a);
   URL.revokeObjectURL(url);
 }
 
@@ -113,6 +204,7 @@ export const FindingsList: React.FC<FindingsListProps> = ({
   const [categoryFilter, setCategoryFilter] = useState<
     'ALL' | 'storage' | 'rbac' | 'privilege_escalation'
   >('ALL');
+  const [exportedFeedback, setExportedFeedback] = useState(false);
 
   const filteredFindings = findings.filter((f) => {
     const matchesSeverity =
@@ -125,6 +217,14 @@ export const FindingsList: React.FC<FindingsListProps> = ({
       f.description.toLowerCase().includes(searchQuery.toLowerCase());
     return matchesSeverity && matchesCategory && matchesSearch;
   });
+
+  const isFilteredSubset = filteredFindings.length !== findings.length;
+
+  const handleDownloadBulkSh = (targetFindings: Finding[], label: string) => {
+    exportBulkRemediationScript(targetFindings, label);
+    setExportedFeedback(true);
+    setTimeout(() => setExportedFeedback(false), 2500);
+  };
 
   return (
     <div className="space-y-5">
@@ -142,7 +242,7 @@ export const FindingsList: React.FC<FindingsListProps> = ({
           />
         </div>
 
-        {/* Severity Filter Pills */}
+        {/* Severity Filter Pills & Bulk Export Action */}
         <div className="flex flex-wrap items-center gap-2">
           <div className="flex items-center space-x-1 bg-slate-100 p-1 rounded-lg border border-slate-200 text-xs">
             {(['ALL', 'CRITICAL', 'HIGH', 'MEDIUM'] as const).map((sev) => (
@@ -173,26 +273,55 @@ export const FindingsList: React.FC<FindingsListProps> = ({
             <option value="privilege_escalation">Privilege Escalation</option>
           </select>
 
-          {/* Export Safe Dry-Run Remediation Bash Script (Rec #14) */}
+          {/* Download All Pending Remediation CLI Commands (.sh) */}
           {findings.length > 0 && (
-            <button
-              onClick={() => downloadSafeRemediationBashScript(filteredFindings)}
-              className="flex items-center space-x-1.5 px-3 py-2 rounded-lg text-xs font-semibold bg-[#0E2238] hover:bg-[#15314E] text-white transition-all"
-              title="Downloads a safe DRY_RUN=true Bash script with pre-checks and rollback steps"
-            >
-              <Download className="w-3.5 h-3.5 text-[#5FD3BF]" />
-              <span>Export Dry-Run .sh Script</span>
-            </button>
+            <div className="flex items-center gap-1.5">
+              <button
+                onClick={() =>
+                  handleDownloadBulkSh(
+                    findings,
+                    `All Pending Remediation Findings (${findings.length})`
+                  )
+                }
+                className="flex items-center space-x-1.5 px-3.5 py-2 rounded-lg text-xs font-semibold bg-[#0E2238] hover:bg-[#15314E] text-white transition-all shadow-xs cursor-pointer"
+                title="Export all pending remediation Azure CLI commands into a structured .sh deployment script"
+              >
+                <Download className="w-3.5 h-3.5 text-[#5FD3BF]" />
+                <span>
+                  {exportedFeedback
+                    ? 'Downloaded .sh Script!'
+                    : `Download Bulk Remediation .sh (${findings.length})`}
+                </span>
+              </button>
+
+              {isFilteredSubset && filteredFindings.length > 0 && (
+                <button
+                  onClick={() =>
+                    handleDownloadBulkSh(
+                      filteredFindings,
+                      `Filtered Pending Findings (${filteredFindings.length})`
+                    )
+                  }
+                  className="flex items-center space-x-1 px-2.5 py-2 rounded-lg text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-[#16232F] border border-slate-300 transition-all cursor-pointer"
+                  title="Export only the currently filtered findings into a .sh script"
+                >
+                  <Terminal className="w-3.5 h-3.5 text-[#1F8A79]" />
+                  <span>Export Filtered ({filteredFindings.length})</span>
+                </button>
+              )}
+            </div>
           )}
         </div>
       </div>
 
       {/* Safe Remediation Script Disclosure (Rec #14) */}
-      <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-950 text-xs flex items-center space-x-2">
-        <AlertTriangle className="w-4 h-4 text-amber-700 flex-shrink-0" />
-        <span>
-          <strong>Remediation Safety Guardrails (Rec #14):</strong> Every finding runbook includes read-only <em>Pre-Checks</em> and <em>Emergency Rollback</em> commands. Exported <code>.sh</code> scripts default to <code>DRY_RUN=true</code> and require <code>--apply-live-changes</code> plus interactive confirmation after staging validation.
-        </span>
+      <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-950 text-xs flex items-center justify-between flex-wrap gap-2">
+        <div className="flex items-center space-x-2">
+          <AlertTriangle className="w-4 h-4 text-amber-700 flex-shrink-0" />
+          <span>
+            <strong>Bulk CLI Deployment Guardrails (Rec #14):</strong> Exported <code>.sh</code> scripts group all pending Azure CLI commands by domain with read-only <em>Pre-Checks</em> and <em>Emergency Rollback</em> steps. Scripts default to <code>DRY_RUN=true</code> and require <code>--apply-live-changes</code> for live execution.
+          </span>
+        </div>
       </div>
 
       {/* Findings List */}
