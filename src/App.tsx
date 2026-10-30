@@ -724,13 +724,17 @@ export function App() {
           <StorageAuditor
             storageAccounts={storageAccounts}
             roleAssignments={roleAssignments}
+            findings={activeFindings}
             onHardenAccount={handleHardenAccount}
+            onSelectFinding={(f) => setSelectedFinding(f)}
           />
         )}
 
         {activeTab === 'rbac' && (
           <RbacAuditor
             roleAssignments={roleAssignments}
+            findings={activeFindings}
+            onSelectFinding={(f) => setSelectedFinding(f)}
             onRevokeAssignment={handleRevokeAssignment}
           />
         )}

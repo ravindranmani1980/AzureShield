@@ -14,19 +14,22 @@ import {
   Check,
   Flame,
   ArrowRight,
+  Wrench,
 } from 'lucide-react';
 import { RbacAssignment, Finding } from '../types/security';
 
 interface RbacAuditorProps {
   roleAssignments: RbacAssignment[];
-  findings: Finding[];
-  onSelectFinding: (findingId: string) => void;
+  findings?: Finding[];
+  onSelectFinding?: (finding: Finding) => void;
+  onRevokeAssignment?: (assignmentId: string) => void;
 }
 
 export const RbacAuditor: React.FC<RbacAuditorProps> = ({
-  roleAssignments,
-  findings,
+  roleAssignments = [],
+  findings = [],
   onSelectFinding,
+  onRevokeAssignment,
 }) => {
   const [filterMode, setFilterMode] = useState<
     'all' | 'overprivileged' | 'escalation' | 'dormant' | 'guest'
@@ -44,8 +47,11 @@ export const RbacAuditor: React.FC<RbacAuditorProps> = ({
 
   const dormantCount = roleAssignments.filter((r) => r.lastActiveDays > 90).length;
   const guestCount = roleAssignments.filter((r) => r.isExternalGuest).length;
-  const overprivilegedCount = rbacFindings.filter(
-    (f) => f.id.includes('OWNER') || f.id.includes('GUEST') || f.id.includes('SP-OVER')
+  const overprivilegedCount = roleAssignments.filter(
+    (r) =>
+      r.roleDefinitionName === 'Owner' ||
+      r.isExternalGuest ||
+      (r.actions ?? []).includes('*')
   ).length;
 
   const copyToClipboard = (text: string, id: string) => {
@@ -55,6 +61,7 @@ export const RbacAuditor: React.FC<RbacAuditorProps> = ({
   };
 
   const filteredAssignments = roleAssignments.filter((assignment) => {
+    const actionsList = assignment.actions ?? [];
     const matchesSearch =
       assignment.principalName.toLowerCase().includes(searchQuery.toLowerCase()) ||
       assignment.roleDefinitionName.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -66,11 +73,11 @@ export const RbacAuditor: React.FC<RbacAuditorProps> = ({
       return (
         assignment.roleDefinitionName === 'Owner' ||
         assignment.isExternalGuest ||
-        assignment.actions.includes('*')
+        actionsList.includes('*')
       );
     }
     if (filterMode === 'escalation') {
-      return assignment.actions.some(
+      return actionsList.some(
         (a) =>
           a.includes('roleAssignments/write') ||
           a === 'Microsoft.Authorization/*' ||
@@ -324,18 +331,33 @@ export const RbacAuditor: React.FC<RbacAuditorProps> = ({
                   </div>
                 </div>
 
-                <div className="flex items-center space-x-3 self-end lg:self-center">
+                <div className="flex items-center flex-wrap gap-2 self-end lg:self-center">
                   <span className="text-xs font-mono text-slate-500">
                     Last active:{' '}
                     <strong className="text-slate-900">
                       {assignment.lastActiveDays}d ago
                     </strong>
                   </span>
-                  {associatedFindings.length > 0 && (
+                  {onRevokeAssignment &&
+                    (associatedFindings.length > 0 ||
+                      assignment.isExternalGuest ||
+                      !assignment.mfaEnforced ||
+                      isDormant) && (
+                      <button
+                        type="button"
+                        onClick={() => onRevokeAssignment(assignment.id)}
+                        className="px-3 py-1.5 rounded-md text-xs font-semibold bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 flex items-center space-x-1.5 cursor-pointer transition-colors"
+                        title="Simulates role downgrade/revocation in UI memory without modifying live Azure resources"
+                      >
+                        <Wrench className="w-3.5 h-3.5 text-amber-700" />
+                        <span>Simulate Least-Privilege (In-Memory)</span>
+                      </button>
+                    )}
+                  {associatedFindings.length > 0 && onSelectFinding && (
                     <button
                       type="button"
-                      onClick={() => onSelectFinding(associatedFindings[0].id)}
-                      className="px-3 py-1.5 rounded-md text-xs font-semibold bg-[#0E2238] hover:bg-[#081420] text-[#EEF3F1] flex items-center space-x-1 cursor-pointer"
+                      onClick={() => onSelectFinding(associatedFindings[0])}
+                      className="px-3 py-1.5 rounded-md text-xs font-semibold bg-[#0E2238] hover:bg-[#081420] text-[#EEF3F1] flex items-center space-x-1 cursor-pointer transition-colors"
                     >
                       <span>Remediation Runbook</span>
                       <ChevronRight className="w-3.5 h-3.5" />

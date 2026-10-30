@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Database,
   Globe,
@@ -16,20 +16,28 @@ import {
   FileWarning,
   Wrench,
 } from 'lucide-react';
-import { RbacAssignment, StorageAccount } from '../types/security';
+import { Finding, RbacAssignment, StorageAccount } from '../types/security';
 import { StorageAccessGraphD3 } from './StorageAccessGraphD3';
 
 interface StorageAuditorProps {
   storageAccounts: StorageAccount[];
   roleAssignments: RbacAssignment[];
+  findings?: Finding[];
   onHardenAccount: (accountId: string) => void;
+  onSelectFinding?: (finding: Finding) => void;
 }
 
 export const StorageAuditor: React.FC<StorageAuditorProps> = ({
-  storageAccounts,
-  roleAssignments,
+  storageAccounts = [],
+  roleAssignments = [],
+  findings = [],
   onHardenAccount,
+  onSelectFinding,
 }) => {
+  const [selectedAccountName, setSelectedAccountName] = useState<string>(
+    storageAccounts[0]?.name || ''
+  );
+
   return (
     <div className="space-y-6">
       {/* Header Description */}
@@ -55,12 +63,17 @@ export const StorageAuditor: React.FC<StorageAuditorProps> = ({
       <StorageAccessGraphD3
         storageAccounts={storageAccounts}
         roleAssignments={roleAssignments}
+        findings={findings}
+        selectedAccountName={selectedAccountName || storageAccounts[0]?.name || ''}
+        onSelectAccount={setSelectedAccountName}
+        onSelectFinding={onSelectFinding}
       />
 
       {/* Storage Account Cards */}
       <div className="space-y-5">
         {storageAccounts.map((acc) => {
-          const openContainersCount = acc.containers.filter(
+          const containersList = acc.containers ?? [];
+          const openContainersCount = containersList.filter(
             (c) => c.publicAccess !== 'None'
           ).length;
 
@@ -231,8 +244,8 @@ export const StorageAuditor: React.FC<StorageAuditorProps> = ({
                   </div>
                   <p className="text-[11px] text-[#546471] mt-1">
                     Private Endpoints:{' '}
-                    {acc.privateEndpointConnections.length > 0
-                      ? acc.privateEndpointConnections.join(', ')
+                    {(acc.privateEndpointConnections ?? []).length > 0
+                      ? (acc.privateEndpointConnections ?? []).join(', ')
                       : 'None Configured'}
                   </p>
                 </div>
@@ -308,11 +321,11 @@ export const StorageAuditor: React.FC<StorageAuditorProps> = ({
               <div className="px-5 pb-5">
                 <div className="text-xs font-bold text-[#16232F] uppercase tracking-wider mb-2.5 flex items-center space-x-1.5">
                   <FolderOpen className="w-4 h-4 text-[#1F8A79]" />
-                  <span>Blob Containers ({acc.containers.length})</span>
+                  <span>Blob Containers ({containersList.length})</span>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  {acc.containers.map((container) => {
+                  {containersList.map((container) => {
                     const isExposed =
                       acc.allowBlobPublicAccess &&
                       container.publicAccess !== 'None';

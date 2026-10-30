@@ -85,17 +85,17 @@ export interface AccessGraphLink
 interface StorageAccessGraphD3Props {
   storageAccounts: StorageAccount[];
   roleAssignments: RbacAssignment[];
-  findings: Finding[];
-  selectedAccountName: string;
+  findings?: Finding[];
+  selectedAccountName?: string;
   onSelectAccount?: (accountName: string) => void;
-  onSelectFinding: (findingId: string) => void;
+  onSelectFinding?: (finding: Finding) => void;
 }
 
 export const StorageAccessGraphD3: React.FC<StorageAccessGraphD3Props> = ({
-  storageAccounts,
-  roleAssignments,
-  findings,
-  selectedAccountName,
+  storageAccounts = [],
+  roleAssignments = [],
+  findings = [],
+  selectedAccountName: controlledAccountName,
   onSelectAccount,
   onSelectFinding,
 }) => {
@@ -104,6 +104,12 @@ export const StorageAccessGraphD3: React.FC<StorageAccessGraphD3Props> = ({
   const zoomBehaviorRef = useRef<d3.ZoomBehavior<SVGSVGElement, unknown> | null>(
     null
   );
+
+  const [internalAccountName, setInternalAccountName] = useState<string>(
+    storageAccounts[0]?.name || ''
+  );
+  const selectedAccountName =
+    controlledAccountName || internalAccountName || storageAccounts[0]?.name || '';
 
   const [scopeMode, setScopeMode] = useState<'all' | 'selected'>('all');
   const [onlyRiskyPaths, setOnlyRiskyPaths] = useState<boolean>(false);
@@ -180,7 +186,7 @@ export const StorageAccessGraphD3: React.FC<StorageAccessGraphD3Props> = ({
       });
 
       // Add Container Nodes for this Storage Account
-      acc.containers.forEach((cont: StorageContainer) => {
+      (acc.containers ?? []).forEach((cont: StorageContainer) => {
         const contNodeId = `cont:${acc.name}/${cont.name}`;
         const contFindings = findings.filter(
           (f) =>
@@ -288,7 +294,7 @@ export const StorageAccessGraphD3: React.FC<StorageAccessGraphD3Props> = ({
       });
 
       accountsToRender.forEach((acc) => {
-        const exposedContainers = acc.containers.filter(
+        const exposedContainers = (acc.containers ?? []).filter(
           (c) => acc.allowBlobPublicAccess && c.publicAccess !== 'None'
         );
         if (exposedContainers.length > 0) {
@@ -317,8 +323,10 @@ export const StorageAccessGraphD3: React.FC<StorageAccessGraphD3Props> = ({
           f.title.includes(ra.principalName)
       );
 
-      const hasWildcard = ra.actions.includes('*');
-      const hasStorageWrite = ra.actions.some(
+      const actionsList = ra.actions ?? [];
+      const dataActionsList = ra.dataActions ?? [];
+      const hasWildcard = actionsList.includes('*');
+      const hasStorageWrite = actionsList.some(
         (a) =>
           a === '*' ||
           a === 'Microsoft.Storage/*' ||
@@ -326,9 +334,9 @@ export const StorageAccessGraphD3: React.FC<StorageAccessGraphD3Props> = ({
           a.includes('storageAccounts/listKeys')
       );
       const hasDataActions =
-        (ra.dataActions && ra.dataActions.length > 0) ||
+        dataActionsList.length > 0 ||
         ra.roleDefinitionName.toLowerCase().includes('blob data');
-      const hasPrivEsc = ra.actions.some(
+      const hasPrivEsc = actionsList.some(
         (a) =>
           a.includes('roleAssignments/write') ||
           a.includes('roleAssignments/*') ||
@@ -443,7 +451,7 @@ export const StorageAccessGraphD3: React.FC<StorageAccessGraphD3Props> = ({
         // If this identity has direct data-plane blob permissions or critical guest owner access,
         // also show direct data-plane access paths to high-value containers when focused or when dataActions exist
         if (hasDataActions) {
-          acc.containers.forEach((cont) => {
+          (acc.containers ?? []).forEach((cont) => {
             const contNodeId = `cont:${acc.name}/${cont.name}`;
             graphLinks.push({
               id: `link:${rbacNodeId}->${contNodeId}`,
@@ -454,7 +462,7 @@ export const StorageAccessGraphD3: React.FC<StorageAccessGraphD3Props> = ({
               isVulnerable: !ra.mfaEnforced || ra.isExternalGuest,
               riskSeverity: rbacRisk,
               description: `${ra.principalName} has dataActions (${
-                ra.dataActions[0] || 'containers/blobs/*'
+                dataActionsList[0] || 'containers/blobs/*'
               }) allowing direct blob read/write in container '${cont.name}'${
                 !ra.mfaEnforced ? ' without MFA enforcement' : ''
               }.`,
@@ -787,14 +795,15 @@ export const StorageAccessGraphD3: React.FC<StorageAccessGraphD3Props> = ({
       )
       .on('click', (_event, d) => {
         setSelectedNodeId(d.id);
-        if (d.nodeType === 'storage_account' && onSelectAccount) {
-          onSelectAccount(d.label);
+        if (d.nodeType === 'storage_account') {
+          setInternalAccountName(d.label);
+          onSelectAccount?.(d.label);
         } else if (
           d.nodeType === 'container' &&
-          d.metadata.parentAccount &&
-          onSelectAccount
+          d.metadata.parentAccount
         ) {
-          onSelectAccount(d.metadata.parentAccount);
+          setInternalAccountName(d.metadata.parentAccount);
+          onSelectAccount?.(d.metadata.parentAccount);
         }
       })
       .on('mouseenter', (_event, d) => {
@@ -1442,14 +1451,16 @@ export const StorageAccessGraphD3: React.FC<StorageAccessGraphD3Props> = ({
                             {finding.title}
                           </div>
                         </div>
-                        <button
-                          type="button"
-                          onClick={() => onSelectFinding(finding.id)}
-                          className="px-2.5 py-1 rounded-md bg-[#0E2238] hover:bg-[#15314E] text-white text-[11px] font-semibold flex items-center space-x-1 whitespace-nowrap shrink-0"
-                        >
-                          <span>Runbook</span>
-                          <ChevronRight className="w-3 h-3" />
-                        </button>
+                        {onSelectFinding && (
+                          <button
+                            type="button"
+                            onClick={() => onSelectFinding(finding)}
+                            className="px-2.5 py-1 rounded-md bg-[#0E2238] hover:bg-[#15314E] text-white text-[11px] font-semibold flex items-center space-x-1 whitespace-nowrap shrink-0 cursor-pointer"
+                          >
+                            <span>Runbook</span>
+                            <ChevronRight className="w-3 h-3" />
+                          </button>
+                        )}
                       </div>
                     ))}
                   </div>
