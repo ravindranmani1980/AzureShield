@@ -176,7 +176,7 @@ export function App() {
   const recordRemediationLog = (
     actionTitle: string,
     resourceName: string,
-    category: 'storage' | 'rbac' | 'privilege_escalation',
+    category: RemediationLogEntry['category'],
     previousScore: number,
     newScore: number,
     cliExecuted: string,
@@ -204,18 +204,26 @@ export function App() {
       subscriptionId: DEFAULT_AZURE_SUBSCRIPTION_ID,
       tenantId: DEFAULT_AZURE_TENANT_ID,
       accessToken: DEFAULT_AZURE_ACCESS_TOKEN,
-      scanAllSubscriptions: false,
+      scanAllSubscriptions: true,
     })
       .then((res) => {
         if (cancelled) return;
-        setStorageAccounts(res.storageAccounts);
-        setRoleAssignments(res.roleAssignments);
-        setRemediatedFindingIds([]);
-        setIsLiveConnected(true);
-        setIsDemoData(false);
-        setLiveSourceName(`Azure Sub ${DEFAULT_AZURE_SUBSCRIPTION_ID.slice(0, 8)}...`);
-        setLastCollectedAt(new Date().toLocaleString());
-        setLiveSyncWarnings(res.warnings || []);
+        if (res.storageAccounts.length > 0 || res.roleAssignments.length > 0) {
+          setStorageAccounts(res.storageAccounts);
+          setRoleAssignments(res.roleAssignments);
+          setRemediatedFindingIds([]);
+          setIsLiveConnected(true);
+          setIsDemoData(false);
+          const subLabel =
+            res.subscriptionIds?.[0]?.slice(0, 8) ||
+            DEFAULT_AZURE_SUBSCRIPTION_ID.slice(0, 8);
+          setLiveSourceName(`Azure Sub ${subLabel}...`);
+          setLastCollectedAt(new Date().toLocaleString());
+          setLiveSyncWarnings(res.warnings || []);
+        } else if (res.warnings && res.warnings.length > 0) {
+          // Keep rich dataset populated so Overview, Inventory, Storage & RBAC tabs work immediately
+          setLiveSyncWarnings(res.warnings);
+        }
       })
       .catch(() => {
         // Keep fallback sample dataset if network or token fails
@@ -295,11 +303,15 @@ export function App() {
         supportsHttpsTrafficOnly: true,
         publicNetworkAccess: 'Disabled' as const,
         defaultAction: 'Deny' as const,
+        privateEndpointConnectionsCount: Math.max(
+          1,
+          acc.privateEndpointConnectionsCount || 0
+        ),
         privateEndpointConnections:
-          acc.privateEndpointConnections.length > 0
+          (acc.privateEndpointConnections ?? []).length > 0
             ? acc.privateEndpointConnections
             : [`pe-${acc.name}-blob`],
-        containers: acc.containers.map((c) => ({
+        containers: (acc.containers ?? []).map((c) => ({
           ...c,
           publicAccess: 'None' as const,
         })),
@@ -430,15 +442,20 @@ export function App() {
                 containers: [
                   ...acc.containers,
                   {
+                    id: `c-sim-${Date.now()}`,
                     name: `leaked-payroll-export-${Math.floor(
                       100 + Math.random() * 900
                     )}`,
                     publicAccess: 'Container',
+                    hasStoredAccessPolicyWithNoExpiry: true,
+                    sasTokenIssuedWithFullPermissions: true,
+                    immutabilityPolicyEnabled: false,
+                    immutabilityPolicy: false,
                     lastModified: new Date().toISOString().slice(0, 10),
                     blobCount: 1450,
                     sizeGb: 19.4,
                     hasSensitiveData: true,
-                    immutabilityPolicy: false,
+                    dataClassification: 'PII/Financial',
                   },
                 ],
               }
@@ -459,12 +476,16 @@ export function App() {
           principalName: 'contractor_temp#EXT#@untrusted-vendor.org',
           principalType: 'GuestUser',
           roleDefinitionName: 'Owner',
+          roleDefinitionId: '8e3af657-a8ff-443c-a75c-2fe8c4bcb635',
           roleType: 'BuiltInRole',
           scope: '/subscriptions/prod-sub-001',
           scopeLevel: 'ManagementGroup',
           scopeName: 'Root Management Group (mg-enterprise-root)',
+          isCustomRole: false,
           actions: ['*'],
+          notActions: [],
           dataActions: ['*'],
+          mfaEnforced: false,
           isExternalGuest: true,
           lastActiveDays: 180,
           assignedDate: new Date().toISOString().slice(0, 10),
@@ -484,15 +505,19 @@ export function App() {
           principalName: 'sp-rogue-automation-pipeline',
           principalType: 'ServicePrincipal',
           roleDefinitionName: 'Custom-Shadow-Admin-Role',
+          roleDefinitionId: `custom-role-${Date.now()}`,
           roleType: 'CustomRole',
           scope: '/subscriptions/prod-sub-001',
           scopeLevel: 'Subscription',
           scopeName: 'Production-Core-Sub',
+          isCustomRole: true,
           actions: [
             'Microsoft.Authorization/*',
             'Microsoft.Storage/storageAccounts/listKeys/action',
           ],
+          notActions: [],
           dataActions: ['Microsoft.Storage/*'],
+          mfaEnforced: true,
           isExternalGuest: false,
           lastActiveDays: 1,
           assignedDate: new Date().toISOString().slice(0, 10),

@@ -269,7 +269,8 @@ export const SAMPLE_HARDENED_DATASET: AuditDataset = {
     {
       id: 'hra-02',
       principalId: 'lead-devops-pim',
-      principalName: 'taylor.swift@enterprise-corp.com',
+      principalName: 'user@example.com',
+      principalEmail: 'user@example.com',
       principalType: 'User',
       roleDefinitionName: 'Contributor',
       roleDefinitionId: 'b24988ac-6180-42a0-ab88-20f7382dd24c',

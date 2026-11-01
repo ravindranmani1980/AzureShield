@@ -48,7 +48,7 @@ interface InventoryRow {
   allowBlobPublicAccess: boolean;
   allowSharedKeyAccess: boolean;
   encryptionKeySource: 'Microsoft.Storage' | 'Microsoft.Keyvault';
-  minimumTlsVersion: 'TLS1_0' | 'TLS1_1' | 'TLS1_2';
+  minimumTlsVersion: 'TLS1_0' | 'TLS1_1' | 'TLS1_2' | 'TLS1_3';
   supportsHttpsTrafficOnly: boolean;
   defaultAction: 'Allow' | 'Deny';
   publicNetworkAccess: 'Enabled' | 'Disabled';
@@ -86,7 +86,13 @@ export const StorageInventory: React.FC<StorageInventoryProps> = ({
         acc.minimumTlsVersion === 'TLS1_2' &&
         acc.supportsHttpsTrafficOnly;
 
-      if (acc.containers.length === 0) {
+      const keySource: 'Microsoft.Storage' | 'Microsoft.Keyvault' =
+        acc.encryptionKeySource ??
+        (acc.customerManagedKeyEnabled
+          ? 'Microsoft.Keyvault'
+          : 'Microsoft.Storage');
+
+      if ((acc.containers ?? []).length === 0) {
         list.push({
           rowId: `${acc.id}-empty`,
           accountId: acc.id,
@@ -94,8 +100,8 @@ export const StorageInventory: React.FC<StorageInventoryProps> = ({
           subscriptionId: acc.subscriptionId || 'default-subscription',
           resourceGroup: acc.resourceGroup,
           location: acc.location,
-          sku: acc.sku,
-          kind: acc.kind,
+          sku: acc.sku ?? 'Standard_RAGRS',
+          kind: acc.kind ?? 'StorageV2',
           containerName: '(0 containers)',
           containerPublicAccess: 'None',
           effectiveAnonymousExposure: false,
@@ -107,7 +113,7 @@ export const StorageInventory: React.FC<StorageInventoryProps> = ({
           lastModified: '—',
           allowBlobPublicAccess: acc.allowBlobPublicAccess,
           allowSharedKeyAccess: acc.allowSharedKeyAccess,
-          encryptionKeySource: acc.encryptionKeySource,
+          encryptionKeySource: keySource,
           minimumTlsVersion: acc.minimumTlsVersion,
           supportsHttpsTrafficOnly: acc.supportsHttpsTrafficOnly,
           defaultAction: acc.defaultAction,
@@ -115,11 +121,15 @@ export const StorageInventory: React.FC<StorageInventoryProps> = ({
           isAccountHardened,
         });
       } else {
-        acc.containers.forEach((c) => {
+        (acc.containers ?? []).forEach((c) => {
           const effectivePublic =
             acc.allowBlobPublicAccess && c.publicAccess !== 'None';
           const guardrailGapOnly =
             acc.allowBlobPublicAccess && c.publicAccess === 'None';
+          const resolvedBlobs = c.blobCount ?? 0;
+          const resolvedSizeGb =
+            c.sizeGb ??
+            Math.max(0.4, Number(((resolvedBlobs * 0.012)).toFixed(1)));
           list.push({
             rowId: `${acc.id}-${c.name}`,
             accountId: acc.id,
@@ -127,20 +137,24 @@ export const StorageInventory: React.FC<StorageInventoryProps> = ({
             subscriptionId: acc.subscriptionId || 'default-subscription',
             resourceGroup: acc.resourceGroup,
             location: acc.location,
-            sku: acc.sku,
-            kind: acc.kind,
+            sku: acc.sku ?? 'Standard_RAGRS',
+            kind: acc.kind ?? 'StorageV2',
             containerName: c.name,
             containerPublicAccess: c.publicAccess,
             effectiveAnonymousExposure: effectivePublic,
             isGuardrailGapOnly: guardrailGapOnly,
-            blobCount: c.blobCount,
-            sizeGb: c.sizeGb,
-            hasSensitiveData: c.hasSensitiveData,
-            immutabilityPolicy: c.immutabilityPolicy,
-            lastModified: c.lastModified,
+            blobCount: resolvedBlobs,
+            sizeGb: resolvedSizeGb,
+            hasSensitiveData:
+              c.hasSensitiveData ??
+              (c.dataClassification === 'PII/Financial' ||
+                c.dataClassification === 'Confidential'),
+            immutabilityPolicy:
+              c.immutabilityPolicy ?? c.immutabilityPolicyEnabled ?? false,
+            lastModified: c.lastModified ?? '2025-02-15',
             allowBlobPublicAccess: acc.allowBlobPublicAccess,
             allowSharedKeyAccess: acc.allowSharedKeyAccess,
-            encryptionKeySource: acc.encryptionKeySource,
+            encryptionKeySource: keySource,
             minimumTlsVersion: acc.minimumTlsVersion,
             supportsHttpsTrafficOnly: acc.supportsHttpsTrafficOnly,
             defaultAction: acc.defaultAction,
@@ -194,7 +208,9 @@ export const StorageInventory: React.FC<StorageInventoryProps> = ({
     (r) => r.effectiveAnonymousExposure
   ).length;
   const cmkAccountsCount = storageAccounts.filter(
-    (s) => s.encryptionKeySource === 'Microsoft.Keyvault'
+    (s) =>
+      s.encryptionKeySource === 'Microsoft.Keyvault' ||
+      s.customerManagedKeyEnabled
   ).length;
 
   return (
