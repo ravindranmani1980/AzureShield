@@ -99,7 +99,7 @@ export const CSV_RECOMMENDATIONS: CsvRecommendationItem[] = [
     recommendation:
       'Use "Tool Author" or "Report Generator" and state whether human review occurred.',
     implementedAction:
-      'Replaced "Lead Auditor" with "Tool Author: Mani Ravindran" and added "Audit Type: Automated Heuristic Scan (Human Review: Not Performed)" in the UI and PDF exports.',
+      'Replaced "Lead Auditor" with "Tool Author: Ravindran Mani" and added "Audit Type: Automated Heuristic Scan (Human Review: Not Performed)" in the UI and PDF exports.',
   },
   {
     id: 9,
@@ -468,7 +468,7 @@ export const GovernanceReviewModal: React.FC<GovernanceReviewModalProps> = ({
                       Independence, Licensing & Human Review Notice (Rec #8, #9)
                     </h5>
                     <p className="text-[#546471]">
-                      <strong>No Official Endorsement:</strong> Maniq Shield is an independent open-architecture security tool created by Tool Author <strong>Mani Ravindran</strong>. It is not affiliated with, endorsed by, or certified by Microsoft Corporation, the Center for Internet Security (CIS), or NIST.
+                      <strong>No Official Endorsement:</strong> Maniq Shield is an independent open-architecture security tool created by Tool Author <strong>Ravindran Mani</strong>. It is not affiliated with, endorsed by, or certified by Microsoft Corporation, the Center for Internet Security (CIS), or NIST.
                     </p>
                     <p className="text-[#546471]">
                       <strong>Informational Cross-References Only:</strong> References to CIS Azure Foundations Benchmark v2.0, MCSB v1.0, and NIST SP 800-53 Rev 5 are provided strictly as informational cross-references to selected technical controls and do not constitute a formal compliance audit or certification.
@@ -481,7 +481,7 @@ export const GovernanceReviewModal: React.FC<GovernanceReviewModalProps> = ({
 
                 <div className="p-3.5 rounded-xl bg-slate-100 border border-slate-200 flex flex-wrap items-center justify-between gap-2">
                   <span className="text-[#546471]">
-                    Tool Author &amp; Contact: <strong>Mani Ravindran</strong> · Security Architecture &amp; CSPM Engineering
+                    Tool Author &amp; Contact: <strong>Ravindran Mani</strong> · Security Architecture &amp; CSPM Engineering
                   </span>
                   <a
                     href="https://ravindran.in"

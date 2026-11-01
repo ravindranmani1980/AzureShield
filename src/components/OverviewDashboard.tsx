@@ -490,13 +490,15 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
                         <td className="py-3 px-2 text-center font-mono">
                           <span
                             className={`px-1.5 py-0.5 rounded text-[10px] font-semibold ${
-                              acc.encryptionKeySource === 'Microsoft.Keyvault'
+                              acc.encryptionKeySource === 'Microsoft.Keyvault' ||
+                              acc.customerManagedKeyEnabled
                                 ? 'bg-emerald-50 text-[#1F8A79] border border-emerald-200'
                                 : 'bg-slate-100 text-[#16232F] border border-slate-300'
                             }`}
                             title="Azure Storage encrypts all data at rest by default using 256-bit AES Microsoft-Managed Keys (MMK)"
                           >
-                            {acc.encryptionKeySource === 'Microsoft.Keyvault'
+                            {acc.encryptionKeySource === 'Microsoft.Keyvault' ||
+                            acc.customerManagedKeyEnabled
                               ? 'Encrypted (CMK)'
                               : 'Encrypted (Default MMK)'}
                           </span>

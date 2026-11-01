@@ -770,7 +770,7 @@ export function App() {
                   rel="noopener noreferrer"
                   className="text-[#5FD3BF] hover:underline font-medium inline-flex items-center space-x-1"
                 >
-                  <span>Mani Ravindran (ravindran.in)</span>
+                  <span>Ravindran Mani (ravindran.in)</span>
                   <ExternalLink className="w-3 h-3" />
                 </a>
               </span>

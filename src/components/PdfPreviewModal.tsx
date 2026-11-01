@@ -172,7 +172,7 @@ export const PdfPreviewModal: React.FC<PdfPreviewModalProps> = ({
                   <strong>{maskSensitiveIdentifier(collectionSource, redactIdentifiers)}</strong>
                 </p>
                 <p className="text-xs text-[#546471] mt-0.5">
-                  Tool Author: <strong>Mani Ravindran</strong> (
+                  Tool Author: <strong>Ravindran Mani</strong> (
                   <a
                     href="https://ravindran.in"
                     target="_blank"

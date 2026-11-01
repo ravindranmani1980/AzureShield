@@ -19,7 +19,11 @@ export interface StorageContainer {
   hasStoredAccessPolicyWithNoExpiry: boolean;
   sasTokenIssuedWithFullPermissions: boolean;
   immutabilityPolicyEnabled: boolean;
+  immutabilityPolicy?: boolean;
   blobCount?: number;
+  sizeGb?: number;
+  hasSensitiveData?: boolean;
+  lastModified?: string;
   dataClassification?: 'Confidential' | 'PII/Financial' | 'Internal' | 'Public';
 }
 
@@ -29,19 +33,24 @@ export interface StorageAccount {
   resourceGroup: string;
   subscriptionId: string;
   location: string;
+  sku?: string;
+  kind?: string;
   allowBlobPublicAccess: boolean;
   publicNetworkAccess: 'Enabled' | 'Disabled';
   defaultAction: 'Allow' | 'Deny';
   ipRulesCount: number;
   virtualNetworkRulesCount: number;
   privateEndpointConnectionsCount: number;
+  privateEndpointConnections?: string[];
   supportsHttpsTrafficOnly: boolean;
   minimumTlsVersion: 'TLS1_0' | 'TLS1_1' | 'TLS1_2' | 'TLS1_3';
   allowSharedKeyAccess: boolean;
   infrastructureEncryption: boolean;
   customerManagedKeyEnabled: boolean;
+  encryptionKeySource?: 'Microsoft.Storage' | 'Microsoft.Keyvault';
   softDeleteEnabled: boolean;
   blobRetentionDays: number;
+  blobSoftDeleteDays?: number;
   versioningEnabled: boolean;
   loggingEnabled: boolean;
   defenderForStorageEnabled?: boolean;
@@ -57,7 +66,10 @@ export interface RbacAssignment {
   principalType: 'User' | 'ServicePrincipal' | 'Group' | 'GuestUser';
   roleDefinitionName: string;
   roleDefinitionId: string;
+  roleType?: string;
   scope: string;
+  scopeLevel?: string;
+  scopeName?: string;
   isCustomRole: boolean;
   actions: string[];
   notActions: string[];

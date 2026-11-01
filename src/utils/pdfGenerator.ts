@@ -245,7 +245,7 @@ export function downloadSecurityAuditPdf(
   );
   // Recommendation #8: Use Tool Author instead of Lead Auditor and state Human Review status
   doc.text(
-    `Tool Author: Mani Ravindran (https://ravindran.in)  |  Audit Type: Automated Heuristic Scan (Human Review: Not Performed)`,
+    `Tool Author: Ravindran Mani (https://ravindran.in)  |  Audit Type: Automated Heuristic Scan (Human Review: Not Performed)`,
     14,
     35
   );
@@ -573,7 +573,7 @@ export function downloadSecurityAuditPdf(
         isDemo
           ? 'DEMO DATA — NO LIVE ASSESSMENT'
           : 'CONFIDENTIAL — LIVE AZURE ASSESSMENT'
-      } · Tool Author: Mani Ravindran (ravindran.in) · Page ${p} of ${totalPages}`,
+      } · Tool Author: Ravindran Mani (ravindran.in) · Page ${p} of ${totalPages}`,
       14,
       290
     );

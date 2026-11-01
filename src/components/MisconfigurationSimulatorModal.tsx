@@ -17,13 +17,15 @@ import {
 interface MisconfigurationSimulatorModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onInject: (scenarioType: string) => void;
+  onInject?: (scenarioType: any) => void;
+  onInjectScenario?: (scenarioType: any) => void;
 }
 
 export const MisconfigurationSimulatorModal: React.FC<
   MisconfigurationSimulatorModalProps
-> = ({ isOpen, onClose, onInject }) => {
+> = ({ isOpen, onClose, onInject, onInjectScenario }) => {
   if (!isOpen) return null;
+  const triggerScenario = onInjectScenario || onInject || (() => {});
 
   const scenarios = [
     {
@@ -114,7 +116,7 @@ export const MisconfigurationSimulatorModal: React.FC<
               <div
                 key={sc.id}
                 onClick={() => {
-                  onInject(sc.id);
+                  triggerScenario(sc.id);
                   onClose();
                 }}
                 className="p-4 rounded-xl bg-slate-50 border border-slate-200 hover:border-[#D79A45] hover:bg-white transition-all cursor-pointer flex items-start justify-between gap-3 group"

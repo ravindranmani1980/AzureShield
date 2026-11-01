@@ -59,7 +59,7 @@ function exportBulkRemediationScript(
     `# Generated At       : ${generatedAt}`,
     `# Export Scope       : ${scopeLabel}`,
     `# Pending Commands   : ${sortedFindings.length} (${criticalCount} Critical, ${highCount} High, ${mediumCount} Medium)`,
-    '# Author             : Mani Ravindran (https://ravindran.in)',
+    '# Author             : Ravindran Mani (https://ravindran.in)',
     '# ==============================================================================',
     '# USAGE:',
     '#   1. Dry-Run Preview (Default — zero live Azure modifications):',
